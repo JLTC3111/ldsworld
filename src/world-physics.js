@@ -54,7 +54,15 @@ export function collectWorldColliders({ THREE, roots = [], exclude = [], existin
 // into independent bodies. Reparenting preserves its world-space appearance.
 export function createDynamicBody({ THREE, object, parent, id, mass = 1.5, kind = 'prop', active } = {}) {
   object.updateWorldMatrix(true, true);
-  const bounds = new THREE.Box3().setFromObject(object), centre = bounds.getCenter(new THREE.Vector3()), size = bounds.getSize(new THREE.Vector3());
+  const bounds=new THREE.Box3(),partBounds=new THREE.Box3();
+  object.traverse(part=>{
+    if(!part.isMesh||!part.geometry)return;
+    for(let parent=part;parent;parent=parent.parent)if(parent.userData.physicsIgnore)return;
+    if(!part.geometry.boundingBox)part.geometry.computeBoundingBox();
+    bounds.union(partBounds.copy(part.geometry.boundingBox).applyMatrix4(part.matrixWorld));
+  });
+  if(bounds.isEmpty())throw new Error(`Physical prop ${id} has no solid geometry`);
+  const centre=bounds.getCenter(new THREE.Vector3()),size=bounds.getSize(new THREE.Vector3());
   const wrapper = new THREE.Group(); wrapper.name = `Physical ${id}`; wrapper.userData.propId = id;
   (parent || object.parent).add(wrapper); wrapper.position.copy(centre); wrapper.updateWorldMatrix(true, false); wrapper.attach(object);
   return { id, object: wrapper, x: centre.x, y: centre.y, z: centre.z, radius: Math.max(.13, Math.hypot(size.x, size.z) * .45), height: Math.max(.1, size.y), mass, kind, floorOffset: bounds.min.y - .12, initialSleeping: true, active };

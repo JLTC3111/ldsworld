@@ -20,8 +20,8 @@ export const portals = [
   { id: 'east-gate', x: 23, z: 8.7, exitX: -21, exitZ: -10, heading: Math.PI / 2, color: '#c1a2f3' }
 ];
 export const houses = [
-  { x: -15, z: -17.7, color: '#d6a178' }, { x: -7, z: -17.4, color: '#d2bc87' },
-  { x: 3, z: -17.4, color: '#a3b9ab' }, { x: 14, z: -17.5, color: '#b0a1bd' }
+  {x:-36,z:-42,scale:1.5,color:'#d6a178'}, {x:28,z:-48,scale:1.5,color:'#d2bc87'},
+  {x:58,z:27,scale:1.5,color:'#a3b9ab'}, {x:-45,z:50,scale:1.5,color:'#b0a1bd'}
 ];
 export function bridgeAt(x, z) {
   return bridges.find(bridge => {
@@ -38,6 +38,7 @@ export function bridgeHeightAt(x, z) {
 }
 export const isRiver = (x, z, margin = 0) => Math.abs(x) < RIVER_REACH && Math.abs(z - riverCenter(x)) < RIVER_HALF_WIDTH + margin;
 export const isWater = (x, z) => isRiver(x, z) && !bridgeAt(x, z);
+export const driveHeightAt=(x,z)=>bridgeAt(x,z)?Math.max(0,bridgeHeightAt(x,z)-.1):isWater(x,z)?-.09:0;
 export function crossesWater(a, b) {
   const count = Math.max(2, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / .45));
   for (let i = 0; i <= count; i++) {

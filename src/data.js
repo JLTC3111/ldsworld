@@ -8,7 +8,7 @@ export const projects = [
     highlights: ['Time tracking & employee management', 'Recruitment, goals & performance reviews', 'Interactive dashboards & reporting'],
     tech: ['React', 'Tailwind CSS', 'Chart.js', 'PostgreSQL'],
     live: 'https://hr.icue.vn', github: 'https://github.com/JLTC3111/hr_software',
-    position: [-10.5, -6.8], stop: 'r1', footprint: [5.4, 4], labelHeight: 5.9,
+    position: [-62, -73], stop: 'o1', scale:1.7, rotation:0, footprint: [5.4, 4], labelHeight: 5.9,
     vi: { title: 'Nền tảng Quản trị Nhân sự', short: 'Quản trị Nhân sự', category: 'Nhân sự & năng suất', description: 'Không gian làm việc kết nối con người trong tổ chức. Tích hợp chấm công, danh bạ nhân viên, tuyển dụng, mục tiêu, đánh giá hiệu suất và báo cáo.', highlights: ['Chấm công & quản lý nhân viên', 'Tuyển dụng, mục tiêu & đánh giá hiệu suất', 'Dashboard tương tác & báo cáo'] }
   },
   {
@@ -18,7 +18,7 @@ export const projects = [
     highlights: ['Market data & portfolio tracking', 'News, watchlists & price alerts', 'Historical charts & liquidity monitoring'],
     tech: ['Python', 'Streamlit', 'Plotly', 'NumPy', 'Supabase'],
     live: 'https://jltc3111-crypto-dashboard-home-7grwzp.streamlit.app/', github: 'https://github.com/JLTC3111/crypto-dashboard',
-    position: [4.5, -7.5], stop: 'r2', footprint: [4.8, 3.6], labelHeight: 7.2,
+    position: [56, -72], stop: 'o3', scale:1.55, rotation:0, footprint: [4.8, 3.6], labelHeight: 7.2,
     vi: { title: 'Quản lý Đầu tư Cá nhân', short: 'Quản lý Đầu tư', category: 'Dữ liệu & phân tích', description: 'Góc nhìn thị trường tiền mã hóa được xây dựng bằng Python. Theo dõi dữ liệu thị trường, danh mục đầu tư, tin tức, thanh khoản toàn cầu và xu hướng lịch sử trong một dashboard.', highlights: ['Dữ liệu thị trường & danh mục đầu tư', 'Tin tức, danh sách theo dõi & cảnh báo giá', 'Biểu đồ lịch sử & thanh khoản'] }
   },
   {
@@ -28,7 +28,7 @@ export const projects = [
     highlights: ['Create, track, sign & archive contracts', 'Collaboration & granular permissions', 'Version control & multilingual support'],
     tech: ['React', 'Next.js', 'Supabase', 'Tailwind CSS', 'GSAP'],
     live: 'https://contract.icue.vn/', github: 'https://github.com/JLTC3111/contract-management-app',
-    position: [13, -5.5], stop: 'r4', footprint: [4.6, 3.6], labelHeight: 6.2,
+    position: [108, -29], stop: 'o4', scale:1.8, rotation:Math.PI/4, footprint: [4.6, 3.6], labelHeight: 6.2,
     vi: { title: 'Quản lý Hợp đồng', short: 'Quản lý Hợp đồng', category: 'Phần mềm doanh nghiệp', description: 'Toàn bộ vòng đời hợp đồng trong một nơi. Tạo, chỉnh sửa, theo dõi, ký và lưu trữ hợp đồng với cộng tác, phân quyền, quản lý phiên bản và hỗ trợ đa ngôn ngữ.', highlights: ['Tạo, theo dõi, ký & lưu trữ hợp đồng', 'Cộng tác & phân quyền chi tiết', 'Quản lý phiên bản & đa ngôn ngữ'] }
   },
   {
@@ -38,7 +38,7 @@ export const projects = [
     highlights: ['Drag-and-drop documents & images', 'Batch compression', 'Offline processing & no tracking'],
     tech: ['Python', 'Tkinter', 'PyInstaller'],
     live: null, github: 'https://github.com/JLTC3111/file_compressor',
-    position: [12, 6.8], stop: 'r6', footprint: [4.4, 3.6], labelHeight: 6.7,
+    position: [101, 40], stop: 'o6', scale:1.65, rotation:Math.PI/4, footprint: [4.4, 3.6], labelHeight: 6.7,
     vi: { title: 'Ứng dụng Nén File', short: 'Nén File', category: 'Tiện ích máy tính', description: 'Một công cụ nhỏ giải quyết vấn đề quen thuộc: tệp quá lớn. Kéo thả tài liệu và hình ảnh, nén hàng loạt ngoại tuyến và giữ dữ liệu trên thiết bị của bạn.', highlights: ['Kéo thả tài liệu & hình ảnh', 'Nén tệp hàng loạt', 'Hoạt động ngoại tuyến & không theo dõi'] }
   },
   {
@@ -49,7 +49,7 @@ export const projects = [
     tech: ['JavaScript', 'HTML5', 'CSS'],
     live: 'https://gizen.longd.tech', github: 'https://github.com/JLTC3111/ICUE-GIZ-Ceremony-EN',
     liveVi: 'https://gizvn.longd.tech', githubVi: 'https://github.com/JLTC3111/ICUE-GIZ-Ceremony-VN',
-    position: [4.7, 7.7], stop: 'r8', footprint: [5.1, 3.06], labelHeight: 4.93,
+    position: [4, 77], stop: 'o8', scale:1.36, rotation:0, footprint: [6, 3.6], labelHeight: 5.8,
     vi: { title: 'Lễ Khánh thành & Bàn giao', short: 'Sự kiện Hội An', category: 'Microsite tương tác', description: 'Tôn vinh những nỗ lực phát triển cộng đồng tại Hội An. Microsite ghi lại sự hợp tác giữa IKI, GIZ và ICUE cùng tinh thần hợp tác quốc tế tại Việt Nam.', highlights: ['Phát triển cộng đồng tại Hội An', 'Hợp tác giữa IKI, GIZ & ICUE', 'Trình bày sự kiện tương tác'] }
   },
   {
@@ -60,11 +60,19 @@ export const projects = [
     tech: ['Vite', 'JavaScript', 'Tailwind CSS', 'GSAP', 'AOS'],
     live: 'https://en.icue.vn/', github: 'https://github.com/JLTC3111/ICUE-mainsite-en',
     liveVi: 'https://icue.vn', githubVi: 'https://github.com/JLTC3111/ICUE-mainsite-vn',
-    position: [-11.4, 6.7], stop: 'r10', footprint: [6, 4], labelHeight: 7.8,
+    position: [-104, 38], stop: 'o10', scale:1.55, rotation:Math.PI/4, footprint: [6, 4], labelHeight: 7.8,
     vi: { title: 'Viện Nghiên cứu Đô thị & Kinh tế', short: 'Website ICUE', category: 'Website tổ chức', description: 'Không gian số của Viện Nghiên cứu Đô thị và Kinh tế. Kết nối chuyên gia, chia sẻ kiến thức, giới thiệu dự án và xây dựng cộng đồng trực tuyến.', highlights: ['Tin tức & dự án của Viện', 'Kết nối chuyên gia & cộng đồng', 'Website tiếng Việt & tiếng Anh'] }
   },
 
 ];
+
+// Keep local model dimensions separate from rotated world-space collision bounds.
+for(const project of projects){
+  project.baseFootprint=[...project.footprint];
+  const [width,depth]=project.baseFootprint,c=Math.abs(Math.cos(project.rotation)),s=Math.abs(Math.sin(project.rotation));
+  project.footprint=[((width+1.1)*c+(depth+1.1)*s)*project.scale,((width+1.1)*s+(depth+1.1)*c)*project.scale];
+  project.labelHeight*=project.scale;
+}
 
 export const getProject = id => projects.find(project => project.id === id);
 export const localizeProject = (project, language = 'en') => language === 'vi' ? { ...project, ...project.vi, live: project.liveVi || project.live, github: project.githubVi || project.github } : project;
@@ -84,7 +92,7 @@ export const copy = {
     skills: 'THINGS I WORK WITH', contactLabel: 'LET’S MAKE SOMETHING', contactTitle: 'Good ideas start<br>with a hello.',
     contactText: 'Have a project in mind, a question, or just want to talk about building things? I’d love to hear from you.', email: 'Email Long', emailCopied: 'Email copied', copyEmail: 'Copy email address',
     helpTitle: 'Take the scenic route.', helpIntro: 'This little island is yours to explore. Each project building opens a real piece of work.',
-    helpDrive: 'WASD or arrow keys to drive', helpClick: 'Click the ground to drive there', jump:'Jump', helpProps: 'Click loose objects to nudge them, or bump them with the car', helpProject: 'Click a building to explore its project', helpBoost: 'Shift to boost · Space for a hydraulic jump · H to honk', helpMore: 'Click the car or press Escape to stop and show controls · M for map · P for projects · R to reset', helpTouch: 'Use the on-screen arrows, tap to drive, or use two fingers to pan and pinch to zoom.',
+    helpDrive: 'WASD or arrow keys to drive', helpClick: 'Click the ground to drive there, including through shallow streams', jump:'Jump', helpProps: 'Click loose objects to nudge them, or bump them with the car', helpProject: 'Click a building to explore its project', helpBoost: 'Shift to boost · Space for a hydraulic jump · H to honk', helpMore: 'Click the car or press Escape to stop and show controls · M for map · P for projects · R to reset', helpTouch: 'Use the on-screen arrows, tap to drive, or use two fingers to pan and pinch to zoom.',
     soundOn: 'Sound on', soundOff: 'Sound off', day: 'Switch to light theme', night: 'Switch to dark theme',
     arrive: 'You’ve arrived', touring: 'On the way to', driving: 'Enjoy the drive.', nearby: 'Nearby', inspect: 'Explore', ready: 'YOUR LITTLE ADVENTURE STARTS HERE',
     route: 'Route', stopTour: 'Stop tour', return: 'Back to the island', demo: 'Original project demo',
@@ -103,7 +111,7 @@ export const copy = {
     navigationHint: 'WASD to drive · Drag to orbit · Scroll to zoom',
     canvasAria: 'Use WASD or arrow keys to drive. Click the ground to travel, buildings for projects, and loose objects to nudge them. Drag to orbit, right-drag to pan, and scroll or pinch to zoom.',
     scenicSign: 'TAKE THE\nSCENIC ROUTE', welcomeSign: 'HELLO, CURIOUS HUMAN.', dataSign: 'DATA LAB', contractsSign: 'CONTRACTS', compressorSign: 'SMALLER IS BETTER',
-    worldSettings: 'World', worldTitle: 'A world with a little life.', worldIntro: 'Explore the village, then take the outer roads into the open landscape. Follow the river or travel through a glowing portal.',
+    worldSettings: 'World', worldTitle: 'A world with a little life.', worldIntro: 'Discover project buildings across the island. Follow the roads, drive through shallow streams, and find warm fire cans after sunset.',
     timeLabel: 'TIME OF DAY', timeAuto: 'Daylight cycle', timeSunrise: 'Sunrise', timeDay: 'Day', timeSunset: 'Sunset', timeNight: 'Night',
     weatherLabel: 'WEATHER', weatherClear: 'Clear', weatherRain: 'Rain', weatherSnow: 'Snow', weatherAuto: 'Changing',
     headlightsLabel: 'HEADLIGHTS', lightsAuto: 'Automatic', lightsOn: 'On', lightsOff: 'Off',
@@ -135,7 +143,7 @@ export const copy = {
     skills: 'CÔNG NGHỆ MÌNH SỬ DỤNG', contactLabel: 'CÙNG TẠO NÊN ĐIỀU GÌ ĐÓ', contactTitle: 'Ý tưởng hay bắt đầu<br>từ một lời chào.',
     contactText: 'Bạn có ý tưởng dự án, một câu hỏi, hay đơn giản muốn trò chuyện về việc xây dựng sản phẩm? Mình rất vui được nghe từ bạn.', email: 'Gửi email cho Long', emailCopied: 'Đã sao chép email', copyEmail: 'Sao chép địa chỉ email',
     helpTitle: 'Chọn con đường thú vị.', helpIntro: 'Hòn đảo nhỏ này dành cho bạn khám phá. Mỗi tòa nhà dự án đều mở ra một sản phẩm thực tế.',
-    helpDrive: 'WASD hoặc phím mũi tên để lái xe', helpClick: 'Nhấp xuống đất để lái xe tới đó', jump:'Nhảy', helpProps: 'Nhấp để đẩy đồ vật rời, hoặc dùng xe chạm vào chúng', helpProject: 'Nhấp vào tòa nhà để khám phá dự án', helpBoost: 'Shift để tăng tốc · Space để nhảy bằng thủy lực · H để bấm còi', helpMore: 'Nhấp xe hoặc nhấn Escape để dừng và hiện điều khiển · M mở bản đồ · P xem dự án · R đặt lại', helpTouch: 'Dùng phím điều hướng, chạm để lái xe, hoặc dùng hai ngón để di chuyển góc nhìn và chụm/mở để thu phóng.',
+    helpDrive: 'WASD hoặc phím mũi tên để lái xe', helpClick: 'Nhấp xuống đất để lái xe tới đó, kể cả qua suối nông', jump:'Nhảy', helpProps: 'Nhấp để đẩy đồ vật rời, hoặc dùng xe chạm vào chúng', helpProject: 'Nhấp vào tòa nhà để khám phá dự án', helpBoost: 'Shift để tăng tốc · Space để nhảy bằng thủy lực · H để bấm còi', helpMore: 'Nhấp xe hoặc nhấn Escape để dừng và hiện điều khiển · M mở bản đồ · P xem dự án · R đặt lại', helpTouch: 'Dùng phím điều hướng, chạm để lái xe, hoặc dùng hai ngón để di chuyển góc nhìn và chụm/mở để thu phóng.',
     soundOn: 'Bật âm thanh', soundOff: 'Tắt âm thanh', day: 'Chuyển sang giao diện sáng', night: 'Chuyển sang giao diện tối',
     arrive: 'Bạn đã đến', touring: 'Đang đến', driving: 'Tận hưởng hành trình.', nearby: 'Ở gần', inspect: 'Khám phá', ready: 'HÀNH TRÌNH NHỎ BẮT ĐẦU TỪ ĐÂY',
     route: 'Lộ trình', stopTour: 'Dừng tham quan', return: 'Trở lại hòn đảo', demo: 'Video demo gốc của dự án',
@@ -154,7 +162,7 @@ export const copy = {
     navigationHint: 'WASD để lái xe · Kéo để xoay · Cuộn để thu phóng',
     canvasAria: 'Dùng WASD hoặc phím mũi tên để lái xe. Nhấp xuống đất để đi đến, tòa nhà để xem dự án và đồ vật rời để đẩy chúng. Kéo để xoay, kéo chuột phải để di chuyển góc nhìn và cuộn hoặc chụm/mở để thu phóng.',
     scenicSign: 'CHỌN CON ĐƯỜNG\nTHÚ VỊ HƠN', welcomeSign: 'CHÀO BẠN, NGƯỜI TÒ MÒ.', dataSign: 'PHÂN TÍCH', contractsSign: 'HỢP ĐỒNG', compressorSign: 'GỌN NHẸ HƠN',
-    worldSettings: 'Thế giới', worldTitle: 'Một thế giới đầy sức sống.', worldIntro: 'Đi theo ánh nắng, qua cầu bắc ngang dòng sông, hoặc lái xe vào cánh cổng phát sáng. Luôn có một góc mới để khám phá.',
+    worldSettings: 'Thế giới', worldTitle: 'Một thế giới đầy sức sống.', worldIntro: 'Khám phá các tòa nhà dự án khắp hòn đảo. Đi theo những con đường, lái xe qua suối cạn và tìm những thùng lửa ấm áp sau hoàng hôn.',
     timeLabel: 'THỜI ĐIỂM', timeAuto: 'Ngày đêm tự động', timeSunrise: 'Bình minh', timeDay: 'Ban ngày', timeSunset: 'Hoàng hôn', timeNight: 'Ban đêm',
     weatherLabel: 'THỜI TIẾT', weatherClear: 'Trời quang', weatherRain: 'Mưa', weatherSnow: 'Tuyết', weatherAuto: 'Thay đổi',
     headlightsLabel: 'ĐÈN PHA', lightsAuto: 'Tự động', lightsOn: 'Bật', lightsOff: 'Tắt',

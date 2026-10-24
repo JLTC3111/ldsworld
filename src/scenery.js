@@ -1,3 +1,4 @@
+import { createStreamWater } from './stream-water.js';
 import { bridges, bridgeHeightAt, houses, portals, riverCenter, RIVER_HALF_WIDTH, bridgeAt, RIVER_REACH, WORLD_SCALE } from './world-layout.js';
 import { projects } from './data.js';
 
@@ -67,49 +68,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
     swaying.push({ object: hanging, phase: index * .7, amplitude: .075 }); return hanging;
   }
 
-  // The stream has a shaped bed, low banks, moving surface and drifting foam.
-  const riverGeometry = ownGeo(new THREE.BufferGeometry());
-  const riverPositions = [], riverColors = [], riverIndices = [];
-  const riverSegments = Math.max(180,Math.ceil(RIVER_REACH*2/.8));
-  const edgeColor = new THREE.Color('#9cc8b8'), centreColor = new THREE.Color('#68a9a4');
-  for (let i = 0; i <= riverSegments; i++) {
-    const x = -RIVER_REACH + i / riverSegments * RIVER_REACH*2;
-    for (let side = -1; side <= 1; side++) {
-      riverPositions.push(x, .16, riverCenter(x) + side * RIVER_HALF_WIDTH);
-      const color = side === 0 ? centreColor : edgeColor; riverColors.push(color.r, color.g, color.b);
-    }
-    if (i < riverSegments) for (let side = 0; side < 2; side++) {
-      const a = i * 3 + side; riverIndices.push(a, a + 3, a + 1, a + 1, a + 3, a + 4);
-    }
-  }
-  riverGeometry.setAttribute('position', new THREE.Float32BufferAttribute(riverPositions, 3));
-  riverGeometry.setAttribute('color', new THREE.Float32BufferAttribute(riverColors, 3)); riverGeometry.setIndex(riverIndices); riverGeometry.computeVertexNormals();
-  const waterMaterial = ownMat('#ffffff', { vertexColors: true, roughness: .24, metalness: .08, side: THREE.DoubleSide });
-  const water = mesh(riverGeometry, waterMaterial, root, 0, 0, 0, false); water.name = 'Winding animated river';
-  for (const x of [-RIVER_REACH+.3, RIVER_REACH-.3]) {
-    const fall = box(.16, 1.58, RIVER_HALF_WIDTH * 1.85, ownMat('#8bbeb3', { transparent: true, opacity: .8, roughness: .2 }), root, x, -.6, riverCenter(x), false);
-    fall.name = 'River mouth waterfall';
-    const splash = mesh(ownGeo(new THREE.RingGeometry(.55, .66, 24)), basic('#d3e6d9', { transparent: true, opacity: .6, side: THREE.DoubleSide }), root, x, -1.4, riverCenter(x), false);
-    splash.rotation.x = -Math.PI / 2; splash.scale.set(1, 1.6, 1);
-  }
-  for (const bank of [-1, 1]) {
-    const positions = [], indices = [];
-    for (let i = 0; i <= riverSegments; i++) {
-      const x = -RIVER_REACH + i / riverSegments * RIVER_REACH*2, z = riverCenter(x) + bank * RIVER_HALF_WIDTH;
-      positions.push(x, .155, z, x, .22, z + bank * .24, x, .04, z + bank * .5);
-      if (i < riverSegments) for (let j = 0; j < 2; j++) { const a = i * 3 + j; indices.push(a, a + 3, a + 1, a + 1, a + 3, a + 4); }
-    }
-    const geometry = ownGeo(new THREE.BufferGeometry()); geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3)); geometry.setIndex(indices); geometry.computeVertexNormals();
-    mesh(geometry, ownMat(bank < 0 ? '#c5c4a3' : '#b5bc94', { side: THREE.DoubleSide }), root, 0, 0, 0, false);
-  }
-  const foamPositions = new Float32Array((coarse ? 60 : 120) * 6);
-  const foamGeometry = ownGeo(new THREE.BufferGeometry()); foamGeometry.setAttribute('position', new THREE.BufferAttribute(foamPositions, 3));
-  for (let i = 0; i < foamPositions.length / 6; i++) {
-    const x = -RIVER_REACH+1 + i / (foamPositions.length / 6) * (RIVER_REACH*2-2), z = riverCenter(x) + Math.sin(i * 2.3) * .65, at = i * 6;
-    foamPositions.set([x, .19, z, x + .3, .19, z + .035], at);
-  }
-  const foamMaterial = new THREE.LineBasicMaterial({ color: '#d9ede0', transparent: true, opacity: .6 }); ownedMaterials.add(foamMaterial);
-  const foam = new THREE.LineSegments(foamGeometry, foamMaterial); root.add(foam); foam.name = 'River current glints';
+  const stream=createStreamWater({THREE,parent:root,scene,coarse,reducedMotion});
 
   // Every crossing shares the exact driveable profile used by physics.
   for (const bridge of bridges) {
@@ -179,7 +138,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   const roofTileGeometry = ownGeo(new THREE.BoxGeometry(1, 1, 1));
   const windowMaterials = [];
   houses.forEach((house, index) => {
-    const home = group(root, house.x, house.z); home.name = `Riverside cottage ${index + 1}`;
+    const home = group(root, house.x, house.z); home.name = `Riverside cottage ${index + 1}`;home.scale.setScalar(house.scale||1);
     const wall = ownMat(house.color), timber = '#8f795b', roofColor = ['#a77e5e', '#899474', '#8b7772', '#7c8f82'][index];
     box(3.05, .22, 2.85, '#c8c5a5', home, 0, .16, 0);
     box(2.65, 2.2, 2.45, wall, home, 0, 1.35, 0);
@@ -240,7 +199,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
     for (let i = 0; i < 5; i++) sphere(.12, i % 2 ? '#d0b77a' : '#88a16f', home, -1 + i * .17, 1.24 + (i % 2) * .07, 1.5, 0);
     cylinder(.04, .04, 2.1, '#8e9c83', home, 1.36, 1.35, .7, 5);
     lantern(home, 1.08, 2.04, 1.67, index);
-    colliders.push({ x: house.x, z: house.z + .2, width: 2.9, depth: 3.05, kind: 'house' });
+    colliders.push({ x: house.x, z:house.z+.72*(house.scale||1),width:3.2*(house.scale||1),depth:4.5*(house.scale||1), kind: 'house' });
   });
 
   // A few lush, drooping willows and slender birches distinguish the river banks.
@@ -252,7 +211,8 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   const willowLeaves = new THREE.InstancedMesh(leafGeometry, willowMaterial, treeLocations.length * (coarse?48:84)); willowLeaves.castShadow = true; willowLeaves.receiveShadow = true; root.add(willowLeaves);
   willowLeaves.userData.physicsIgnore = true;
   let leafIndex = 0;
-  treeLocations.forEach(([x, z, scale], index) => {
+  treeLocations.forEach(([x, z, authoredScale], index) => {
+    const scale=authoredScale*1.8;
     const tree = group(root, x, z); tree.name = `River willow ${index + 1}`;
     const trunk = cylinder(.12 * scale, .23 * scale, 2.2 * scale, '#988565', tree, 0, 1.2 * scale, 0, 7); trunk.rotation.z = -.08;
     for (let branch = 0; branch < 3; branch++) {
@@ -269,9 +229,9 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   const birchLeaves = new THREE.InstancedMesh(leafGeometry, birchMaterial, birches.length * (coarse?30:54)); birchLeaves.castShadow = true; root.add(birchLeaves); leafIndex = 0;
   birchLeaves.userData.physicsIgnore = true;
   birches.forEach(([x, z], index) => {
-    cylinder(.09, .17, 3.4, '#e6dfc6', root, x, 1.8, z, 7);
+    cylinder(.15,.28,5.6,'#e6dfc6',root,x,2.9,z,7);
     for (let i = 0; i < 7; i++) box(.12, .035, .035, '#938e75', root, x + (i % 2 ? -.04 : .04), .6 + i * .4, z + .115);
-    for (let i = 0; i < (coarse?30:54); i++) {const a=i*2.4,r=.3+random()*.65; dummy.position.set(x + Math.sin(a) * r, 2.7 + random()*1.3, z + Math.cos(a) * r); dummy.rotation.set(random(), a + index, .2); dummy.scale.set(.21, .24+random()*.14, .19); dummy.updateMatrix(); birchLeaves.setMatrixAt(leafIndex++, dummy.matrix); }
+    for (let i = 0; i < (coarse?30:54); i++) {const a=i*2.4,r=.3+random()*.65; dummy.position.set(x + Math.sin(a) * r, 4.5 + random()*2.1, z + Math.cos(a) * r); dummy.rotation.set(random(), a + index, .2); dummy.scale.set(.34,.4+random()*.23,.31); dummy.updateMatrix(); birchLeaves.setMatrixAt(leafIndex++, dummy.matrix); }
   });
   const pebbleLocations = [];
   for (let i = 0; i < 120; i++) {
@@ -390,29 +350,17 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   }
 
   const baseWillow = new THREE.Color('#90a974'), baseBirch = new THREE.Color('#b1bd85'), snowColor = new THREE.Color('#e7ece0');
-  function update(dt, time, { night = 0, weather = 'clear' } = {}) {
+  function update(dt,time,{night=0,daylight=1-night,weather='clear',driver,sunAngle=0,sunHeight=1}={}) {
     const darkness = typeof night === 'boolean' ? Number(night) : THREE.MathUtils.clamp(night, 0, 1);
     snowCover += ((weather === 'snow' ? 1 : 0) - snowCover) * Math.min(1, dt * .45);
     snowLayers.forEach(layer => { layer.visible = snowCover > .01; layer.material.opacity = snowCover * .9; });
     willowMaterial.color.copy(baseWillow).lerp(snowColor, snowCover * .42); birchMaterial.color.copy(baseBirch).lerp(snowColor, snowCover * .5);
-    waterMaterial.roughness = weather === 'rain' ? .12 : .24;
+    stream.update(dt,{night,weather,driver,daylight,sunAngle,sunHeight});
     for (const material of lanternMaterials) material.emissiveIntensity = .12 + darkness * 1.65;
     windowMaterials.forEach(material => { material.emissiveIntensity = .025 + darkness * 1.3; });
     lightObjects.forEach(light => { light.intensity = light.color.getHex() === 0xf7c27b ? darkness * 1.4 : .3 + darkness * .8; });
     if (reducedMotion) return;
     tick = time;
-    const position = riverGeometry.attributes.position;
-    for (let i = 0; i < position.count; i++) {
-      const x = position.getX(i), z = position.getZ(i);
-      position.setY(i, .16 + Math.sin(x * 1.1 - time * 1.8 + z) * .012 + Math.sin(x * 2.4 + time) * .006);
-    }
-    position.needsUpdate = true;
-    for (let i = 0; i < foamPositions.length / 6; i++) {
-      const x = ((i * 2.41 + time * .72 + RIVER_REACH) % (RIVER_REACH*2)) - RIVER_REACH, z = riverCenter(x) + Math.sin(i * 2.3) * .65;
-      const at = i * 6; foamPositions[at] = x; foamPositions[at + 1] = .19; foamPositions[at + 2] = z;
-      foamPositions[at + 3] = x + .22 + (i % 3) * .12; foamPositions[at + 4] = .19; foamPositions[at + 5] = z + .035;
-    }
-    foamGeometry.attributes.position.needsUpdate = true;
     swaying.forEach(({ object, phase, amplitude }) => { object.rotation.z = Math.sin(time * .8 + phase) * amplitude * (weather === 'rain' ? 1.7 : 1); });
     smoke.forEach(puff => {
       const age = (time * .22 + puff.phase) % 1;
@@ -435,7 +383,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   return {
     root, colliders, bodies, lamps, portalGroups, stats: { staticBatches, batchedObjects },
     update,
-    reset() { tick = 0; swaying.forEach(item => { item.object.rotation.z = 0; }); portalEffects.forEach(effect => { effect.vortex.rotation.z = effect.phase; }); },
-    dispose() { root.removeFromParent(); ownedGeometries.forEach(geometry => geometry.dispose()); ownedMaterials.forEach(material => material.dispose()); }
+    reset() { stream.reset();tick = 0; swaying.forEach(item => { item.object.rotation.z = 0; }); portalEffects.forEach(effect => { effect.vortex.rotation.z = effect.phase; }); },
+    dispose() { stream.dispose();root.removeFromParent(); ownedGeometries.forEach(geometry => geometry.dispose()); ownedMaterials.forEach(material => material.dispose()); }
   };
 }

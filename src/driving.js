@@ -1,24 +1,25 @@
-import { bridges, bridgeHeightAt, crossesWater, isWater, riverCenter, RIVER_HALF_WIDTH, WORLD_SCALE, islandRadius } from './world-layout.js';
+import { bridges, bridgeHeightAt, driveHeightAt, isWater, WORLD_SCALE, islandRadius } from './world-layout.js';
 import { ColliderIndex, colliderActive } from './physics.js';
 
 export const roadNodes = {
   r0: [-18, -7], r1: [-12, -12.5], r2: [0, -13], r3: [12, -12],
   r4: [19, -6], r5: [20, -.9], r6: [18, 7], r7: [12, 12.5],
   r8: [0, 13], r9: [-12, 12.5], r10: [-19, 6], r11: [-20, 0],
-  c0: [0, 0], c1: [-7, 0], c2: [8, -.9]
+  c0: [0, 0], c1: [-7, 0], c2: [8, -.9], 'link-west-1':[-16,-15], 'link-west-2':[-30,-23]
 };
 // The east junction sits just below the bridge entrance so a full-length car
 // can turn onto the cross-island road without clipping its solid guardrail.
 export const roadLoop = Array.from({ length: 12 }, (_, i) => roadNodes[`r${i}`]);
 for(let i=0;i<12;i++) roadNodes[`o${i}`]=roadLoop[i].map(value=>value*WORLD_SCALE);
 export const outerRoadLoop=Array.from({length:12},(_,i)=>roadNodes[`o${i}`]);
+export const connectorPaths=[['r2','o2'],['r8','o8'],['r0','link-west-1','link-west-2','o0'],['r4','o4']];
 for (const bridge of bridges) {
   roadNodes[`bridge-${bridge.id}-north`] = [bridge.x - Math.sin(bridge.heading) * 2.7, bridge.z - Math.cos(bridge.heading) * 2.7];
   roadNodes[`bridge-${bridge.id}-south`] = [bridge.x + Math.sin(bridge.heading) * 2.7, bridge.z + Math.cos(bridge.heading) * 2.7];
 }
 const edges = Array.from({ length: 12 }, (_, i) => [`r${i}`, `r${(i + 1) % 12}`]).filter(([a, b]) => !(['r5', 'r6'].includes(a) && ['r5', 'r6'].includes(b)) && !(['r10', 'r11'].includes(a) && ['r10', 'r11'].includes(b)));
 edges.push(...Array.from({length:12},(_,i)=>[`o${i}`,`o${(i+1)%12}`]).filter(([a,b])=>!(['o5','o6'].includes(a)&&['o5','o6'].includes(b))&&!(['o10','o11'].includes(a)&&['o10','o11'].includes(b))));
-edges.push(['r2','o2'],['r8','o8'],['r0','o0'],['r4','o4']);
+for(const route of connectorPaths)for(let i=1;i<route.length;i++)edges.push([route[i-1],route[i]]);
 edges.push(['r2', 'c0'], ['r11', 'c1'], ['c1', 'c0'], ['c0', 'c2'], ['c2', 'r5']);
 for (const [id, a, b] of [['west', 'r11', 'r10'], ['village', 'c0', 'r8'], ['east', 'r5', 'r6'],['outer-west','o11','o10'],['outer-east','o5','o6']]) edges.push([a, `bridge-${id}-north`], [`bridge-${id}-north`, `bridge-${id}-south`], [`bridge-${id}-south`, b]);
 const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -79,8 +80,7 @@ export function planGroundRoute(start, target, colliders = []) {
     if (c.width / 2 + .85 - Math.abs(dx) < c.depth / 2 + .85 - Math.abs(dz)) goal[0] = c.x + Math.sign(dx || 1) * (c.width / 2 + .87);
     else goal[1] = c.z + Math.sign(dz || 1) * (c.depth / 2 + .87);
   }
-  if (isWater(goal[0], goal[1])) goal[1] = riverCenter(goal[0]) + Math.sign(goal[1] - riverCenter(goal[0]) || 1) * (RIVER_HALF_WIDTH + .12);
-  const clear = (a, b) => !crossesWater(a, b) && !colliders.some(c => {
+  const clear = (a, b) => !colliders.some(c => {
     if (inside(a, c, .8)) {
       // A car resting against a wall must be able to leave the clearance band.
       const axis = c.width / 2 + .8 - Math.abs(a[0] - c.x) < c.depth / 2 + .8 - Math.abs(a[1] - c.z) ? 0 : 1;
@@ -99,7 +99,7 @@ export function planGroundRoute(start, target, colliders = []) {
   });
   if (clear(start, goal)) return [goal];
   const corners = colliders.flatMap(c => [-1, 1].flatMap(x => [-1, 1].map(z => [c.x + x * (c.width / 2 + 1.75), c.z + z * (c.depth / 2 + 1.75)])));
-  const nodes = [start, goal, ...[...Object.values(roadNodes), ...corners].filter(p => islandRadius(...p) < .995 && !isWater(...p) && !colliders.some(c => inside(p, c)))];
+  const nodes = [start, goal, ...[...Object.values(roadNodes), ...corners].filter(p => islandRadius(...p) < .995 && !colliders.some(c => inside(p, c)))];
   const costs = nodes.map(() => Infinity), previous = [], remaining = new Set(nodes.map((_, index) => index)); costs[0] = 0;
   while (remaining.size) {
     const current = [...remaining].reduce((a, b) => costs[a] < costs[b] ? a : b);
@@ -131,7 +131,7 @@ export class Driver {
     this.finalTolerance = 1.05;
     this.vx = 0; this.vz = 0; this.velocityHeading = this.heading;
     this.groundHeight = 0; this.groundVelocity = 0; this.pitch = 0; this.roll = 0;
-    this.collisionImpact = 0; this.weather = 'clear';
+    this.inWater=false;this.collisionImpact = 0; this.weather = 'clear';
     this.acceleration = 0; this.rpm = 650; this.gear = 0;
     this.wheelHeights = { frontLeft: 0, frontRight: 0, rearLeft: 0, rearRight: 0 };
   }
@@ -218,12 +218,8 @@ export class Driver {
     }
     const shore = islandRadius(nextX,nextZ);
     if (shore > 1) { nextX /= shore * 1.005; nextZ /= shore * 1.005; this.collisionImpact = Math.max(this.collisionImpact, Math.abs(this.speed)); this.speed *= -.3; }
-    if (isWater(nextX, nextZ)) {
-      const side = Math.sign(oldZ - riverCenter(oldX) || 1);
-      nextZ = riverCenter(nextX) + side * (RIVER_HALF_WIDTH + .025);
-      this.collisionImpact = Math.max(this.collisionImpact, Math.abs(this.speed) * .6);
-      this.speed *= -.25;
-    }
+    this.inWater=isWater(nextX,nextZ);
+    if(this.inWater&&this.hop<.1)this.speed*=Math.exp(-1.05*dt);
     this.x = nextX; this.z = nextZ;
     this.vx = dt ? (this.x - oldX) / dt : 0; this.vz = dt ? (this.z - oldZ) / dt : 0;
     this.distance += Math.hypot(this.x - oldX, this.z - oldZ);
@@ -237,12 +233,12 @@ export class Driver {
     this.hydraulicVelocity+=((hydraulicTarget-this.hydraulicOffset)*140-this.hydraulicVelocity*18)*dt;
     this.hydraulicOffset=clamp(this.hydraulicOffset+this.hydraulicVelocity*dt,-.21,.17);
     if(!this.jumpPending&&!this.hop&&Math.abs(this.hydraulicOffset)<.002&&Math.abs(this.hydraulicVelocity)<.02){this.hydraulicOffset=0;this.hydraulicVelocity=0;this.hydraulicPhase='idle';}
-    const targetGround = Math.max(0, bridgeHeightAt(this.x, this.z) - .1);
+    const targetGround = driveHeightAt(this.x,this.z);
     this.groundVelocity += ((targetGround - this.groundHeight) * 85 - this.groundVelocity * 16) * dt;
     this.groundHeight += this.groundVelocity * dt;
     if (Math.abs(this.groundHeight) < .0001 && !targetGround) this.groundHeight = 0;
-    const front = bridgeHeightAt(this.x + Math.sin(this.heading) * .72, this.z + Math.cos(this.heading) * .72);
-    const back = bridgeHeightAt(this.x - Math.sin(this.heading) * .72, this.z - Math.cos(this.heading) * .72);
+    const front = driveHeightAt(this.x + Math.sin(this.heading) * .72, this.z + Math.cos(this.heading) * .72);
+    const back = driveHeightAt(this.x - Math.sin(this.heading) * .72, this.z - Math.cos(this.heading) * .72);
     const targetPitch = clamp(Math.atan2(back - front, 1.44) + (this.speed - previousSpeed) * .018, -.3, .3);
     const targetRoll = clamp(-this.steering * this.speed * (snowy ? .022 : .013), -.22, .22);
     this.pitch += (targetPitch - this.pitch) * Math.min(dt * 10, 1); this.roll += (targetRoll - this.roll) * Math.min(dt * 8, 1);
@@ -251,7 +247,7 @@ export class Driver {
     const targetRpm = clamp(650 + Math.abs(this.speed) * 280 + Math.max(0, this.acceleration) * 65, 650, 5600);
     this.rpm += (targetRpm - this.rpm) * Math.min(dt * 7, 1);
     for (const [name, side, along] of [['frontLeft', -.72, .68], ['frontRight', .72, .68], ['rearLeft', -.72, -.66], ['rearRight', .72, -.66]]) {
-      this.wheelHeights[name] = Math.max(0, bridgeHeightAt(this.x + side * Math.cos(this.heading) + along * Math.sin(this.heading), this.z - side * Math.sin(this.heading) + along * Math.cos(this.heading)) - .1);
+      this.wheelHeights[name] = driveHeightAt(this.x + side * Math.cos(this.heading) + along * Math.sin(this.heading), this.z - side * Math.sin(this.heading) + along * Math.cos(this.heading));
     }
     return { arrived, cancelled };
   }

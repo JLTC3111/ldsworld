@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const colliders = projects.map(p => ({ x: p.position[0], z: p.position[1], width: p.footprint[0], depth: p.footprint[1] }));
 function finishRoute(driver, id) {
-  for (let step = 0; step < 2100; step++) {
+  for (let step = 0; step < Math.ceil(driver.routeDurationLimit*60)+120; step++) {
     const result = driver.step(1 / 60);
     if (result.arrived === id) return step / 60;
     if (result.cancelled) return Infinity;
@@ -41,7 +41,7 @@ test('the guided tour reaches every stop in order without a reset', () => {
   for (const project of projects) {
     driver.navigate(project.stop, project.id);
     const duration = finishRoute(driver, project.id);
-    assert.ok(duration < 25, `${project.id} must be reachable; got ${duration}s at ${driver.x}, ${driver.z}`);
+    assert.ok(duration < driver.routeDurationLimit, `${project.id} must be reachable; got ${duration}s at ${driver.x}, ${driver.z}`);
   }
 });
 

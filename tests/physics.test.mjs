@@ -4,19 +4,19 @@ import { Driver, planGroundRoute, angleDifference } from '../src/driving.js';
 import { PhysicsWorld, PortalSystem } from '../src/physics.js';
 import { bridges, bridgeHeightAt, crossesWater, isWater, portals, riverCenter } from '../src/world-layout.js';
 
-test('water crossings are planned over bridge decks rather than through the river', () => {
-  const start = [-8, 0], goal = [-8, 8], route = planGroundRoute(start, goal);
-  assert.ok(route.length > 1);
-  let previous = start;
-  for (const point of route) { assert.equal(crossesWater(previous, point), false); previous = point; }
-  assert.deepEqual(route.at(-1), goal);
+test('shallow streams accept direct routes and a driver can ford them without a bridge',()=>{
+  const start=[-8,0],goal=[-8,8],route=planGroundRoute(start,goal);
+  assert.deepEqual(route,[goal]);assert.equal(crossesWater(start,goal),true);
+  const driver=new Driver();[driver.x,driver.z]=start;driver.driveTo(...goal);let waded=false,lowest=0;
+  for(let i=0;i<900&&driver.route.length;i++){assert.equal(driver.step(1/60).cancelled,false);waded||=driver.inWater;lowest=Math.min(lowest,driver.groundHeight);}
+  assert.ok(waded&&lowest<-.04);assert.ok(Math.hypot(driver.x-goal[0],driver.z-goal[1])<1.3);
 });
 
-test('a manual driver meets the river bank and receives collision feedback', () => {
-  const driver = new Driver(); driver.x = 8; driver.z = 0; driver.heading = 0; driver.velocityHeading = 0;
-  let impact = 0, furthest = 0;
-  for (let i = 0; i < 240; i++) { driver.step(1 / 60, { forward: true }); impact = Math.max(impact, driver.collisionImpact); furthest = Math.max(furthest, driver.z); assert.equal(isWater(driver.x, driver.z), false); }
-  assert.ok(furthest < riverCenter(8) - 1); assert.ok(impact > 1);
+test('manual driving crosses the stream with water drag instead of an invisible bank collision',()=>{
+  const driver=new Driver();driver.x=8;driver.z=0;driver.heading=driver.velocityHeading=0;
+  let waded=false,impact=0,lowest=0;
+  for(let i=0;i<240;i++){driver.step(1/60,{forward:true});waded||=driver.inWater;impact=Math.max(impact,driver.collisionImpact);lowest=Math.min(lowest,driver.groundHeight);}
+  assert.ok(waded&&lowest<-.04);assert.ok(driver.z>riverCenter(8)+2);assert.equal(impact,0);assert.ok(Math.abs(driver.groundHeight)<.001);
 });
 
 test('the full front bumper stops before a wall rather than letting the hood pass through', () => {

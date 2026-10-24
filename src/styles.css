@@ -297,9 +297,9 @@ body.loaded #world-loading {
   position: relative;
   display: block;
   width: 3.8em;
-  height: 1.5em;
+  height: 1.16em;
   flex: none;
-  line-height: 1.5;
+  line-height: 1.16;
   white-space: nowrap;
 }
 .brand-wordmark :is(.tech-text-svg, .tech-text-canvas) {
@@ -316,7 +316,7 @@ body.loaded #world-loading {
   font: 7px var(--mono);
   line-height: 1.5;
   letter-spacing: .55px;
-  margin-top: 5px;
+  margin-top: 0;
   color: var(--brand-muted);
   white-space: nowrap;
 }

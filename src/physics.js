@@ -1,7 +1,7 @@
-import { bridgeHeightAt, isWater, portals as islandPortals, riverCenter, RIVER_HALF_WIDTH, ISLAND_BOUNDS } from './world-layout.js';
+import { bridgeHeightAt, isWater, portals as islandPortals, ISLAND_BOUNDS } from './world-layout.js';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-const floorAt = body => Math.max(.12, bridgeHeightAt(body.x, body.z)) + body.height / 2 + (body.floorOffset || 0);
+const floorAt = body => Math.max(.12,bridgeHeightAt(body.x,body.z)) + (isWater(body.x,body.z)?-.09:0) + body.height/2 + (body.floorOffset||0);
 const activeBody = body => !body.active || body.active();
 export const colliderActive = (collider, bottom = -Infinity, top = Infinity) => (!collider.active || collider.active()) && (collider.maxY ?? Infinity) > bottom && (collider.minY ?? -Infinity) < top;
 
@@ -68,7 +68,6 @@ export class PhysicsWorld {
           if (body.sleeping) continue;
         }
         body.previousY = body.y;
-        const oldZ = body.z;
         const grounded = body.y <= floorAt(body) + .015 && body.vy <= .05;
         const damping = Math.exp(-(grounded ? friction : .12) * dt);
         body.vx *= damping; body.vz *= damping;
@@ -86,10 +85,6 @@ export class PhysicsWorld {
           const length = Math.hypot(body.x, body.z), nx = body.x / length, nz = body.z / length;
           const outward = body.vx * nx + body.vz * nz;
           if (outward > 0) { body.vx -= outward * nx * 1.35; body.vz -= outward * nz * 1.35; }
-        }
-        if (body.displaced && isWater(body.x, body.z)) {
-          body.z = riverCenter(body.x) + Math.sign(oldZ - riverCenter(body.x) || 1) * (RIVER_HALF_WIDTH + .04);
-          body.vz *= -.28; body.vx *= .7;
         }
         if (driver) this.resolveCar(body, driver);
         body.vx = clamp(body.vx, -22, 22); body.vz = clamp(body.vz, -22, 22); body.angularVelocity = clamp(body.angularVelocity, -20, 20);

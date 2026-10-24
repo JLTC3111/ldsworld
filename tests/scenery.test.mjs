@@ -97,7 +97,7 @@ test('weather, lantern lighting, and portal animation preserve physics-owned pro
   assert.deepEqual(body.object.position.toArray(), [9, 2, -3]);
   assert.notEqual(water.geometry.attributes.position.getY(10), before);
   assert.ok(scenery.lamps.some(lamp => lamp.isMaterial && lamp.emissiveIntensity > 1));
-  let visibleSnow = 0; scenery.root.traverse(object => { if (object.isMesh && object.material.transparent && object.material.opacity > .1 && object.material.color.getHex() === 0xeff2e8) visibleSnow++; });
+  let visibleSnow = 0; scenery.root.traverse(object => { if (object.isMesh && object.material.transparent && object.material.opacity > .1 && object.material.color?.getHex() === 0xeff2e8) visibleSnow++; });
   assert.equal(visibleSnow, 8);
   scenery.reset(); assert.deepEqual(body.object.position.toArray(), [9, 2, -3]); scenery.dispose();
 });
