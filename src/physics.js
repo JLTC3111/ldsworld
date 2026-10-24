@@ -3,6 +3,11 @@ import { bridgeHeightAt, isWater, portals as islandPortals, ISLAND_BOUNDS } from
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const floorAt = body => Math.max(.12,bridgeHeightAt(body.x,body.z)) + (isWater(body.x,body.z)?-.09:0) + body.height/2 + (body.floorOffset||0);
 const activeBody = body => !body.active || body.active();
+export function tipPin(body,speed,nx,nz){
+  if(body.kind!=='bowling-pin'||speed<.3)return;
+  if((body.tipAngle||0)<.15){body.tipAxisX=nz;body.tipAxisZ=-nx;}
+  body.tipVelocity=Math.max(body.tipVelocity||0,Math.min(7,speed*.72));body.sleeping=false;body.sleepTime=0;
+}
 export const colliderActive = (collider, bottom = -Infinity, top = Infinity) => (!collider.active || collider.active()) && (collider.maxY ?? Infinity) > bottom && (collider.minY ?? -Infinity) < top;
 
 // One small spatial grid serves both the car and props. Detailed geometry can
@@ -45,6 +50,17 @@ export class PhysicsWorld {
     // Keep the array identity so a renderer can retain a reference to it.
     this.bodies.splice(0, this.bodies.length, ...this.initial.map(body => ({ ...body, vx: 0, vz: 0, vy: 0, rotation: body.rotation || 0, angularVelocity: 0, tiltX: 0, tiltZ: 0, sleepTime: 0, sleeping: Boolean(body.initialSleeping), displaced: false })));
   }
+  explode({x,y=.6,z,radius=8,strength=15},driver){
+    for(const body of this.bodies){
+      if(!activeBody(body))continue;
+      const dx=body.x-x,dz=body.z-z,dy=body.y-y,distance=Math.hypot(dx,dy,dz);
+      if(distance>=radius)continue;
+      const force=strength*(1-distance/radius)/Math.sqrt(body.mass),length=Math.hypot(dx,dz)||1,nx=dx/length||.6,nz=dz/length||.8;
+      body.vx+=nx*force;body.vz+=nz*force;body.vy+=force*.55;body.angularVelocity+=force*.5;body.sleeping=false;body.sleepTime=0;body.displaced=true;
+      body.impactSpeed=Math.max(body.impactSpeed||0,force);tipPin(body,force,nx,nz);
+    }
+    if(driver){const dx=driver.x-x,dz=driver.z-z,distance=Math.hypot(dx,dz,(driver.groundHeight||0)+(driver.hop||0)+1-y);if(distance<radius){const length=Math.hypot(dx,dz)||1,force=strength*(1-distance/radius)*.75;driver.applyImpulse?.({x:(dx/length||.4)*force,y:force*.7,z:(dz/length||.6)*force},force*.15);}}
+  }
   kick(id, { x = 0, z = 0, strength = 4 } = {}) {
     const body = this.bodies.find(item => item.id === id);
     if (!body || !activeBody(body)) return false;
@@ -53,6 +69,7 @@ export class PhysicsWorld {
     body.vx += (dx / length || .35) * velocity; body.vz += (dz / length || .35) * velocity;
     body.vy = Math.max(body.vy, Math.min(1.2, velocity * .18)); body.angularVelocity += velocity * .4;
     body.sleeping = false; body.sleepTime = 0; body.displaced = true;
+    tipPin(body,velocity,dx/length,dz/length);
     return true;
   }
   update(elapsed, driver, { weather = 'clear' } = {}) {
@@ -60,6 +77,7 @@ export class PhysicsWorld {
     if (!duration) return;
     const steps = Math.ceil(duration * 120), dt = duration / steps;
     const friction = weather === 'snow' ? .75 : weather === 'rain' ? 1.55 : 2.8;
+    for(const body of this.bodies)body.impactSpeed=0;
     for (let step = 0; step < steps; step++) {
       for (const body of this.bodies) {
         if (!activeBody(body)) continue;
@@ -75,7 +93,16 @@ export class PhysicsWorld {
         body.x += body.vx * dt; body.z += body.vz * dt; body.y += body.vy * dt;
         body.rotation += body.angularVelocity * dt;
         body.angularVelocity *= Math.exp(-friction * .55 * dt);
-        body.tiltX *= Math.exp(-5 * dt); body.tiltZ *= Math.exp(-5 * dt);
+        if(body.kind==='bowling-pin'){
+          body.tipAngle ||= 0;body.tipVelocity ||= 0;
+          if(body.tipVelocity||body.tipAngle>.02){
+            body.tipVelocity+=(8*Math.sin(body.tipAngle)-body.tipVelocity*1.8)*dt;body.tipAngle+=body.tipVelocity*dt;
+            if(body.tipAngle>Math.PI/2){body.tipAngle=Math.PI/2;body.tipVelocity=-Math.abs(body.tipVelocity)*.18;if(Math.abs(body.tipVelocity)<.15)body.tipVelocity=0;}
+          }
+          const c=Math.abs(Math.cos(body.tipAngle)),s=Math.abs(Math.sin(body.tipAngle));body.height=(body.uprightHeight||2.1)*c+(body.baseRadius||.37)*2*s;body.radius=(body.baseRadius||.37)*c+(body.uprightHeight||2.1)*.5*s;
+          const sin=Math.sin(body.tipAngle/2),cos=Math.cos(body.tipAngle/2),sy=Math.sin(body.rotation/2),cy=Math.cos(body.rotation/2),tx=(body.tipAxisX||0)*sin,tz=(body.tipAxisZ||0)*sin;
+          body.quaternion=[tx*cy-tz*sy,cos*sy,tx*sy+tz*cy,cos*cy];
+        }else{body.tiltX *= Math.exp(-5 * dt); body.tiltZ *= Math.exp(-5 * dt);}
         this.resolveGround(body);
         this.resolveFixed(body);
         if (Math.hypot(body.vx, body.vz, body.vy) > .03) body.displaced = true;
@@ -88,7 +115,7 @@ export class PhysicsWorld {
         }
         if (driver) this.resolveCar(body, driver);
         body.vx = clamp(body.vx, -22, 22); body.vz = clamp(body.vz, -22, 22); body.angularVelocity = clamp(body.angularVelocity, -20, 20);
-        if (Math.hypot(body.vx, body.vz, body.vy) < .025 && Math.abs(body.angularVelocity) < .025) body.sleepTime += dt;
+        if (Math.hypot(body.vx, body.vz, body.vy) < .025 && Math.abs(body.angularVelocity) < .025 && Math.abs(body.tipVelocity||0)<.025) body.sleepTime += dt;
         else body.sleepTime = 0;
         if (body.sleepTime > .8) { body.sleeping = true; body.vx = 0; body.vz = 0; body.vy = 0; body.angularVelocity = 0; }
       }
@@ -105,6 +132,7 @@ export class PhysicsWorld {
   resolveGround(body) {
     const floor = floorAt(body);
     if (body.y < floor) {
+      body.impactSpeed=Math.max(body.impactSpeed||0,-body.vy);
       body.y = floor;
       body.vy = body.vy < -.6 ? -body.vy * .23 : 0;
     }
@@ -133,26 +161,29 @@ export class PhysicsWorld {
       if (!(penetration > 0)) continue;
       body.x += nx * (penetration + .002); body.z += nz * (penetration + .002);
       const inward = body.vx * nx + body.vz * nz;
+      body.impactSpeed=Math.max(body.impactSpeed||0,-inward);tipPin(body,-inward,-nx,-nz);
       if (inward < 0) { body.vx -= inward * nx * 1.35; body.vz -= inward * nz * 1.35; }
       body.angularVelocity *= .75;
     }
   }
   resolveCar(body, driver) {
-    const bottom = (driver.groundHeight || 0) + (driver.hop || 0) + .1;
-    if (body.y + body.height / 2 < bottom || body.y - body.height / 2 > bottom + 1.7) return;
+    const aerial=driver.attitude&&(driver.attitude.flying||driver.attitude.recovering),bounds=aerial?driver.attitude.bounds():null;
+    const halfWidth=bounds?.halfX??.84,halfLength=bounds?.halfZ??1.33;
+    const bottom=(driver.groundHeight||0)+(driver.hop||0)+(bounds?bounds.bottom+(driver.attitude.supportLift||0):.1);
+    if(body.y+body.height/2<bottom||body.y-body.height/2>bottom+(bounds?bounds.top-bounds.bottom:2.5))return;
     const rightX = Math.cos(driver.heading || 0), rightZ = -Math.sin(driver.heading || 0), forwardX = Math.sin(driver.heading || 0), forwardZ = Math.cos(driver.heading || 0);
-    const dx = body.x - driver.x, dz = body.z - driver.z;
-    const side = dx * rightX + dz * rightZ, along = dx * forwardX + dz * forwardZ;
-    let sideDelta = side - clamp(side, -.84, .84), alongDelta = along - clamp(along, -1.33, 1.33);
+    const dx=body.x-driver.x-(bounds?.offsetX||0),dz=body.z-driver.z-(bounds?.offsetZ||0);
+    const side = bounds?dx:dx * rightX + dz * rightZ, along = bounds?dz:dx * forwardX + dz * forwardZ;
+    let sideDelta = side-clamp(side,-halfWidth,halfWidth),alongDelta=along-clamp(along,-halfLength,halfLength);
     const distance = Math.hypot(sideDelta, alongDelta);
     let overlap = body.radius - distance;
     if (!distance) {
-      if (.84 - Math.abs(side) < 1.33 - Math.abs(along)) { overlap += .84 - Math.abs(side); sideDelta = Math.sign(side || 1); }
-      else { overlap += 1.33 - Math.abs(along); alongDelta = Math.sign(along || 1); }
+      if(halfWidth-Math.abs(side)<halfLength-Math.abs(along)){overlap+=halfWidth-Math.abs(side);sideDelta=Math.sign(side||1);}
+      else{overlap+=halfLength-Math.abs(along);alongDelta=Math.sign(along||1);}
     }
     if (overlap <= 0) return;
     const normalLength = Math.hypot(sideDelta, alongDelta) || 1;
-    const nx = (sideDelta * rightX + alongDelta * forwardX) / normalLength, nz = (sideDelta * rightZ + alongDelta * forwardZ) / normalLength;
+    const nx=(bounds?sideDelta:sideDelta*rightX+alongDelta*forwardX)/normalLength,nz=(bounds?alongDelta:sideDelta*rightZ+alongDelta*forwardZ)/normalLength;
     const invBody = 1 / body.mass, invCar = 1 / 5, inverseSum = invBody + invCar;
     body.x += nx * overlap * invBody / inverseSum; body.z += nz * overlap * invBody / inverseSum;
     driver.x -= nx * overlap * invCar / inverseSum; driver.z -= nz * overlap * invCar / inverseSum;
@@ -160,6 +191,7 @@ export class PhysicsWorld {
     const vx = moving ? driver.vx : Math.sin(driver.heading || 0) * (driver.speed || 0), vz = moving ? driver.vz : Math.cos(driver.heading || 0) * (driver.speed || 0);
     const closing = (vx - body.vx) * nx + (vz - body.vz) * nz;
     if (closing <= 0) return;
+    body.impactSpeed=Math.max(body.impactSpeed||0,closing);tipPin(body,closing,nx,nz);
     body.sleeping = false; body.sleepTime = 0; body.displaced = true;
     const impulse = closing * 1.18 / inverseSum;
     body.vx += impulse * nx * invBody; body.vz += impulse * nz * invBody;
@@ -190,6 +222,7 @@ export class PhysicsWorld {
     b.x += nx * (overlap + .001) * invB / total; b.z += nz * (overlap + .001) * invB / total;
     const closing = (b.vx - a.vx) * nx + (b.vz - a.vz) * nz;
     if (closing >= 0) return;
+    a.impactSpeed=Math.max(a.impactSpeed||0,-closing);b.impactSpeed=Math.max(b.impactSpeed||0,-closing);tipPin(a,-closing,-nx,-nz);tipPin(b,-closing,nx,nz);
     const impulse = -closing * 1.28 / total;
     a.vx -= impulse * nx * invA; a.vz -= impulse * nz * invA; b.vx += impulse * nx * invB; b.vz += impulse * nz * invB;
     const tangent = (b.vx - a.vx) * -nz + (b.vz - a.vz) * nx;
@@ -210,6 +243,7 @@ export class PortalSystem {
     driver.hop = .12; driver.hopVelocity = 1.3;
     driver.groundHeight = Math.max(0, bridgeHeightAt(driver.x, driver.z) - .1);
     driver.groundVelocity = 0;
+    driver.attitude?.reset(driver.heading);driver.airborne=false;driver.boosting=false;
     driver.cancelRoute?.();
     this.cooldown = 2; this.armed = false;
     return near.id;

@@ -33,6 +33,14 @@ test('physical WASD keys survive Vietnamese input and uppercase, without claimin
   input.dispose(); emit(keyboard, 'keydown', { code: 'KeyW', key: 'w' }); assert.equal(calls.at(-1)[0], 'clear');
 });
 
+test('air-roll keys and hydraulic toggles use physical keys, while a held Space never spends a second jump',()=>{
+  assert.equal(drivingKey({code:'KeyQ',key:'Q'}),'q');assert.equal(drivingKey({code:'KeyE',key:'ê'}),'e');assert.equal(drivingKey({code:'KeyC',key:'C'}),'c');
+  const surface=new Surface(),keyboard=new Surface();let jumps=0,lifts=0;const input=bindNavigation({surface,keyboard,onJump:()=>jumps++,onHydraulics:()=>lifts++});
+  emit(keyboard,'keydown',{code:'Space',key:' '});emit(keyboard,'keydown',{code:'Space',key:' ',repeat:true});assert.equal(jumps,1);
+  emit(keyboard,'keyup',{code:'Space',key:' '});emit(keyboard,'keydown',{code:'Space',key:' '});assert.equal(jumps,2);
+  emit(keyboard,'keydown',{code:'KeyC',key:'c'});emit(keyboard,'keydown',{code:'KeyC',key:'c',repeat:true});assert.equal(lifts,1);input.dispose();
+});
+
 test('a scene click travels, while a drag or cancelled gesture never starts an accidental drive', () => {
   const surface = new Surface(), keyboard = new Surface(), clicks = [], rotations = [];
   const input = bindNavigation({ surface, keyboard, onClick: (...point) => clicks.push(point), onOrbit: (...delta) => rotations.push(delta) });

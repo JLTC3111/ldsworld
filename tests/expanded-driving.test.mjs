@@ -30,18 +30,18 @@ test('long routes reach the outer roads and return through the bridge network wi
   }
 });
 
-test('hydraulics compress before takeoff, reject repeated airborne jumps, and rebound into a stable landing',()=>{
+test('hydraulics compress before takeoff, support a higher jump, and rebound into a stable landing',()=>{
   const car=new Driver();assert.equal(car.jump(),true);
   for(let i=0;i<6;i++)car.step(1/60);
   assert.equal(car.hop,0);assert.ok(car.hydraulicOffset<-.07);assert.equal(car.jump(),false);
   let peak=0,landed=false,rebound=false;
   for(let i=0;i<240;i++){
     car.step(1/60);peak=Math.max(peak,car.hop);
-    if(car.hop>.2)assert.equal(car.jump(),false);
+
     if(peak>1&&car.hop===0){landed=true;if(car.hydraulicOffset<-.01)rebound=true;}
-    assert.ok(Number.isFinite(car.hydraulicOffset)&&car.hydraulicOffset>=-.21&&car.hydraulicOffset<=.17);
+    assert.ok(Number.isFinite(car.hydraulicOffset)&&car.hydraulicOffset>=-.29&&car.hydraulicOffset<=.52);
   }
-  assert.ok(peak>1.5&&peak<2.1);assert.ok(landed&&rebound);
+  assert.ok(peak>3&&peak<3.5);assert.ok(landed&&rebound);
   assert.equal(car.hydraulicPhase,'idle');assert.equal(car.hydraulicOffset,0);
   assert.equal(car.jump(),true);car.step(1/60);car.reset();
   assert.equal(car.jumpPending,false);assert.equal(car.hydraulicOffset,0);assert.equal(car.hop,0);

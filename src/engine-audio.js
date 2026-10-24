@@ -17,6 +17,7 @@ export class EngineAudio {
     this.targets = new WeakMap();
     this.lastGear = 0;
     this.lastHonk = -Infinity;
+    this.lastBlast=-Infinity;
     this.shiftStart = -Infinity;
     this.disposePromise = null;
   }
@@ -155,6 +156,17 @@ export class EngineAudio {
     return true;
   }
 
+  blast(distance=0){
+    if(!this.context||!this.audible()||distance>55)return false;
+    const context=this.context,now=context.currentTime;if(now-this.lastBlast<.08)return false;this.lastBlast=now;
+    const gain=context.createGain(),filter=context.createBiquadFilter();filter.type='lowpass';filter.frequency.value=260;filter.Q.value=.5;
+    gain.gain.setValueAtTime(0,now);gain.gain.linearRampToValueAtTime(.72*Math.max(.08,1-distance/55),now+.012);gain.gain.linearRampToValueAtTime(0,now+.48);
+    const source=context.createBufferSource(),bass=context.createOscillator();source.buffer=this.roadSource.buffer;source.connect(filter);bass.type='triangle';bass.frequency.setValueAtTime(85,now);bass.frequency.linearRampToValueAtTime(26,now+.4);bass.connect(filter);filter.connect(gain);gain.connect(this.masterGain);
+    const transient={gain,filter,oscillators:[source,bass]};this.horns.add(transient);let ended=0;
+    for(const node of transient.oscillators){node.onended=()=>{node.disconnect();if(++ended===2){filter.disconnect();gain.disconnect();this.horns.delete(transient);}};node.start(now);node.stop(now+.5);}
+    return true;
+  }
+
   stopHorns() {
     if (!this.context) return;
     for (const horn of this.horns) {
@@ -180,6 +192,7 @@ export class EngineAudio {
       try { this.roadSource?.disconnect(); } catch { /* Already disconnected. */ }
       for (const horn of this.horns) {
         try { horn.gain.disconnect(); } catch { /* Already disconnected. */ }
+        try { horn.filter?.disconnect(); } catch { /* Already disconnected. */ }
         for (const oscillator of horn.oscillators) { try { oscillator.disconnect(); } catch { /* Already disconnected. */ } }
       }
       this.horns.clear();

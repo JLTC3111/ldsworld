@@ -9,11 +9,11 @@ export const ROAD_WIDTHS = Object.freeze({ring:4.9,shoulder:5.5,spine:4.2});
 export const RIVER_HALF_WIDTH = 1.05;
 export const riverCenter = x => 3.4 + Math.sin(x * .25) * .45;
 export const bridges = [
-  { id: 'west', x: -19.4, z: riverCenter(-19.4), heading: .165, width: 6.0, length: 6.2 },
-  { id: 'village', x: 0, z: riverCenter(0), heading: 0, width: 5.2, length: 6.2 },
-  { id: 'east', x: 19.15, z: riverCenter(19.15), heading: -.278, width: 6.0, length: 6.2 },
-  { id: 'outer-west', x:-99.4, z:riverCenter(-99.4), heading:.165, width:6, length:6.2 },
-  { id: 'outer-east', x:99, z:riverCenter(99), heading:-.25, width:6, length:6.2 }
+  { id: 'west', x: -19.4, z: riverCenter(-19.4), heading: .165, width: 8.4, length: 6.2 },
+  { id: 'village', x: 0, z: riverCenter(0), heading: 0, width: 8.4, length: 6.2 },
+  { id: 'east', x: 19.15, z: riverCenter(19.15), heading: -.278, width: 8.4, length: 6.2 },
+  { id: 'outer-west', x:-99.4, z:riverCenter(-99.4), heading:.165, width:8.4, length:6.2 },
+  { id: 'outer-east', x:99, z:riverCenter(99), heading:-.25, width:8.4, length:6.2 }
 ];
 export const portals = [
   { id: 'west-gate', x: -23, z: -8, exitX: 21, exitZ: 10.5, heading: -Math.PI / 2, color: '#78dfd1' },

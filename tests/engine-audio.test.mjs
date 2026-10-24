@@ -37,6 +37,12 @@ function mockAudioContext() {
   };
 }
 
+test('TNT sound is gesture-gated, distance-attenuated, throttled, and muted with every other sound',async()=>{
+  const audio=new EngineAudio(mockAudioContext());assert.equal(audio.blast(2),false);await audio.resume();assert.equal(audio.blast(60),false);assert.equal(audio.blast(2),true);assert.equal(audio.blast(2),false);
+  const blast=[...audio.horns][0];assert.ok(blast.filter&&blast.oscillators.length===2);assert.ok(blast.gain.gain.events.some(e=>e.type==='ramp'&&e.value>.5));
+  audio.setEnabled(false);assert.equal(audio.blast(),false);assert.ok(blast.oscillators.every(o=>o.stops.length>=2));audio.setEnabled(true);audio.context.currentTime=1;audio.update({paused:true});assert.equal(audio.blast(),false);await audio.dispose();assert.ok(blast.filter.disconnected);
+});
+
 test('engine audio never creates a context or sources before the explicit resume gesture', async () => {
   const Context = mockAudioContext(), audio = new EngineAudio(Context);
   audio.update({ speed: 8, rpm: 3500 }); audio.setEnabled(true); audio.suspend(false);

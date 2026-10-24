@@ -317,15 +317,15 @@ function renderContact() {
     <section class="case-section"><h3>${t('contactProjects')}</h3>${renderRelatedProjects(null, ['hr','crypto','icue'])}</section><div class="contact-links"><a href="https://github.com/JLTC3111" target="_blank" rel="noopener noreferrer"><span>${icon('github')}GitHub</span>${icon('up-right')}</a><a href="https://www.youtube.com/@Drherbal2011" target="_blank" rel="noopener noreferrer"><span>${icon('play')}YouTube</span>${icon('up-right')}</a><a href="https://longd.tech" target="_blank" rel="noopener noreferrer"><span>${icon('up-right')}longd.tech</span>${icon('up-right')}</a></div><div class="contact-location">${icon('pin')}${t('location')} · UTC+7</div></article>`;
 }
 function renderHelp() {
-  return `<article class="info-content"><p class="panel-eyebrow">${t('help')}</p><h2 id="panel-title">${t('helpTitle')}</h2><p>${t('helpIntro')}</p><ul class="help-list"><li>${icon('car')}${t('helpDrive')}</li><li>${icon('pin')}${t('helpClick')}</li><li>${icon('map')}${t('helpMouse')}</li><li>${icon('map')}${t('helpTrackpad')}</li><li>${icon('grid')}${t('helpProject')}</li><li>${icon('car')}${t('helpProps')}</li><li><kbd>↟</kbd>${t('helpBoost')}</li><li>${icon('map')}${t('helpMore')}</li></ul><p class="help-touch">${t('helpTouch')}</p>${reducedMotion ? `<p>${t('reduced')}</p>` : ''}<button class="primary-button" data-action="explore">${t('explore')}${icon('arrow')}</button></article>`;
+  return `<article class="info-content"><p class="panel-eyebrow">${t('help')}</p><h2 id="panel-title">${t('helpTitle')}</h2><p>${t('helpIntro')}</p><ul class="help-list"><li>${icon('car')}${t('helpDrive')}</li><li>${icon('pin')}${t('helpClick')}</li><li>${icon('map')}${t('helpMouse')}</li><li>${icon('map')}${t('helpTrackpad')}</li><li>${icon('grid')}${t('helpProject')}</li><li>${icon('car')}${t('helpProps')}</li><li><kbd>↟</kbd>${t('helpBoost')}</li><li>${icon('car')}${t('helpAir')}</li><li>${icon('map')}${t('helpMore')}</li></ul><p class="help-touch">${t('helpTouch')}</p>${reducedMotion ? `<p>${t('reduced')}</p>` : ''}<button class="primary-button" data-action="explore">${t('explore')}${icon('arrow')}</button></article>`;
 }
 function mapSvg(large = false, carId = large ? 'large-car' : 'mini-car') {
   const river = Array.from({length:65},(_,i)=>{ const x=-RIVER_REACH+i*RIVER_REACH*2/64; return `${x},${riverCenter(x)}`; }).join('L');
-  const features = `<path d="M${river}" fill="none" stroke="#80b9b3" stroke-width="2.1"/>${bridges.map(b=>`<rect x="${-b.width/2}" y="${-b.length/2}" width="${b.width}" height="${b.length}" rx=".25" fill="#bda279" transform="translate(${b.x},${b.z}) rotate(${-b.heading*180/Math.PI})"/>`).join('')}${houses.map(h=>`<rect x="${h.x-1.4}" y="${h.z-1.2}" width="2.8" height="2.4" rx=".3" fill="${h.color}"/>`).join('')}${portals.map(p=>`<circle cx="${p.x}" cy="${p.z}" r="1.1" fill="none" stroke="${p.color}" stroke-width=".45"/>`).join('')}`;
+  const features = `<path d="M38.7,38.8h.6l.5,1.9q1.2,2.8-.8,2.8t-.8-2.8Z" fill="#f8f3df" stroke="#9a4540" stroke-width=".4"/><rect x="-48" y="21" width="4" height="4" rx=".4" fill="#b6372f"/><path d="M${river}" fill="none" stroke="#80b9b3" stroke-width="2.1"/>${bridges.map(b=>`<rect x="${-b.width/2}" y="${-b.length/2}" width="${b.width}" height="${b.length}" rx=".25" fill="#bda279" transform="translate(${b.x},${b.z}) rotate(${-b.heading*180/Math.PI})"/>`).join('')}${houses.map(h=>`<rect x="${h.x-1.4}" y="${h.z-1.2}" width="2.8" height="2.4" rx=".3" fill="${h.color}"/>`).join('')}${portals.map(p=>`<circle cx="${p.x}" cy="${p.z}" r="1.1" fill="none" stroke="${p.color}" stroke-width=".45"/>`).join('')}`;
   return `<path d="M-28 0C-30 13-19 22-8 22C7 24 22 21 27 11C32 1 29-12 22-17C12-24-6-25-19-19C-27-15-30-7-28 0Z" fill="#c4cfae" transform="scale(${WORLD_SCALE})"/><path d="M${outerRoadLoop.map(point=>point.join(',')).join('L')}Z" fill="none" stroke="#eeeddc" stroke-width="4.9"/><path d="M${roadLoop.map(point => point.join(',')).join('L')}Z M0,-13V13 M-20,0H20" fill="none" stroke="#eeeddc" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/>${connectorPaths.map(path=>`<path d="M${path.map(key=>roadNodes[key].join(",")).join("L")}" fill="none" stroke="#eeeddc" stroke-width="4.2"/>`).join("")}${features}${projects.map(p => `<rect x="${p.position[0] - p.footprint[0]/2}" y="${p.position[1] - p.footprint[1]/2}" width="${p.footprint[0]}" height="${p.footprint[1]}" rx=".4" fill="${p.color}" opacity=".7"/>`).join('')}${large ? '' : projects.map(p => `<circle cx="${p.position[0]}" cy="${p.position[1]}" r=".55" fill="#fffdf0"/>`).join('')}<g id="${carId}" transform="translate(0,13)"><circle r="1.9" fill="#f8efcd" opacity=".8"/><path d="m0 1.25-.9-1.8L0-.15l.9-.4Z" fill="#3e6750"/></g>`;
 }
 function renderMap() {
-  return `<article class="info-content"><p class="panel-eyebrow">${t('mapEyebrow')}</p><h2 id="panel-title">${t('map')}</h2><p>${t('helpIntro')}</p><div class="large-map"><svg viewBox="${MAP_VIEWBOX}" aria-hidden="true">${mapSvg(true)}</svg>${projects.map(p => `<button class="map-stop" data-open-project="${p.id}" style="left:${(p.position[0] + MAP_BOUNDS.x) / (MAP_BOUNDS.x*2) * 100}%;top:${(p.position[1] + MAP_BOUNDS.z) / (MAP_BOUNDS.z*2) * 100}%;--marker-color:${p.color}" aria-label="${t('view')}: ${local(p).title}">${state.visited.has(p.id) ? '✓' : p.number}</button>`).join('')}</div><div class="map-key"><span></span>${t('youAreHere')}</div><div class="map-list">${projects.map(p => `<button data-open-project="${p.id}"><span class="map-number">${p.number}</span>${local(p).short}${icon('up-right')}</button>`).join('')}</div><h3 class="skill-heading">${t('portalLabel')}</h3><div class="portal-map-links">${portals.map((p,i)=>`<button class="secondary-button" data-go-portal="${p.id}"><span style="color:${p.color}">◉</span>${t(i?'eastGate':'westGate')}${icon('arrow')}</button>`).join('')}</div><div class="info-links"><button class="primary-button" data-action="tour">${icon('car')}${t('navTour')}${icon('arrow')}</button><button class="secondary-button" data-action="overview">${t('overview')}</button></div></article>`;
+  return `<article class="info-content"><p class="panel-eyebrow">${t('mapEyebrow')}</p><h2 id="panel-title">${t('map')}</h2><p>${t('helpIntro')}</p><div class="large-map"><svg viewBox="${MAP_VIEWBOX}" aria-hidden="true">${mapSvg(true)}</svg>${projects.map(p => `<button class="map-stop" data-open-project="${p.id}" style="left:${(p.position[0] + MAP_BOUNDS.x) / (MAP_BOUNDS.x*2) * 100}%;top:${(p.position[1] + MAP_BOUNDS.z) / (MAP_BOUNDS.z*2) * 100}%;--marker-color:${p.color}" aria-label="${t('view')}: ${local(p).title}">${state.visited.has(p.id) ? '✓' : p.number}</button>`).join('')}</div><div class="map-key"><span></span>${t('youAreHere')}</div><div class="map-list">${projects.map(p => `<button data-open-project="${p.id}"><span class="map-number">${p.number}</span>${local(p).short}${icon('up-right')}</button>`).join('')}</div><h3 class="skill-heading">${t('playgroundLabel')}</h3><div class="portal-map-links"><button class="secondary-button" data-go-playground="bowling">${t('bowling')}${icon('arrow')}</button><button class="secondary-button" data-go-playground="tnt">${t('tnt')}${icon('arrow')}</button></div><h3 class="skill-heading">${t('portalLabel')}</h3><div class="portal-map-links">${portals.map((p,i)=>`<button class="secondary-button" data-go-portal="${p.id}"><span style="color:${p.color}">◉</span>${t(i?'eastGate':'westGate')}${icon('arrow')}</button>`).join('')}</div><div class="info-links"><button class="primary-button" data-action="tour">${icon('car')}${t('navTour')}${icon('arrow')}</button><button class="secondary-button" data-action="overview">${t('overview')}</button></div></article>`;
 }
 const weatherKey = mode => ({ clear: 'weatherClear', rain: 'weatherRain', snow: 'weatherSnow', auto: 'weatherAuto' }[mode] || 'weatherClear');
 function updateEnvironment(environment) {
@@ -398,6 +398,7 @@ function goHome() {
 async function performAction(action) {
   if (['projects', 'about', 'contact', 'help', 'map', 'world'].includes(action)) { showPanel(action); return; }
   if (action === 'jump') { world?.jump(); return; }
+  if(action==='hydraulics'){world?.hydraulics();return;}
   if (action === 'tour') { startTour(); return; }
   if (action === 'explore') { closePanel(); if (world) world.start(); else if (state.ready) showPanel('projects'); else showToast(t('loading')); return; }
   if (action === 'toggle-music') { const current=backgroundMusic.getState();state.music=!current.enabled||current.blocked;storage.set('music',state.music?'on':'off');backgroundMusic.setEnabled(state.music);return; }
@@ -416,7 +417,7 @@ document.addEventListener('pointerdown',event=>{if(!panel.open&&event.target.clo
 document.addEventListener('pointerover', spotlightFromCard);
 document.addEventListener('focusin', spotlightFromCard);
 document.addEventListener('click', event => {
-  const button = event.target.closest('[data-screen-mode], [data-stack-tool], [data-spotlight], [data-demo-time], [data-time-mode], [data-weather], [data-headlights], [data-zoom], [data-go-portal], [data-language], [data-action], [data-open-project], [data-drive-project], [data-next-project], [data-filter]');
+  const button = event.target.closest('[data-screen-mode], [data-stack-tool], [data-spotlight], [data-demo-time], [data-time-mode], [data-weather], [data-headlights], [data-zoom], [data-go-portal], [data-go-playground], [data-language], [data-action], [data-open-project], [data-drive-project], [data-next-project], [data-filter]');
   if (!button) return;
   if (button.dataset.screenMode) setShowcaseScreen(button.dataset.screenMode);
   else if (button.dataset.stackTool) selectShowcaseTool(button.dataset.stackTool);
@@ -426,6 +427,7 @@ document.addEventListener('click', event => {
   else if (button.dataset.weather) { state.weatherMode = button.dataset.weather; updateEnvironment(world?.setWeather(state.weatherMode)); syncWorldChoices(); }
   else if (button.dataset.headlights) { state.headlights = button.dataset.headlights; world?.setHeadlightsMode(state.headlights); syncWorldChoices(); }
   else if (button.dataset.zoom) { if (button.dataset.zoom === 'reset') world?.resetCamera(); else world?.zoomBy(button.dataset.zoom === 'in' ? -.06 : .06); }
+  else if(button.dataset.goPlayground){closePanel();stopTour();world?.goToPlayground(button.dataset.goPlayground);}
   else if (button.dataset.goPortal) { closePanel(); stopTour(); world?.goToPortal(button.dataset.goPortal); }
   else if (button.dataset.language) setLanguage(button.dataset.language);
   else if (button.dataset.action) performAction(button.dataset.action);
@@ -499,13 +501,14 @@ try {
     onCancelRoute() { state.guided = false; state.destination = null; updateStatus(); },
     onNearby(id) { state.nearby = id; refreshNearby(); },
     onPortal() { showToast(t('portalArrival')); },
+    onExplosion({distance}){engineAudio.blast(distance);},
     onEnvironment: updateEnvironment,
     onFrame({ x, z, heading, speed, actualSpeed, rpm, acceleration, paused, hop, elapsed }) {
       drivingHud.update({speed:actualSpeed,hop,elapsed,paused,panelOpen:panel.open});
       state.riverDistance = Math.abs(z-riverCenter(x));
       const transform = `translate(${x.toFixed(2)},${z.toFixed(2)}) rotate(${(-heading * 180 / Math.PI).toFixed(1)})`;
       $('#mini-car')?.setAttribute('transform', transform); $('#large-car')?.setAttribute('transform', transform); $('#stage-map-car')?.setAttribute('transform', transform);
-      const value = Math.round(speed * 8); if (value !== speedValue) { speedValue = value; $('#speed').textContent = String(value).padStart(2, '0'); }
+      const value = Math.round(speed * 3.6); if (value !== speedValue) { speedValue = value; $('#speed').textContent = String(value).padStart(2, '0'); }
       engineAudio.update({ speed: actualSpeed, rpm, acceleration, paused });
     }
   });

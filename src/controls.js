@@ -1,6 +1,6 @@
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-const physicalKeys = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd', KeyB: 'b', Space: ' ', ShiftLeft: 'Shift', ShiftRight: 'Shift' };
-const drivingKeys = new Set(['w', 'a', 's', 'd', 'b', ' ', 'Shift', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+const physicalKeys = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd', KeyB: 'b', KeyQ:'q',KeyE:'e',KeyC:'c', Space: ' ', ShiftLeft: 'Shift', ShiftRight: 'Shift' };
+const drivingKeys = new Set(['w', 'a', 's', 'd', 'b', 'q', 'e', 'c', ' ', 'Shift', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
 
 export function drivingKey(event) {
   const key = physicalKeys[event.code] || (event.key?.length === 1 ? event.key.toLowerCase() : event.key);
@@ -17,7 +17,7 @@ export function wheelGesture(event, height = 800) {
 }
 
 // Input is bound only to the scene, so dialogs keep native scrolling and selection.
-export function bindNavigation({ surface, wheelTarget = surface, keyboard = window, isPaused = () => false, onKey, onClear, onJump, onClick, onOrbit, onPan, onZoom }) {
+export function bindNavigation({ surface, wheelTarget = surface, keyboard = window, isPaused = () => false, onKey, onClear, onJump, onHydraulics, onClick, onOrbit, onPan, onZoom }) {
   const pointers = new Map();
   let drag = null, multiTouch = false;
   const typing = element => !!element?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"])');
@@ -28,7 +28,8 @@ export function bindNavigation({ surface, wheelTarget = surface, keyboard = wind
     event.preventDefault();
     if(event.repeat)return;
     onKey?.(key, true);
-    if (key === ' ' && !event.repeat) onJump?.();
+    if(key===' ')onJump?.();
+    if(key==='c')onHydraulics?.();
   };
   const keyUp = event => { const key = drivingKey(event); if (key) onKey?.(key, false); };
   function clear() { pointers.clear(); drag = null; multiTouch = false; surface.classList.remove('is-dragging'); onClear?.(); }

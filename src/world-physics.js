@@ -96,7 +96,8 @@ export function syncPhysicsBodies(THREE, bodies) {
     if (body.object) {
       if (body.active) body.object.visible = Boolean(body.active());
       body.object.position.set(body.x, body.y, body.z);
-      body.object.rotation.set(body.tiltX || 0, body.rotation || 0, body.tiltZ || 0);
+      if(body.quaternion)body.object.quaternion.fromArray(body.quaternion);
+      else body.object.rotation.set(body.tiltX || 0, body.rotation || 0, body.tiltZ || 0);
     }
     if (!body.instance) continue;
     const { object, index, quaternion, scale } = body.instance;

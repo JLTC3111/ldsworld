@@ -2,6 +2,7 @@ import * as THREE from './vendor/three.module.js';
 import { projects, copy } from './data.js';
 import { Driver, roadLoop, outerRoadLoop, roadNodes, connectorPaths } from './driving.js';
 import { bindNavigation } from './controls.js';
+import { createPlayground,reservesPlaygroundSpace,PLAYGROUND_APPROACHES } from './playground.js';
 import { createNightFires } from './night-fires.js';
 import { createScenery } from './scenery.js';
 import { createAtmosphere } from './atmosphere.js';
@@ -11,13 +12,13 @@ import { createTreeDetails } from './tree-details.js';
 import { PhysicsWorld, PortalSystem } from './physics.js';
 import { collectWorldColliders, createDynamicBody, createInstancedBodies, syncPhysicsBodies } from './world-physics.js';
 import { createVehicle } from './vehicle.js';
-import { bridgeHeightAt, isRiver, houses, portals, ROAD_WIDTHS, WORLD_SCALE, ISLAND_BOUNDS, islandRadius } from './world-layout.js';
+import { bridges, bridgeHeightAt, isRiver, houses, portals, ROAD_WIDTHS, WORLD_SCALE, ISLAND_BOUNDS, islandRadius } from './world-layout.js';
 import { islandFrame, constrainIslandFocus, keepVehicleVisible, clampZoom } from './camera-framing.js';
 
 const colors = { grass: '#b7c49c', sand: '#e0d3b0', road: '#ebe7d3', sea: '#e2e8dc', cream: '#eae4cb', dark: '#3d5146', leaf: '#7a9365', pine: '#698264', trunk: '#94785a', glass: '#8da9a1', yellow: '#d8b45d' };
 const rand = (() => { let seed = 8137; return () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; })();
 
-export function createWorld({ container, onStart, onProject, onArrival, onCancelRoute, onNearby, onFrame, onPortal, onEnvironment, reducedMotion = false }) {
+export function createWorld({ container, onStart, onProject, onArrival, onCancelRoute, onNearby, onFrame, onPortal, onEnvironment, onExplosion, reducedMotion = false }) {
   const coarse = matchMedia('(pointer: coarse)').matches;
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, coarse ? 1.5 : 1.8));
@@ -297,11 +298,12 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz)));
     return Math.hypot(x - a[0] - dx * t, z - a[1] - dz * t);
   };
-  const onRoad = (x, z) => roadLoop.some((p, i) => segmentDistance(x, z, p, roadLoop[(i + 1) % roadLoop.length]) < 3.7) || (Math.abs(x) < 2.6 && Math.abs(z) < 14) || (Math.abs(z) < 2.6 && Math.abs(x) < 21) || outerRoadLoop.some((p,i)=>segmentDistance(x,z,p,outerRoadLoop[(i+1)%12])<3.7) || connectorPaths.some(path=>path.slice(1).some((key,i)=>segmentDistance(x,z,roadNodes[path[i]],roadNodes[key])<3.7));
-  for (let i = 0; i < 1600 && treePositions.length < (coarse ? 40 : 65); i++) {
+  const onRoad = (x, z) => roadLoop.some((p, i) => segmentDistance(x, z, p, roadLoop[(i + 1) % roadLoop.length]) < 5.5) || (Math.abs(x)<5.5&&Math.abs(z)<20) || (Math.abs(z)<5.5&&Math.abs(x)<27) || outerRoadLoop.some((p,i)=>segmentDistance(x,z,p,outerRoadLoop[(i+1)%12])<5.5) || connectorPaths.some(path=>path.slice(1).some((key,i)=>segmentDistance(x,z,roadNodes[path[i]],roadNodes[key])<5.5));
+  const nearBridge=(x,z)=>bridges.some(b=>{const dx=x-b.x,dz=z-b.z;return Math.abs(dx*Math.cos(b.heading)-dz*Math.sin(b.heading))<b.width/2+3.5&&Math.abs(dx*Math.sin(b.heading)+dz*Math.cos(b.heading))<b.length/2+7;});
+  for (let i = 0; i < 1600 && treePositions.length < (coarse ? 4 : 6); i++) {
     const x = (rand() - .5) * 54, z = (rand() - .5) * 40;
-    if (Math.hypot(x / 27, z / 20) > .97 || onRoad(x, z) || isRiver(x, z, 2)) continue;
-    if (reservesIslandLifeSpace(x,z)) continue;
+    if (Math.hypot(x / 27, z / 20) > .97 || onRoad(x, z) || nearBridge(x,z) || isRiver(x, z, 2)) continue;
+    if (reservesIslandLifeSpace(x,z)||reservesPlaygroundSpace(x,z)) continue;
     if (houses.some(h => Math.abs(x - h.x) < 3.2*(h.scale||1) && Math.abs(z - h.z) < 3*(h.scale||1))) continue;
     if (portals.some(p => Math.hypot(x - p.x, z - p.z) < 3 || Math.hypot(x - p.exitX, z - p.exitZ) < 2.5)) continue;
     if (projects.some(p => Math.abs(x - p.position[0]) < p.footprint[0] / 2 + 1.8 && Math.abs(z - p.position[1]) < p.footprint[1] / 2 + 1.8)) continue;
@@ -310,12 +312,13 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     treePositions.push({ x, z, scale: 1.4 + rand() * .8, round: rand() > .72 });
   }
   // Sparse woodland around the original village leaves broad clearings for future play areas.
-  const forestTarget=treePositions.length+(coarse?120:240);
+  const forestTarget=treePositions.length+(coarse?30:60);
   for(let i=0;i<5000&&treePositions.length<forestTarget;i++){
     const x=(rand()-.5)*(ISLAND_BOUNDS.x-5)*2,z=(rand()-.5)*(ISLAND_BOUNDS.z-5)*2;
-    if(Math.hypot(x/30,z/24)<1.15||islandRadius(x,z,5)>.97||isRiver(x,z,2))continue;
-    if(outerRoadLoop.some((a,j)=>segmentDistance(x,z,a,outerRoadLoop[(j+1)%12])<4))continue;
-    if(connectorPaths.some(path=>path.slice(1).some((key,i)=>segmentDistance(x,z,roadNodes[path[i]],roadNodes[key])<4)))continue;
+    if(Math.hypot(x/30,z/24)<1.15||islandRadius(x,z,5)>.97||nearBridge(x,z)||isRiver(x,z,2))continue;
+    if(outerRoadLoop.some((a,j)=>segmentDistance(x,z,a,outerRoadLoop[(j+1)%12])<5.5))continue;
+    if(connectorPaths.some(path=>path.slice(1).some((key,i)=>segmentDistance(x,z,roadNodes[path[i]],roadNodes[key])<5.5)))continue;
+    if(reservesPlaygroundSpace(x,z))continue;
     if(houses.some(h=>Math.hypot(x-h.x,z-h.z)<7)||projects.some(p=>Math.abs(x-p.position[0])<p.footprint[0]/2+4&&Math.abs(z-p.position[1])<p.footprint[1]/2+4))continue;
     if(treePositions.some(t=>Math.hypot(x-t.x,z-t.z)<5.5))continue;
     treePositions.push({x,z,scale:1.4+rand()*.8,round:rand()>.72});
@@ -407,6 +410,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
 
   const scenery = createScenery({ THREE, scene, land, box, cylinder, sphere, group, mesh, mat, board, coarse, reducedMotion });
   const islandLife=createIslandLife({THREE,scene,reducedMotion,coarse});
+  const playground=createPlayground({THREE,scene,coarse,reducedMotion,onExplosion});
   const nightFires=createNightFires({THREE,scene,reducedMotion});
   const vehicle = createVehicle({ THREE, scene, reducedMotion });
   const car = vehicle.root;car.userData.vehicleId='explorer';
@@ -425,7 +429,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
       active:kind==='snowman'?()=>environment.weather==='snow':undefined });
   });
   const shoreBodies = createInstancedBodies({ THREE, object:rocks, idPrefix:'shore-rock', mass:3 });
-  const bodyDefinitions = [...scenery.bodies, ...coneBodies, ...furnitureBodies, ...shoreBodies];
+  const bodyDefinitions = [...playground.bodies,...scenery.bodies, ...coneBodies, ...furnitureBodies, ...shoreBodies];
   const colliders = collectWorldColliders({ THREE, roots:[land,trunks,rocks,islandLife.root,nightFires.root], exclude:[...bodyDefinitions.map(body=>body.object).filter(Boolean),rocks] });
   const physics = new PhysicsWorld({ bodies:bodyDefinitions, colliders });
   const portalSystem = new PortalSystem();
@@ -451,7 +455,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   function begin() {
     if (!exploring) { exploring = true; onStart?.(); }
   }
-  function stopDriving(){driver.jumpPending=false;driver.jumpCharge=0;driver.cancelRoute();driver.speed=0;driver.vx=0;driver.vz=0;navigation.clear();onCancelRoute?.();}
+  function stopDriving(){driver.jumpPending=false;driver.jumpCharge=0;driver.cancelRoute();driver.speed=0;driver.vx=0;driver.vz=0;driver.boosting=false;navigation.clear();onCancelRoute?.();}
   function clearKeys() { keys.clear(); hoverPointers.clear(); surface.style.cursor = paused ? 'default' : 'grab'; }
   function pickInteractive(x, y) {
     const rect = surface.getBoundingClientRect(), width = rect.width || innerWidth, height = rect.height || innerHeight;
@@ -492,10 +496,11 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     targetRing.position.set(gate.x, .17, gate.z); targetRing.visible = true;
   }
   function resetView() { orbitYaw = defaultYaw; orbitPitch = defaultPitch; zoomScale = 1; panOffset.set(0, 0, 0); }
+  const readInput=()=>({forward:keys.has('ArrowUp')||keys.has('w'),reverse:keys.has('ArrowDown')||keys.has('s'),left:keys.has('ArrowLeft')||keys.has('a'),right:keys.has('ArrowRight')||keys.has('d'),rollLeft:keys.has('q'),rollRight:keys.has('e'),boost:keys.has('Shift'),brake:keys.has('b')});
   const navigation = bindNavigation({
     surface: renderer.domElement, wheelTarget: container, isPaused: () => paused,
     onKey(key, pressed) { if (pressed) { begin(); panOffset.set(0, 0, 0); keys.add(key); } else keys.delete(key); },
-    onClear: clearKeys, onJump: () => driver.jump(), onClick: clickGround,
+    onClear: clearKeys, onJump:()=>{if(driver.jump(readInput()))onCancelRoute?.();},onHydraulics:()=>driver.toggleHydraulics(), onClick: clickGround,
     onOrbit(dx, dy) { begin(); orbitYaw -= dx * .006; orbitPitch = THREE.MathUtils.clamp(orbitPitch + dy * .004, .4, 1.12); },
     onPan(dx, dy) {
       begin(); const unit = viewHeight / innerHeight;
@@ -576,21 +581,22 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     scenery.update(paused ? 0 : elapsed, reducedMotion ? 0 : time, {...environment,driver});
     lamps.forEach(material => material.emissiveIntensity = .12 + environment.night * 2);
     if (!paused && exploring) {
-      const result = driver.step(elapsed, { forward: keys.has('ArrowUp') || keys.has('w'), reverse: keys.has('ArrowDown') || keys.has('s'), left: keys.has('ArrowLeft') || keys.has('a'), right: keys.has('ArrowRight') || keys.has('d'), boost: keys.has('Shift'), brake: keys.has('b') });
+      const result=driver.step(elapsed,readInput());
       if (result.cancelled) onCancelRoute?.();
       if (result.arrived) onArrival?.(result.arrived);
       dustElapsed += elapsed;
-      if (!reducedMotion && Math.abs(driver.speed) > 2 && dustElapsed > .07) {
+      if (!reducedMotion && !driver.airborne && !driver.inWater && Math.abs(driver.speed) > 2 && dustElapsed > .07) {
         dustElapsed = 0; const particle = dust[dustIndex++ % dust.length]; particle.age = 0; particle.object.position.set(driver.x - Math.sin(driver.heading), .25, driver.z - Math.cos(driver.heading)); particle.dx = (rand() - .5) * .8; particle.dz = (rand() - .5) * .8;
       }
       physics.update(elapsed, driver, { weather: environment.weather });
       const portalId = portalSystem.update(elapsed, driver);
       if (portalId) { panOffset.set(0, 0, 0); onCancelRoute?.(); onPortal?.(portalId); }
     }
+    playground.update(elapsed,physics,driver,{paused:paused||!exploring});
     syncProps();
     nightFires.update(elapsed,environment,driver,paused);
     vehicle.update(elapsed, { driver, night: environment.night, headlights: headlightsMode, braking: keys.has('b') || keys.has('ArrowDown') || keys.has('s'), time });
-    carShadow.position.set(driver.x, .14 + (driver.groundHeight || 0), driver.z); carShadow.rotation.z = -driver.heading; carShadow.material.opacity = .15 * (1 - driver.hop * .25);
+    carShadow.position.set(driver.x, .14 + (driver.groundHeight || 0), driver.z); carShadow.rotation.z = -driver.heading; carShadow.material.opacity=.15*Math.max(.08,1-driver.hop*.17);
     if (!reducedMotion && !paused) {
       animatedObjects.forEach(({ object, type }) => { if (type === 'coin') object.rotation.y = time * .45; else object.rotation.y = Math.sin(time * .3) * .3; });
       lanterns.forEach((lantern, i) => { lantern.rotation.z = Math.sin(time * .8 + i) * .12; });
@@ -618,20 +624,22 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
 
   return {
     start() { begin(); renderer.domElement.focus({ preventScroll: true }); },
-    reset() { driver.reset(); navigation.clear(); resetView(); physics.reset(); portalSystem.reset(); syncProps(); scenery.reset(); updateRoute(); onCancelRoute?.(); },
-    overview() { exploring = false; driver.cancelRoute(); navigation.clear(); resetView(); driver.speed = 0; driver.hop = 0; driver.hopVelocity = 0; driver.jumpPending=false;driver.jumpCharge=0;driver.hydraulicOffset=0;driver.hydraulicVelocity=0;driver.hydraulicPhase='idle';driver.jumpCooldown=0;driver.landingTime=0;driver.groundHeight = Math.max(0, bridgeHeightAt(driver.x, driver.z) - .1); driver.groundVelocity = 0; nearestId = null; onNearby?.(null); },
-    setPaused(value) { paused = value; navigation.clear(); driver.speed = 0; dust.forEach(p => { p.age = 1; p.object.position.y = -10; }); },
+    reset() { driver.reset(); navigation.clear(); resetView();playground.reset(); physics.reset(); portalSystem.reset(); syncProps(); scenery.reset(); updateRoute(); onCancelRoute?.(); },
+    overview() { exploring = false; driver.cancelRoute(); navigation.clear(); resetView(); driver.speed = 0; driver.hop = 0; driver.hopVelocity = 0; driver.jumpPending=false;driver.jumpCharge=0;driver.hydraulicOffset=0;driver.hydraulicVelocity=0;driver.hydraulicPhase='idle';driver.jumpCooldown=0;driver.landingTime=0;driver.groundHeight = Math.max(0, bridgeHeightAt(driver.x, driver.z) - .1); driver.groundVelocity = 0;driver.settle(); nearestId = null; onNearby?.(null); },
+    setPaused(value) { paused = value; navigation.clear(); driver.speed = 0;driver.vx=0;driver.vz=0;driver.boosting=false; dust.forEach(p => { p.age = 1; p.object.position.y = -10; }); },
     setLanguage(value) { language = value === 'vi' ? 'vi' : 'en'; renderer.domElement.setAttribute('aria-label', copy[language].canvasAria); translatedBoards.forEach(board => board.draw(copy[language][board.key])); },
     setKey(key, pressed) { if (paused) return; begin(); pressed ? keys.add(key) : keys.delete(key); },
     driveToProject(id) { const p = projects.find(p => p.id === id); if (!p) return; begin(); driver.navigate(p.stop, id); updateRoute(); },
     stopRoute() { driver.cancelRoute(); updateRoute(); },
-    jump() { if(!paused){begin();return driver.jump();}return false; },
+    hydraulics(){if(!paused)return driver.toggleHydraulics();},
+    jump() { if(!paused){begin();return driver.jump(readInput());}return false; },
     stopDriving,
     setNight(value) { environment = atmosphere.setTimeMode(value ? 'night' : 'day'); },
     setTimeMode(mode) { environment = atmosphere.setTimeMode(mode); return environment; },
     setWeather(mode) { environment = atmosphere.setWeather(mode); return environment; },
     setHeadlightsMode(mode) { if (['auto', 'on', 'off'].includes(mode)) headlightsMode = mode; },
     getEnvironment() { return atmosphere.getState(); },
+    goToPlayground(id){const approach=PLAYGROUND_APPROACHES[id];if(!approach)return;begin();driver.navigate(approach.stop,null);driver.route.push(...approach.points.slice(1).map(point=>[...point]));driver.routeDurationLimit=driver.routeBudget();onCancelRoute?.();updateRoute();},
     goToPortal,
     zoomBy(amount) { zoomScale = clampZoom(zoomScale * Math.exp(amount)); },
     resetCamera: resetView,
@@ -641,7 +649,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
       for (const [event, listener] of Object.entries(hoverListeners)) surface.removeEventListener(event, listener);
       // Snowman geometry is owned by islandLife even after its bodies are reparented.
       physics.bodies.filter(body=>body.kind==='snowman'||body.kind==='trash-can').forEach(body=>body.object.removeFromParent());
-      nightFires.dispose();scenery.dispose(); atmosphere.dispose(); flyover.dispose(); vehicle.dispose(); islandLife.dispose(); detailedTrees.dispose();
+      playground.dispose();nightFires.dispose();scenery.dispose(); atmosphere.dispose(); flyover.dispose(); vehicle.dispose(); islandLife.dispose(); detailedTrees.dispose();
       const geometries = new Set(); scene.traverse(o => { if (o.geometry) geometries.add(o.geometry); }); geometries.forEach(g => g.dispose());
       materials.forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove();
     }

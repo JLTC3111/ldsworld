@@ -120,17 +120,17 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
     for (const end of [-1, 1]) {
       const z = end * 1.2;
       for (const x of [-bridge.width / 2, bridge.width / 2]) {
-        box(.16, 3.25, .16, '#8f7855', crossing, x, 1.69, z);
-        roof(.5, .5, .19, '#798767', crossing, x, 3.3, z);
+        box(.16, 4.15, .16, '#8f7855', crossing, x, 2.14, z);
+        roof(.5, .5, .19, '#798767', crossing, x, 4.2, z);
       }
-      curveLine([[-bridge.width / 2, 3.25, z], [0, 2.83, z], [bridge.width / 2, 3.25, z]], '#7f785c', crossing, .014);
+      curveLine([[-bridge.width / 2, 4.15, z], [0, 3.73, z], [bridge.width / 2, 4.15, z]], '#7f785c', crossing, .014);
       for (let i = 0; i < 5; i++) {
-        const x = -1.5 + i * .75, y = 2.82 + .42 * (x / (bridge.width / 2)) ** 2;
+        const x = -1.5 + i * .75, y = 3.72 + .42 * (x / (bridge.width / 2)) ** 2;
         lantern(crossing, x, y - .12, z, i + (end + 1) * 3);
       }
     }
     if (bridge.id === 'village') {
-      const light = new THREE.PointLight('#f7c27b', 0, 10, 2); light.position.set(0, 2.7, 0); crossing.add(light); lightObjects.push(light); lamps.push(light);
+      const light = new THREE.PointLight('#f7c27b', 0, 10, 2); light.position.set(0,3.6,0); crossing.add(light); lightObjects.push(light); lamps.push(light);
     }
   }
 
@@ -205,9 +205,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   // A few lush, drooping willows and slender birches distinguish the river banks.
   const leafGeometry = ownGeo(new THREE.IcosahedronGeometry(1, 0));
   const willowMaterial = ownMat('#90a974'), birchMaterial = ownMat('#b1bd85');
-  const treeLocations = [
-    [-24, 1.2, 1.05], [-16, 1.8, .85], [-6.7, 5.5, .95], [8.5, 5.3, .83], [16, 1.9, .8], [25, 5.2, .92]
-  ];
+  const treeLocations=[[-7.5,-5.8,.95]];
   const willowLeaves = new THREE.InstancedMesh(leafGeometry, willowMaterial, treeLocations.length * (coarse?48:84)); willowLeaves.castShadow = true; willowLeaves.receiveShadow = true; root.add(willowLeaves);
   willowLeaves.userData.physicsIgnore = true;
   let leafIndex = 0;
@@ -225,7 +223,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
       dummy.rotation.set(random(), angle, Math.sin(angle) * .4); dummy.scale.set(.2 * scale, (.23+random()*.18) * scale, .18 * scale); dummy.updateMatrix(); willowLeaves.setMatrixAt(leafIndex++, dummy.matrix);
     }
   });
-  const birches = [[-21, -13], [-2, -18], [18.5, -14.2]];
+  const birches=[[-10,-24]];
   const birchLeaves = new THREE.InstancedMesh(leafGeometry, birchMaterial, birches.length * (coarse?30:54)); birchLeaves.castShadow = true; root.add(birchLeaves); leafIndex = 0;
   birchLeaves.userData.physicsIgnore = true;
   birches.forEach(([x, z], index) => {

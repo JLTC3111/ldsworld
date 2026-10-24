@@ -31,7 +31,7 @@ export function keepVehicleVisible(focus, frame, vehicle, viewportHeight) {
   const cosine = Math.cos(frame.yaw), sine = Math.sin(frame.yaw), elevation = Math.sin(frame.pitch);
   const carRight = vehicle.x * cosine - vehicle.z * sine;
   const carGround = -vehicle.x * sine * elevation - vehicle.z * cosine * elevation;
-  const roof = carGround + ((vehicle.y || 0) + 2.35) * Math.cos(frame.pitch);
+  const roof = carGround + ((vehicle.y || 0) + 3.1) * Math.cos(frame.pitch);
   const feet = carGround + ((vehicle.y || 0) + .1) * Math.cos(frame.pitch);
   const safeTop = frame.height * (.5 - Math.min(.23, 110 / viewportHeight));
   const safeBottom = frame.height * (.5 - Math.min(.24, 100 / viewportHeight));
