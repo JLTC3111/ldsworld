@@ -362,6 +362,13 @@ body.loaded #world-loading {
   align-items: center;
   gap: 7px;
   letter-spacing: .5px;
+  white-space: nowrap;
+  padding: 10px 12px;
+  border: 1px solid var(--chrome-border);
+  border-radius: 24px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow);
 }
 .live-dot,.status-dot {
   background: var(--muted);
@@ -373,6 +380,8 @@ body.loaded #world-loading {
 }
 .location #local-time {
   color: var(--muted);
+  padding-left: 7px;
+  border-left: 1px solid var(--line);
 }
 .language-switch {
   background: var(--chrome);
@@ -2405,3 +2414,9 @@ body[data-scene-palette] .hero .text-button:hover {
     transition: none;
   }
 }
+
+/* Moving the car clears the viewport; stopping restores the controls. */
+[data-world-overlay] { transition: opacity .25s, visibility .25s; }
+body.is-driving [data-world-overlay] { opacity:0 !important;visibility:hidden !important;pointer-events:none !important; }
+body.is-driving #world::after { opacity:0 !important; }
+@media(prefers-reduced-motion:reduce) { [data-world-overlay] { transition:none; } }

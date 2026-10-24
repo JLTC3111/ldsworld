@@ -1,9 +1,9 @@
 import { projects, getProject, localizeProject, copy } from './data.js';
-import { roadLoop } from './driving.js';
+import { roadLoop, outerRoadLoop, roadNodes } from './driving.js';
 import { preferredLanguage } from './preferences.js';
 import { bindDemoSource, releaseDemo, playDemo } from './media.js';
 import { EngineAudio } from './engine-audio.js';
-import { bridges, portals, houses, riverCenter } from './world-layout.js';
+import { bridges, portals, houses, riverCenter, WORLD_SCALE, RIVER_REACH, MAP_BOUNDS, MAP_VIEWBOX } from './world-layout.js';
 import { getCaseStudy } from './case-studies.js';
 import { formatProjectDate, demoTimestamp } from './portfolio-metadata.js';
 import { getProjectMedia } from './project-media.js';
@@ -13,6 +13,8 @@ import { getScenePresentation } from './scene-presentation.js';
 import { createTechText } from './tech-text.js';
 import { createEnvironmentAudio } from './environment-audio.js';
 import { createPanelPreviews } from './panel-previews.js';
+import { createDrivingHud } from './driving-hud.js';
+import { drivingKey } from './controls.js';
 
 const $ = selector => document.querySelector(selector);
 const formatCount = value => String(value).padStart(2,'0');
@@ -36,6 +38,7 @@ const mediaFor = project => getProjectMedia(typeof project === 'string' ? projec
 state.music = storage.get('music','on') !== 'off';
 state.showcaseScreen = 'project'; state.showcaseTool = null;
 const panel = $('#panel');
+const drivingHud=createDrivingHud();
 let world = null, previousFocus = null, toastTimer = null, speedValue = -1;
 const engineAudio = new EngineAudio();
 engineAudio.setEnabled(state.sound);
@@ -137,6 +140,7 @@ function setHash(view, id) {
 }
 function showPanel(view, id = null) {
   if (!panel.open) previousFocus = document.activeElement;
+  drivingHud.reveal();
   state.panel = view; state.projectId = id; renderPanel({ mount: false });
   if (!panel.open) panel.showModal();
   startCurrentDemo(); panelPreviews?.refresh(); mountShowcase();
@@ -252,7 +256,7 @@ function renderStage() {
   else if(view==='about'||view==='contact') metrics=[[t('location'),state.language==='vi'?'Hà Nội':'Hanoi'],[t('projectCount'),projectCount],[t('interfaceLanguage'),'EN / VI']];
   else if(view==='map') metrics=[[t('projectCount'),projectCount],[t('portalLabel'),String(portals.length).padStart(2,'0')],[t('controlsLabel'),'WASD']];
   else metrics=[[t('controlsLabel'),t('driveLabel')],[t('cameraLabel'),t('dragPreview')],[t('headlightsLabel'),t('lightsAuto')]];
-  const stageMap=view==='map'?`<div class="stage-map"><div class="stage-map-surface"><svg viewBox="-33 -25 66 50" aria-hidden="true">${mapSvg(true,'stage-map-car')}</svg>${projects.map(project=>`<button class="stage-map-stop" data-open-project="${project.id}" style="left:${(project.position[0]+33)/66*100}%;top:${(project.position[1]+25)/50*100}%;--marker-color:${project.color}" aria-label="${t('view')}: ${local(project).title}">${project.number}</button>`).join('')}</div></div>`:'';
+  const stageMap=view==='map'?`<div class="stage-map"><div class="stage-map-surface"><svg viewBox="${MAP_VIEWBOX}" aria-hidden="true">${mapSvg(true,'stage-map-car')}</svg>${projects.map(project=>`<button class="stage-map-stop" data-open-project="${project.id}" style="left:${(project.position[0]+MAP_BOUNDS.x)/(MAP_BOUNDS.x*2)*100}%;top:${(project.position[1]+MAP_BOUNDS.z)/(MAP_BOUNDS.z*2)*100}%;--marker-color:${project.color}" aria-label="${t('view')}: ${local(project).title}">${project.number}</button>`).join('')}</div></div>`:'';
   const artifact=view==='map'?stageMap:`<div class="stage-art"><div data-showcase data-showcase-mode="${mode}"></div>${['device','workbench'].includes(mode)?`<img class="stage-poster stage-fallback" src="${mediaFor(p).poster}" alt="${t('projectPreview')}: ${escapeText(p.title)}" width="960" height="600">`:renderFallbackArt(mode)}<button class="stage-reset" data-action="reset-showcase" aria-label="${t('resetPreview')}">${icon('reset')}</button></div>`;
   const nav=['projects','project'].includes(view)?`<div class="stage-project-nav" role="group" aria-label="${t('choosePreview')}">${projects.map(project=>`<button ${view==='projects'?`data-spotlight="${project.id}" aria-pressed="${p.id===project.id}"`:`data-open-project="${project.id}" aria-current="${p.id===project.id}"`} aria-label="${local(project).title}">${project.number}</button>`).join('')}</div>`:'';
   const caption=['project','projects','about'].includes(view)?p.title:t(mode==='mail'?'navContact':view==='map'?'map':'controls');
@@ -316,12 +320,12 @@ function renderHelp() {
   return `<article class="info-content"><p class="panel-eyebrow">${t('help')}</p><h2 id="panel-title">${t('helpTitle')}</h2><p>${t('helpIntro')}</p><ul class="help-list"><li>${icon('car')}${t('helpDrive')}</li><li>${icon('pin')}${t('helpClick')}</li><li>${icon('map')}${t('helpMouse')}</li><li>${icon('map')}${t('helpTrackpad')}</li><li>${icon('grid')}${t('helpProject')}</li><li>${icon('car')}${t('helpProps')}</li><li><kbd>↟</kbd>${t('helpBoost')}</li><li>${icon('map')}${t('helpMore')}</li></ul><p class="help-touch">${t('helpTouch')}</p>${reducedMotion ? `<p>${t('reduced')}</p>` : ''}<button class="primary-button" data-action="explore">${t('explore')}${icon('arrow')}</button></article>`;
 }
 function mapSvg(large = false, carId = large ? 'large-car' : 'mini-car') {
-  const river = Array.from({length:65},(_,i)=>{ const x=-29+i*58/64; return `${x},${riverCenter(x)}`; }).join('L');
+  const river = Array.from({length:65},(_,i)=>{ const x=-RIVER_REACH+i*RIVER_REACH*2/64; return `${x},${riverCenter(x)}`; }).join('L');
   const features = `<path d="M${river}" fill="none" stroke="#80b9b3" stroke-width="2.1"/>${bridges.map(b=>`<rect x="${-b.width/2}" y="${-b.length/2}" width="${b.width}" height="${b.length}" rx=".25" fill="#bda279" transform="translate(${b.x},${b.z}) rotate(${-b.heading*180/Math.PI})"/>`).join('')}${houses.map(h=>`<rect x="${h.x-1.4}" y="${h.z-1.2}" width="2.8" height="2.4" rx=".3" fill="${h.color}"/>`).join('')}${portals.map(p=>`<circle cx="${p.x}" cy="${p.z}" r="1.1" fill="none" stroke="${p.color}" stroke-width=".45"/>`).join('')}`;
-  return `<path d="M-28 0C-30 13-19 22-8 22C7 24 22 21 27 11C32 1 29-12 22-17C12-24-6-25-19-19C-27-15-30-7-28 0Z" fill="#c4cfae"/><path d="M${roadLoop.map(point => point.join(',')).join('L')}Z M0,-13V13 M-20,0H20" fill="none" stroke="#eeeddc" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/>${features}${projects.map(p => `<rect x="${p.position[0] - 1.8}" y="${p.position[1] - 1.3}" width="3.6" height="2.6" rx=".4" fill="${p.color}" opacity=".7"/>`).join('')}${large ? '' : projects.map(p => `<circle cx="${p.position[0]}" cy="${p.position[1]}" r=".55" fill="#fffdf0"/>`).join('')}<g id="${carId}" transform="translate(0,13)"><circle r="1.9" fill="#f8efcd" opacity=".8"/><path d="m0 1.25-.9-1.8L0-.15l.9-.4Z" fill="#3e6750"/></g>`;
+  return `<path d="M-28 0C-30 13-19 22-8 22C7 24 22 21 27 11C32 1 29-12 22-17C12-24-6-25-19-19C-27-15-30-7-28 0Z" fill="#c4cfae" transform="scale(${WORLD_SCALE})"/><path d="M${outerRoadLoop.map(point=>point.join(',')).join('L')}Z" fill="none" stroke="#eeeddc" stroke-width="4.9"/><path d="M${roadLoop.map(point => point.join(',')).join('L')}Z M0,-13V13 M-20,0H20" fill="none" stroke="#eeeddc" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/>${[["r2","o2"],["r8","o8"],["r0","o0"],["r4","o4"]].map(([a,b])=>`<path d="M${roadNodes[a].join(",")}L${roadNodes[b].join(",")}" fill="none" stroke="#eeeddc" stroke-width="4.2"/>`).join("")}${features}${projects.map(p => `<rect x="${p.position[0] - 1.8}" y="${p.position[1] - 1.3}" width="3.6" height="2.6" rx=".4" fill="${p.color}" opacity=".7"/>`).join('')}${large ? '' : projects.map(p => `<circle cx="${p.position[0]}" cy="${p.position[1]}" r=".55" fill="#fffdf0"/>`).join('')}<g id="${carId}" transform="translate(0,13)"><circle r="1.9" fill="#f8efcd" opacity=".8"/><path d="m0 1.25-.9-1.8L0-.15l.9-.4Z" fill="#3e6750"/></g>`;
 }
 function renderMap() {
-  return `<article class="info-content"><p class="panel-eyebrow">${t('mapEyebrow')}</p><h2 id="panel-title">${t('map')}</h2><p>${t('helpIntro')}</p><div class="large-map"><svg viewBox="-33 -25 66 50" aria-hidden="true">${mapSvg(true)}</svg>${projects.map(p => `<button class="map-stop" data-open-project="${p.id}" style="left:${(p.position[0] + 33) / 66 * 100}%;top:${(p.position[1] + 25) / 50 * 100}%;--marker-color:${p.color}" aria-label="${t('view')}: ${local(p).title}">${state.visited.has(p.id) ? '✓' : p.number}</button>`).join('')}</div><div class="map-key"><span></span>${t('youAreHere')}</div><div class="map-list">${projects.map(p => `<button data-open-project="${p.id}"><span class="map-number">${p.number}</span>${local(p).short}${icon('up-right')}</button>`).join('')}</div><h3 class="skill-heading">${t('portalLabel')}</h3><div class="portal-map-links">${portals.map((p,i)=>`<button class="secondary-button" data-go-portal="${p.id}"><span style="color:${p.color}">◉</span>${t(i?'eastGate':'westGate')}${icon('arrow')}</button>`).join('')}</div><div class="info-links"><button class="primary-button" data-action="tour">${icon('car')}${t('navTour')}${icon('arrow')}</button><button class="secondary-button" data-action="overview">${t('overview')}</button></div></article>`;
+  return `<article class="info-content"><p class="panel-eyebrow">${t('mapEyebrow')}</p><h2 id="panel-title">${t('map')}</h2><p>${t('helpIntro')}</p><div class="large-map"><svg viewBox="${MAP_VIEWBOX}" aria-hidden="true">${mapSvg(true)}</svg>${projects.map(p => `<button class="map-stop" data-open-project="${p.id}" style="left:${(p.position[0] + MAP_BOUNDS.x) / (MAP_BOUNDS.x*2) * 100}%;top:${(p.position[1] + MAP_BOUNDS.z) / (MAP_BOUNDS.z*2) * 100}%;--marker-color:${p.color}" aria-label="${t('view')}: ${local(p).title}">${state.visited.has(p.id) ? '✓' : p.number}</button>`).join('')}</div><div class="map-key"><span></span>${t('youAreHere')}</div><div class="map-list">${projects.map(p => `<button data-open-project="${p.id}"><span class="map-number">${p.number}</span>${local(p).short}${icon('up-right')}</button>`).join('')}</div><h3 class="skill-heading">${t('portalLabel')}</h3><div class="portal-map-links">${portals.map((p,i)=>`<button class="secondary-button" data-go-portal="${p.id}"><span style="color:${p.color}">◉</span>${t(i?'eastGate':'westGate')}${icon('arrow')}</button>`).join('')}</div><div class="info-links"><button class="primary-button" data-action="tour">${icon('car')}${t('navTour')}${icon('arrow')}</button><button class="secondary-button" data-action="overview">${t('overview')}</button></div></article>`;
 }
 const weatherKey = mode => ({ clear: 'weatherClear', rain: 'weatherRain', snow: 'weatherSnow', auto: 'weatherAuto' }[mode] || 'weatherClear');
 function updateEnvironment(environment) {
@@ -388,11 +392,12 @@ function renderPanel({ mount = true } = {}) {
 }
 
 function goHome() {
-  closePanel(); stopTour(); world?.overview(); state.exploring = false; state.nearby = null;
+  drivingHud.reveal();closePanel(); stopTour(); world?.overview(); state.exploring = false; state.nearby = null;
   document.body.classList.remove('exploring'); updateStatus(); refreshNearby(); setHash(null);
 }
 async function performAction(action) {
   if (['projects', 'about', 'contact', 'help', 'map', 'world'].includes(action)) { showPanel(action); return; }
+  if (action === 'jump') { world?.jump(); return; }
   if (action === 'tour') { startTour(); return; }
   if (action === 'explore') { closePanel(); if (world) world.start(); else if (state.ready) showPanel('projects'); else showToast(t('loading')); return; }
   if (action === 'toggle-music') { const current=backgroundMusic.getState();state.music=!current.enabled||current.blocked;storage.set('music',state.music?'on':'off');backgroundMusic.setEnabled(state.music);return; }
@@ -407,6 +412,7 @@ async function performAction(action) {
   }
 }
 function spotlightFromCard(event) { if (state.panel !== 'projects') return; const card = event.target.closest?.('.project-card'); if (card && card.dataset.openProject !== state.spotlightId) selectSpotlight(card.dataset.openProject); }
+document.addEventListener('pointerdown',event=>{if(!panel.open&&event.target.closest?.('#island-canvas,[data-drive],[data-action="jump"]'))drivingHud.engage();});
 document.addEventListener('pointerover', spotlightFromCard);
 document.addEventListener('focusin', spotlightFromCard);
 document.addEventListener('click', event => {
@@ -457,7 +463,9 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('keydown', event => {
   if (event.ctrlKey || event.metaKey || event.altKey || event.repeat || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
   if (panel.open) return;
+  if(drivingKey(event))drivingHud.engage();
   const key = event.key.toLowerCase();
+  if (key === 'escape') { event.preventDefault();world?.stopDriving();drivingHud.reveal(); }
   if (key === 'm') { event.preventDefault(); showPanel('map'); }
   if (key === 'p') { event.preventDefault(); showPanel('projects'); }
   if (key === 'r') { event.preventDefault(); stopTour(); world?.reset(); showToast(t('resetToast')); }
@@ -492,7 +500,8 @@ try {
     onNearby(id) { state.nearby = id; refreshNearby(); },
     onPortal() { showToast(t('portalArrival')); },
     onEnvironment: updateEnvironment,
-    onFrame({ x, z, heading, speed, actualSpeed, rpm, acceleration, paused }) {
+    onFrame({ x, z, heading, speed, actualSpeed, rpm, acceleration, paused, hop, elapsed }) {
+      drivingHud.update({speed:actualSpeed,hop,elapsed,paused,panelOpen:panel.open});
       state.riverDistance = Math.abs(z-riverCenter(x));
       const transform = `translate(${x.toFixed(2)},${z.toFixed(2)}) rotate(${(-heading * 180 / Math.PI).toFixed(1)})`;
       $('#mini-car')?.setAttribute('transform', transform); $('#large-car')?.setAttribute('transform', transform); $('#stage-map-car')?.setAttribute('transform', transform);
@@ -510,4 +519,4 @@ try {
   document.body.classList.add('loaded'); state.ready = true;
   $('#explore').innerHTML = `${icon('grid')}<span data-copy="browseProjects">${t('browseProjects')}</span>${icon('arrow')}`;
 }
-window.addEventListener('pagehide', event => { if (!event.persisted) { panelPreviews?.destroy(); disposeShowcase(); world?.dispose(); engineAudio.dispose(); backgroundMusic.dispose(); brandTechText.dispose(); environmentAudio.dispose(); } });
+window.addEventListener('pagehide', event => { if (!event.persisted) { drivingHud.dispose();panelPreviews?.destroy(); disposeShowcase(); world?.dispose(); engineAudio.dispose(); backgroundMusic.dispose(); brandTechText.dispose(); environmentAudio.dispose(); } });

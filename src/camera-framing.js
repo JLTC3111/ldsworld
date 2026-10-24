@@ -1,3 +1,5 @@
+import { ISLAND_BOUNDS } from './world-layout.js';
+
 export const MIN_ZOOM = .88;
 export const MAX_ZOOM = 1.04;
 export const clampZoom = value => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
@@ -6,9 +8,12 @@ export const clampZoom = value => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
 export function islandFrame(aspect, yaw, pitch, zoom = 1) {
   const rightX = Math.cos(yaw), rightZ = -Math.sin(yaw);
   const upX = -Math.sin(yaw) * Math.sin(pitch), upZ = -Math.cos(yaw) * Math.sin(pitch);
-  const landWidth = 2 * Math.hypot(28 * rightX, 21 * rightZ);
-  const landHeight = 2 * Math.hypot(28 * upX, 21 * upZ);
-  const height = Math.min(landHeight, landWidth / aspect) * .94 * clampZoom(zoom);
+  const landWidth = 2 * Math.hypot(ISLAND_BOUNDS.x * rightX, ISLAND_BOUNDS.z * rightZ);
+  const landHeight = 2 * Math.hypot(ISLAND_BOUNDS.x * upX, ISLAND_BOUNDS.z * upZ);
+  // Preserve a close, readable driving view as the playable area grows.
+  const viewWidth = 2 * Math.hypot(28 * rightX, 21 * rightZ);
+  const viewHeight = 2 * Math.hypot(28 * upX, 21 * upZ);
+  const height = Math.min(viewHeight, viewWidth / aspect) * .94 * clampZoom(zoom);
   const width = height * aspect;
   return { width, height, yaw, pitch,
     horizontalLimit: Math.max(0, (landWidth - width) / 2),

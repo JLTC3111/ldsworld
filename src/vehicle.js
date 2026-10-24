@@ -82,7 +82,8 @@ export function createVehicle({ THREE, scene, reducedMotion = false }) {
   box(.32, .41, .18, '#beaa69', body, -.47, .97, -1.25);
   const exhaust = cylinder(.055, .46, metal, body, -.54, .35, -1.17, 8); exhaust.rotation.x = Math.PI / 2;
 
-  const wheelPivots = [], wheelRollers = [], suspension = [];
+  const wheelPivots = [], wheelRollers = [], suspension = [], hydraulicRams=[];
+  const reservoir=cylinder(.1,.4,metal,body,0,.35,-.3,12);reservoir.rotation.z=Math.PI/2;reservoir.name='hydraulic-pressure-reservoir';
   const treadGeometry = new THREE.BoxGeometry(.24, .055, .11); geometries.add(treadGeometry);
   for (const x of [-.8, .8]) for (const z of [-.77, .8]) {
     const pivot = new THREE.Group(); pivot.position.set(x, .45, z); root.add(pivot);
@@ -101,6 +102,10 @@ export function createVehicle({ THREE, scene, reducedMotion = false }) {
     tread.castShadow = true; roller.add(tread);
     const guard = add(new THREE.TorusGeometry(.41, .065, 6, 18, Math.PI), paint, body, x, .48, z); guard.rotation.y = Math.PI / 2;
     const spring = add(new THREE.TorusKnotGeometry(.06, .012, 32, 4, 2, 7), metal, root, x * .7, .52, z); spring.scale.y = 2.2;
+    const barrel=cylinder(.065,.27,charcoal,root,x*.77,.43,z,10);barrel.name='hydraulic-cylinder';
+    const piston=cylinder(.03,1,metal,root,x*.77,.62,z,10);piston.name='hydraulic-piston';
+    box(.17,.065,.17,metal,body,x*.77,.75,z);
+    hydraulicRams.push({barrel,piston});
     wheelPivots.push({ pivot, front: z > 0, side: Math.sign(x), z }); wheelRollers.push(roller); suspension.push(spring);
   }
   const headLights = [];
@@ -134,18 +139,24 @@ export function createVehicle({ THREE, scene, reducedMotion = false }) {
       root.children.filter(object => object.name === 'headlight-beam').forEach(beam => { beam.material.opacity = active * night * .025; });
       const pitch = reducedMotion ? 0 : Math.max(-.2, Math.min(.2, (driver.pitch || 0) - acceleration * .004));
       const roll = reducedMotion ? 0 : Math.max(-.22, Math.min(.22, (driver.roll || 0) - driver.steering * driver.speed * .012));
+      const lift=Math.max(-.21,Math.min(.17,driver.hydraulicOffset||0));
+      body.position.y=lift;
       body.rotation.x += (pitch - body.rotation.x) * Math.min(dt * 9, 1);
       body.rotation.z += (roll - body.rotation.z) * Math.min(dt * 9, 1);
-      wheelPivots.forEach(({ pivot, front, side, z }) => {
+      wheelPivots.forEach(({ pivot, front, side, z },index) => {
         pivot.rotation.y = front ? driver.steering * .4 : 0;
         const corner = `${front ? 'front' : 'rear'}${side < 0 ? 'Left' : 'Right'}`;
         const surface = driver.wheelHeights?.[corner] ?? driver.groundHeight ?? 0;
         const travel = Math.max(-.12, Math.min(.12, surface - (driver.groundHeight || 0)));
         pivot.position.y = .45 + travel + (reducedMotion ? 0 : Math.sin(time * 11 + z * 4) * Math.abs(driver.speed) * .0018 + roll * side * .12);
+        const ram=hydraulicRams[index],bottom=.43+travel*.5,top=.75+lift;
+        ram.barrel.position.y=bottom;ram.piston.position.y=(bottom+top)/2;
+        ram.piston.scale.y=Math.max(.08,top-bottom);
+        suspension[index].position.y=.52+lift*.5+travel*.5;
       });
       wheelAngle += driver.speed * Math.min(dt, .05) / .35;
       wheelRollers.forEach(roller => { roller.rotation.x = wheelAngle; });
-      suspension.forEach(spring => { spring.scale.y = 2.2 + (reducedMotion ? 0 : Math.sin(time * 11) * Math.abs(driver.speed) * .008); });
+      suspension.forEach(spring => { spring.scale.y = Math.max(.9,2.2+lift*4) + (reducedMotion ? 0 : Math.sin(time * 11) * Math.abs(driver.speed) * .008); });
       steeringWheel.rotation.z = -driver.steering * .7;
       antenna.rotation.z = reducedMotion ? 0 : Math.sin(time * 7) * Math.abs(driver.speed) * .006;
     },

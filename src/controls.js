@@ -26,6 +26,7 @@ export function bindNavigation({ surface, wheelTarget = surface, keyboard = wind
     const key = drivingKey(event);
     if (!key || key === ' ' && event.target?.closest?.('button, a')) return;
     event.preventDefault();
+    if(event.repeat)return;
     onKey?.(key, true);
     if (key === ' ' && !event.repeat) onJump?.();
   };

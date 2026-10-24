@@ -1,6 +1,6 @@
 import * as THREE from './vendor/three.module.js';
 import { projects, copy } from './data.js';
-import { Driver, roadLoop, roadNodes } from './driving.js';
+import { Driver, roadLoop, outerRoadLoop, roadNodes } from './driving.js';
 import { bindNavigation } from './controls.js';
 import { createScenery } from './scenery.js';
 import { createAtmosphere } from './atmosphere.js';
@@ -10,7 +10,7 @@ import { createTreeDetails } from './tree-details.js';
 import { PhysicsWorld, PortalSystem } from './physics.js';
 import { collectWorldColliders, createDynamicBody, createInstancedBodies, syncPhysicsBodies } from './world-physics.js';
 import { createVehicle } from './vehicle.js';
-import { bridgeHeightAt, isRiver, houses, portals, ROAD_WIDTHS } from './world-layout.js';
+import { bridgeHeightAt, isRiver, houses, portals, ROAD_WIDTHS, WORLD_SCALE, ISLAND_BOUNDS, islandRadius } from './world-layout.js';
 import { islandFrame, constrainIslandFocus, keepVehicleVisible, clampZoom } from './camera-framing.js';
 
 const colors = { grass: '#b7c49c', sand: '#e0d3b0', road: '#ebe7d3', sea: '#e2e8dc', cream: '#eae4cb', dark: '#3d5146', leaf: '#7a9365', pine: '#698264', trunk: '#94785a', glass: '#8da9a1', yellow: '#d8b45d' };
@@ -55,7 +55,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   sun.shadow.normalBias = .035;
   sun.shadow.bias = -.00015;
   sun.shadow.radius = 3;
-  scene.add(sun);
+  scene.add(sun,sun.target);
   const fill = new THREE.DirectionalLight('#d3e3df', .6);
   fill.position.set(30, 20, -30); scene.add(fill);
   const materials = new Map();
@@ -138,18 +138,18 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   islandShape.bezierCurveTo(-27, 15, -30, 7, -28, 0);
   const shoreGeo = new THREE.ExtrudeGeometry(islandShape, { depth: 1.15, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: .4, bevelThickness: .3, curveSegments: 14 });
   const island = mesh(shoreGeo, [mat(colors.grass), mat(colors.sand)], land, 0, -1.5, 0);
-  island.rotation.x = -Math.PI / 2;
+  island.rotation.x = -Math.PI / 2; island.scale.set(WORLD_SCALE,WORLD_SCALE,1); island.name='Expanded island terrain';
   const sea = mesh(new THREE.PlaneGeometry(600, 600), mat(colors.sea), scene, 0, -1.5, 0, false); sea.rotation.x = -Math.PI / 2;
   const atmosphere = createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill, sea, coarse, reducedMotion });
   const flyover = createFlyover({ THREE, scene, reducedMotion, coarse });
   let environment = atmosphere.getState();
   const summerGrass = new THREE.Color(colors.grass), snowGrass = new THREE.Color('#dce6dc');
-  const shoreLine = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(islandShape.getPoints(160).map(p => new THREE.Vector3(p.x * 1.025, -1.12, -p.y * 1.025))), new THREE.LineBasicMaterial({ color: '#eaf0e2', transparent: true, opacity: .8 }));
+  const shoreLine = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(islandShape.getPoints(160).map(p => new THREE.Vector3(p.x * 1.025*WORLD_SCALE, -1.12, -p.y * 1.025*WORLD_SCALE))), new THREE.LineBasicMaterial({ color: '#eaf0e2', transparent: true, opacity: .8 }));
   scene.add(shoreLine);
 
   function road(points, width, closed = false, color = colors.road, height = .1) {
     const curve = new THREE.CatmullRomCurve3(points.map(p => new THREE.Vector3(p[0], height, p[1])), closed, 'catmullrom', .25);
-    const count = closed ? 180 : 50;
+    const count = closed ? 360 : 100;
     const vertices = [], indices = [];
     for (let i = 0; i <= count; i++) {
       const t = i / count, p = curve.getPoint(t), tangent = curve.getTangent(t);
@@ -164,6 +164,9 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   }
   road(roadLoop, ROAD_WIDTHS.shoulder, true, '#d4d2b6', .055);
   const loopRoad = road(roadLoop, ROAD_WIDTHS.ring, true);
+  road(outerRoadLoop,ROAD_WIDTHS.shoulder,true,'#d4d2b6',.055);
+  road(outerRoadLoop,ROAD_WIDTHS.ring,true);
+  for(const [a,b] of [['r2','o2'],['r8','o8'],['r0','o0'],['r4','o4']])road([roadNodes[a],roadNodes[b]],ROAD_WIDTHS.spine);
   road([roadNodes.r2, [-.75, -9], [-.75, -6.8], [0, -3], roadNodes.c0, [0, 6], roadNodes.r8], ROAD_WIDTHS.spine, false);
   road([roadNodes.r11, [-10, 0], roadNodes.c0, [10, 0], roadNodes.r5], ROAD_WIDTHS.spine, false);
   for (let i = 0; i < 68; i++) {
@@ -295,7 +298,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz)));
     return Math.hypot(x - a[0] - dx * t, z - a[1] - dz * t);
   };
-  const onRoad = (x, z) => roadLoop.some((p, i) => segmentDistance(x, z, p, roadLoop[(i + 1) % roadLoop.length]) < 3.7) || (Math.abs(x) < 2.6 && Math.abs(z) < 14) || (Math.abs(z) < 2.6 && Math.abs(x) < 21);
+  const onRoad = (x, z) => roadLoop.some((p, i) => segmentDistance(x, z, p, roadLoop[(i + 1) % roadLoop.length]) < 3.7) || (Math.abs(x) < 2.6 && Math.abs(z) < 14) || (Math.abs(z) < 2.6 && Math.abs(x) < 21) || outerRoadLoop.some((p,i)=>segmentDistance(x,z,p,outerRoadLoop[(i+1)%12])<3.7) || [['r2','o2'],['r8','o8'],['r0','o0'],['r4','o4']].some(([a,b])=>segmentDistance(x,z,roadNodes[a],roadNodes[b])<3.7);
   for (let i = 0; i < 1600 && treePositions.length < (coarse ? 95 : 140); i++) {
     const x = (rand() - .5) * 54, z = (rand() - .5) * 40;
     if (Math.hypot(x / 27, z / 20) > .97 || onRoad(x, z) || isRiver(x, z, 2)) continue;
@@ -306,6 +309,16 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     if (Math.hypot(x - 22, z + 12) < 3 || Math.hypot(x + 21, z - 12) < 4) continue;
     if (treePositions.some(p => Math.hypot(x - p.x, z - p.z) < 1.25)) continue;
     treePositions.push({ x, z, scale: .6 + rand() * .7, round: rand() > .72 });
+  }
+  // Sparse woodland around the original village leaves broad clearings for future play areas.
+  const forestTarget=treePositions.length+(coarse?120:240);
+  for(let i=0;i<5000&&treePositions.length<forestTarget;i++){
+    const x=(rand()-.5)*(ISLAND_BOUNDS.x-5)*2,z=(rand()-.5)*(ISLAND_BOUNDS.z-5)*2;
+    if(Math.hypot(x/30,z/24)<1.15||islandRadius(x,z,5)>.97||isRiver(x,z,2))continue;
+    if(outerRoadLoop.some((a,j)=>segmentDistance(x,z,a,outerRoadLoop[(j+1)%12])<4))continue;
+    if([['r2','o2'],['r8','o8'],['r0','o0'],['r4','o4']].some(([a,b])=>segmentDistance(x,z,roadNodes[a],roadNodes[b])<4))continue;
+    if(treePositions.some(t=>Math.hypot(x-t.x,z-t.z)<4.5))continue;
+    treePositions.push({x,z,scale:.6+rand()*.7,round:rand()>.72});
   }
   const pineCount = treePositions.filter(t => !t.round).length;
   const roundCount = treePositions.length - pineCount;
@@ -343,7 +356,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   rocks.castShadow = true; rocks.receiveShadow = true;
   for (let i = 0; i < 34; i++) {
     const angle = i / 34 * Math.PI * 2; const s = .3 + rand() * .5;
-    dummy.position.set(Math.cos(angle) * (27 + rand()), -.25, Math.sin(angle) * (20 + rand())); dummy.rotation.set(rand(), rand(), rand()); dummy.scale.set(s * 1.6, s * .8, s); dummy.updateMatrix(); rocks.setMatrixAt(i, dummy.matrix);
+    dummy.position.set(Math.cos(angle) * (ISLAND_BOUNDS.x-1 + rand()), -.25, Math.sin(angle) * (ISLAND_BOUNDS.z-1 + rand())); dummy.rotation.set(rand(), rand(), rand()); dummy.scale.set(s * 1.6, s * .8, s); dummy.updateMatrix(); rocks.setMatrixAt(i, dummy.matrix);
   }
   scene.add(rocks);
   const flowers = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(.1, 0), mat('#d7c47d'), 110);
@@ -380,7 +393,11 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   box(3.2, 1.1, .12, '#e7dcbb', sign, 0, 1.65, 0);
   board('HELLO, CURIOUS HUMAN.', 2.95, .7, '#e7dcbb', '#8b8d65', sign, 0, 1.65, .07, 36, 'welcomeSign');
   const fence = group(land);
-  for (let i = 0; i < 15; i++) { const x = -18 + i * 2; box(.09, .8, .09, '#a6a681', fence, x, .5, -18.4); if (i < 14) { box(2, .08, .08, '#b8b08b', fence, x + 1, .78, -18.4); box(2, .08, .08, '#b8b08b', fence, x + 1, .4, -18.4); } }
+  for(let i=0;i<15;i++){
+    const x=-18+i*2;
+    if(Math.abs(x)>3)box(.09,.8,.09,'#a6a681',fence,x,.5,-18.4);
+    if(i<14&&Math.abs(x+1)>3.5){box(2,.08,.08,'#b8b08b',fence,x+1,.78,-18.4);box(2,.08,.08,'#b8b08b',fence,x+1,.4,-18.4);}
+  }
   const cones = [];
   [[-15, -11], [-14, -11.6], [15.5, 9], [16.2, 8.2], [5, 14.6], [6, 14.5]].forEach(([x, z]) => {
     const cone = group(land, x, z); box(.43, .07, .43, '#b4b499', cone, 0, .16, 0);
@@ -391,7 +408,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   const scenery = createScenery({ THREE, scene, land, box, cylinder, sphere, group, mesh, mat, board, coarse, reducedMotion });
   const islandLife=createIslandLife({THREE,scene,reducedMotion,coarse});
   const vehicle = createVehicle({ THREE, scene, reducedMotion });
-  const car = vehicle.root;
+  const car = vehicle.root;car.userData.vehicleId='explorer';
   const carShadow = mesh(new THREE.CircleGeometry(1, 24), new THREE.MeshBasicMaterial({ color: '#6d7d61', transparent: true, opacity: .13, depthWrite: false }), scene, 0, .14, 13, false); carShadow.rotation.x = -Math.PI / 2; carShadow.scale.set(.9, 1.35, 1);
   const routeColliders = [...projects.map(p => ({ x:p.position[0], z:p.position[1], width:p.footprint[0], depth:p.footprint[1] })), ...scenery.colliders, ...islandLife.colliders];
   const coneBodies = cones.map((cone, index) => {
@@ -428,11 +445,12 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -.14);
   const pointerPoint = new THREE.Vector3();
   const surface = renderer.domElement, hoverPointers = new Set();
-  const interactiveGroups = [...landmarkGroups, ...scenery.portalGroups, ...bodyDefinitions.map(body=>body.object).filter(Boolean), rocks];
+  const interactiveGroups = [...landmarkGroups, ...scenery.portalGroups, car, ...bodyDefinitions.map(body=>body.object).filter(Boolean), rocks];
   const shoreIds = new Map(shoreBodies.map(body=>[body.instance.index,body.id]));
   function begin() {
     if (!exploring) { exploring = true; onStart?.(); }
   }
+  function stopDriving(){driver.jumpPending=false;driver.jumpCharge=0;driver.cancelRoute();driver.speed=0;driver.vx=0;driver.vz=0;navigation.clear();onCancelRoute?.();}
   function clearKeys() { keys.clear(); hoverPointers.clear(); surface.style.cursor = paused ? 'default' : 'grab'; }
   function pickInteractive(x, y) {
     const rect = surface.getBoundingClientRect(), width = rect.width || innerWidth, height = rect.height || innerHeight;
@@ -440,22 +458,25 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     raycaster.setFromCamera(pointer, camera);
     const hits = raycaster.intersectObjects(interactiveGroups, true);
     for (const hit of hits) {
+      const paints=Array.isArray(hit.object.material)?hit.object.material:[hit.object.material];
+      if(paints.every(paint=>!paint||paint.visible===false||(paint.transparent&&paint.opacity<=.05)))continue;
       let visible=true;
       for(let parent=hit.object;parent;parent=parent.parent) if(!parent.visible){visible=false;break;}
       if(!visible)continue;
       if(hit.object===rocks)return {propId:shoreIds.get(hit.instanceId)};
       let object=hit.object;
-      while(object&&!object.userData.propId&&!object.userData.projectId&&!object.userData.portalId)object=object.parent;
+      while(object&&!object.userData.propId&&!object.userData.projectId&&!object.userData.portalId&&!object.userData.vehicleId)object=object.parent;
       if(object)return object.userData;
     }
     return null;
   }
   const clickGround = (x, y) => {
     const target = pickInteractive(x, y);
+    if (target?.vehicleId) { stopDriving();return; }
     if (target?.propId) { begin(); physics.kick(target.propId,{x:driver.x,z:driver.z,strength:4}); return; }
     if (target?.portalId) { goToPortal(target.portalId); return; }
     if (target?.projectId) { onProject?.(target.projectId); return; }
-    if (raycaster.ray.intersectPlane(plane, pointerPoint) && Math.hypot(pointerPoint.x / 28, pointerPoint.z / 21) < 1) {
+    if (raycaster.ray.intersectPlane(plane, pointerPoint) && islandRadius(pointerPoint.x,pointerPoint.z) < 1) {
       begin(); driver.driveTo(pointerPoint.x, pointerPoint.z); onCancelRoute?.();
       const target = driver.route.at(-1) || [pointerPoint.x, pointerPoint.z]; targetRing.position.set(target[0], bridgeHeightAt(...target) + .17, target[1]); targetRing.visible = true;
     }
@@ -479,7 +500,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
       begin(); const unit = viewHeight / innerHeight;
       panOffset.x -= (dx * Math.cos(orbitYaw) + dy * Math.sin(orbitYaw) / Math.sin(orbitPitch)) * unit;
       panOffset.z += (dx * Math.sin(orbitYaw) - dy * Math.cos(orbitYaw) / Math.sin(orbitPitch)) * unit;
-      panOffset.x = THREE.MathUtils.clamp(panOffset.x, -35, 35); panOffset.z = THREE.MathUtils.clamp(panOffset.z, -28, 28);
+      panOffset.x = THREE.MathUtils.clamp(panOffset.x, -ISLAND_BOUNDS.x, ISLAND_BOUNDS.x); panOffset.z = THREE.MathUtils.clamp(panOffset.z, -ISLAND_BOUNDS.z, ISLAND_BOUNDS.z);
     },
     onZoom(amount) { begin(); zoomScale = clampZoom(zoomScale * Math.exp(amount)); }
   });
@@ -515,7 +536,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     const liveFrame = { ...framing, height: viewHeight, width: viewHeight * aspect,
       horizontalLimit: framing.horizontalLimit + (targetHeight - viewHeight) * aspect / 2,
       verticalLimit: framing.verticalLimit + (targetHeight - viewHeight) / 2 };
-    const follow = exploring ? .95 : .35;
+    const follow = exploring ? 1 : .35;
     const desiredLook = new THREE.Vector3(driver.x * follow, 0, driver.z * follow).add(panOffset);
     const constrained = constrainIslandFocus(desiredLook.x, desiredLook.z, liveFrame);
     desiredLook.set(constrained.x, 0, constrained.z); lookAt.lerp(desiredLook, damping);
@@ -527,7 +548,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     camera.position.copy(lookAt).add(cameraOffset); camera.lookAt(lookAt); camera.updateProjectionMatrix(); camera.updateMatrixWorld();
   }
   function updateRoute() {
-    routeLine.visible = driver.route.length > 0;
+    routeLine.visible = driver.route.length > 0 && Math.abs(driver.speed)<=.18 && driver.hop<=.05;
     if (routeLine.visible) {
       const stops = [[driver.x, driver.z], ...driver.route], points = [];
       for (let i = 0; i < stops.length - 1; i++) {
@@ -543,7 +564,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     if (!wasVisible) { lastTime = now; return; }
     const elapsed = Math.min((now - lastTime) / 1000, .05); lastTime = now;
     const time = now / 1000;
-    environment = atmosphere.update(elapsed, { paused });
+    environment = atmosphere.update(elapsed, { paused, focus:driver });
     flyover.update(elapsed, { night:environment.night, paused });
     driver.setWeather(environment.weather);
     winterAmount += ((environment.weather === 'snow' ? .72 : 0) - winterAmount) * Math.min(elapsed * .7, 1);
@@ -574,6 +595,8 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
       targetRing.scale.setScalar(1 + Math.sin(time * 4) * .08);
       for (const particle of dust) { particle.age += elapsed; if (particle.age < particle.life) { particle.object.position.x += particle.dx * elapsed; particle.object.position.z += particle.dz * elapsed; particle.object.position.y += elapsed * .25; particle.object.scale.setScalar((1 - particle.age / particle.life) * 1.7); } else particle.object.position.y = -10; }
     }
+    // Driving leaves only the physical scene, with no navigation paint over the road.
+    if(Math.abs(driver.speed)>.18||driver.hop>.05){routeLine.visible=false;targetRing.visible=false;}
     updateCamera(elapsed);
     if (++updateFrame % 5 === 0) {
       updateRoute();
@@ -583,7 +606,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     }
     smoothedSpeed += (Math.abs(driver.speed) - smoothedSpeed) * Math.min(elapsed * 8, 1);
     onEnvironment?.(environment);
-    onFrame?.({ x: driver.x, z: driver.z, heading: driver.heading, speed: smoothedSpeed, actualSpeed: driver.speed, rpm: driver.rpm, gear: driver.gear, acceleration: driver.acceleration, paused, weather: environment.weather });
+    onFrame?.({ x: driver.x, z: driver.z, heading: driver.heading, speed: smoothedSpeed, actualSpeed: driver.speed, rpm: driver.rpm, gear: driver.gear, acceleration: driver.acceleration, hop:driver.hop, hydraulicPhase:driver.hydraulicPhase, elapsed, paused, weather: environment.weather });
     renderer.render(scene, camera);
   }
   // Set the final overview before the first paint; avoid a camera fly-in at load.
@@ -594,13 +617,14 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   return {
     start() { begin(); renderer.domElement.focus({ preventScroll: true }); },
     reset() { driver.reset(); navigation.clear(); resetView(); physics.reset(); portalSystem.reset(); syncProps(); scenery.reset(); updateRoute(); onCancelRoute?.(); },
-    overview() { exploring = false; driver.cancelRoute(); navigation.clear(); resetView(); driver.speed = 0; driver.hop = 0; driver.hopVelocity = 0; driver.groundHeight = Math.max(0, bridgeHeightAt(driver.x, driver.z) - .1); driver.groundVelocity = 0; nearestId = null; onNearby?.(null); },
+    overview() { exploring = false; driver.cancelRoute(); navigation.clear(); resetView(); driver.speed = 0; driver.hop = 0; driver.hopVelocity = 0; driver.jumpPending=false;driver.jumpCharge=0;driver.hydraulicOffset=0;driver.hydraulicVelocity=0;driver.hydraulicPhase='idle';driver.jumpCooldown=0;driver.landingTime=0;driver.groundHeight = Math.max(0, bridgeHeightAt(driver.x, driver.z) - .1); driver.groundVelocity = 0; nearestId = null; onNearby?.(null); },
     setPaused(value) { paused = value; navigation.clear(); driver.speed = 0; dust.forEach(p => { p.age = 1; p.object.position.y = -10; }); },
     setLanguage(value) { language = value === 'vi' ? 'vi' : 'en'; renderer.domElement.setAttribute('aria-label', copy[language].canvasAria); translatedBoards.forEach(board => board.draw(copy[language][board.key])); },
     setKey(key, pressed) { if (paused) return; begin(); pressed ? keys.add(key) : keys.delete(key); },
     driveToProject(id) { const p = projects.find(p => p.id === id); if (!p) return; begin(); driver.navigate(p.stop, id); updateRoute(); },
     stopRoute() { driver.cancelRoute(); updateRoute(); },
-    jump() { driver.jump(); },
+    jump() { if(!paused){begin();return driver.jump();}return false; },
+    stopDriving,
     setNight(value) { environment = atmosphere.setTimeMode(value ? 'night' : 'day'); },
     setTimeMode(mode) { environment = atmosphere.setTimeMode(mode); return environment; },
     setWeather(mode) { environment = atmosphere.setWeather(mode); return environment; },

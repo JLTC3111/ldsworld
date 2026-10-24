@@ -40,7 +40,7 @@ test('detailed scenery constructs finite geometry, matched portal targets, and u
     for (const value of object.geometry.attributes.position.array) assert.ok(Number.isFinite(value));
     triangles += (object.geometry.index ? object.geometry.index.count : object.geometry.attributes.position.count) / 3 * (object.isInstancedMesh ? object.count : 1);
   });
-  assert.ok(instances >= 8); assert.ok(triangles < 60000, `Scenery should stay lightweight, got ${triangles} triangles`);
+  assert.ok(instances >= 8); assert.ok(triangles < 90000, `Five-bridge scenery should stay within its 90k triangle budget, got ${triangles} triangles`);
   scenery.dispose(); assert.equal(scenery.root.parent, null);
 });
 

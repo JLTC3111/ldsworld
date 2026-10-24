@@ -1,4 +1,4 @@
-import { bridgeHeightAt, isWater, portals as islandPortals, riverCenter, RIVER_HALF_WIDTH } from './world-layout.js';
+import { bridgeHeightAt, isWater, portals as islandPortals, riverCenter, RIVER_HALF_WIDTH, ISLAND_BOUNDS } from './world-layout.js';
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const floorAt = body => Math.max(.12, bridgeHeightAt(body.x, body.z)) + body.height / 2 + (body.floorOffset || 0);
@@ -35,7 +35,7 @@ export class PhysicsWorld {
       const body = { ...definition, id: definition.id || `prop-${index}`, radius: Math.max(.1, definition.radius || .4), mass: Math.max(.05, definition.mass || 1) };
       body.height = Math.max(.1, definition.height || body.radius * 2);
       body.y = definition.y ?? floorAt(body);
-      body.boundaryScale = Math.max(1, Math.hypot(body.x / Math.max(1, 28 - body.radius), body.z / Math.max(1, 21 - body.radius)) * 1.002);
+      body.boundaryScale = Math.max(1, Math.hypot(body.x / Math.max(1, ISLAND_BOUNDS.x - body.radius), body.z / Math.max(1, ISLAND_BOUNDS.z - body.radius)) * 1.002);
       return body;
     });
     this.bodies = [];
@@ -80,7 +80,7 @@ export class PhysicsWorld {
         this.resolveGround(body);
         this.resolveFixed(body);
         if (Math.hypot(body.vx, body.vz, body.vy) > .03) body.displaced = true;
-        const shore = Math.hypot(body.x / ((28 - body.radius) * body.boundaryScale), body.z / ((21 - body.radius) * body.boundaryScale));
+        const shore = Math.hypot(body.x / ((ISLAND_BOUNDS.x - body.radius) * body.boundaryScale), body.z / ((ISLAND_BOUNDS.z - body.radius) * body.boundaryScale));
         if (shore > 1) {
           body.x /= shore * 1.001; body.z /= shore * 1.001;
           const length = Math.hypot(body.x, body.z), nx = body.x / length, nz = body.z / length;

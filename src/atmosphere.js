@@ -4,6 +4,7 @@ import { EnvironmentClock } from './environment-state.js';
 export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill, sea, coarse = false, reducedMotion = false }) {
   const clock = new EnvironmentClock();
   const root = new THREE.Group(); root.name = 'island-atmosphere'; scene.add(root);
+  const groundDetails=new THREE.Group();groundDetails.name='Weather ground patches';scene.add(groundDetails);
   const geometries = new Set(), materials = new Set();
   const ownGeometry = geometry => { geometries.add(geometry); return geometry; };
   const ownMaterial = material => { materials.add(material); return material; };
@@ -20,7 +21,7 @@ export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill
   const state = clock.getState();
   const initial = {
     background: scene.background?.isColor ? scene.background.clone() : scene.background, fog: scene.fog?.clone?.(), exposure: renderer.toneMappingExposure,
-    sunPosition: sun.position.clone(), sunColor: sun.color.clone(), sunIntensity: sun.intensity, sunCastShadow: sun.castShadow,
+    sunPosition: sun.position.clone(), sunTarget: sun.target.position.clone(), sunColor: sun.color.clone(), sunIntensity: sun.intensity, sunCastShadow: sun.castShadow,
     skyColor: hemisphere.color.clone(), groundColor: hemisphere.groundColor.clone(), skyIntensity: hemisphere.intensity,
     fillColor: fill.color.clone(), fillIntensity: fill.intensity, seaColor: sea?.material?.color?.clone()
   };
@@ -85,8 +86,8 @@ export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill
   const discGeometry = ownGeometry(new THREE.CircleGeometry(1, 24));
   const patches = [[-17, -8, 1.15], [1, -4, .7], [17, 1, 1.25], [-7, 12.7, .8], [11, -13.1, .9], [-19, 7.5, 1.2]];
   for (const [x, z, radius] of patches) {
-    const puddle = new THREE.Mesh(discGeometry, puddleMaterial); puddle.position.set(x, .125, z); puddle.rotation.x = -Math.PI / 2; puddle.scale.set(radius, radius * .42, 1); root.add(puddle);
-    const patch = new THREE.Mesh(discGeometry, snowPatchMaterial); patch.position.set(x + .4, .13, z - .6); patch.rotation.x = -Math.PI / 2; patch.scale.set(radius * 1.65, radius * .9, 1); root.add(patch);
+    const puddle = new THREE.Mesh(discGeometry, puddleMaterial); puddle.position.set(x, .125, z); puddle.rotation.x = -Math.PI / 2; puddle.scale.set(radius, radius * .42, 1); groundDetails.add(puddle);
+    const patch = new THREE.Mesh(discGeometry, snowPatchMaterial); patch.position.set(x + .4, .13, z - .6); patch.rotation.x = -Math.PI / 2; patch.scale.set(radius * 1.65, radius * .9, 1); groundDetails.add(patch);
   }
 
   function paintLighting(current) {
@@ -98,7 +99,8 @@ export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill
     scene.fog.near = 125 - wet * 55 - white * 40; scene.fog.far = 260 - wet * 95 - white * 80;
     seaColor.copy(colors.seaNight).lerp(colors.seaDay, daylight).lerp(colors.dusk, warmth * .3).lerp(colors.rain, wet * .28).lerp(colors.snow, white * .2);
     if (sea?.material?.color) sea.material.color.copy(seaColor);
-    sun.position.set(Math.cos(sunAngle) * 53, Math.max(4, sunHeight * 58), 15 + Math.sin(sunAngle) * 22);
+    sun.position.set(root.position.x+Math.cos(sunAngle)*53,Math.max(4,sunHeight*58),root.position.z+15+Math.sin(sunAngle)*22);
+    sun.target.position.set(root.position.x,0,root.position.z);sun.target.updateMatrixWorld();
     lightColor.copy(colors.sunDay).lerp(colors.sunWarm, warmth).lerp(colors.moon, night);
     sun.color.copy(lightColor); sun.intensity = .06 + daylight * 2.35 * (1 - wet * .48 - white * .18); sun.castShadow = daylight > .12;
     hemisphere.color.copy(colors.moon).lerp(colors.sunDay, daylight).lerp(colors.sunWarm, warmth * .28);
@@ -149,8 +151,9 @@ export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill
     splashes.instanceMatrix.needsUpdate = true;
   }
   function snapshot() { return { ...state, particleCounts: { ...counts } }; }
-  function update(elapsed = 0, { paused = false } = {}) {
+  function update(elapsed = 0, { paused = false, focus } = {}) {
     if (disposed) return snapshot();
+    if(focus&&Number.isFinite(focus.x)&&Number.isFinite(focus.z))root.position.set(focus.x,0,focus.z);
     const dt = !paused && Number.isFinite(elapsed) ? Math.max(0, Math.min(elapsed, .1)) : 0;
     Object.assign(state, clock.update(dt, paused)); elapsedTime += dt;
     const damping = 1 - Math.exp(-dt * 2);
@@ -168,10 +171,11 @@ export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill
     },
     getState: snapshot,
     dispose() {
-      if (disposed) return; disposed = true; root.removeFromParent();
+      if (disposed) return; disposed = true; root.removeFromParent();groundDetails.removeFromParent();
       geometries.forEach(geometry => geometry.dispose()); materials.forEach(material => material.dispose());
       scene.background = initial.background;
       scene.fog = initial.fog || null; renderer.toneMappingExposure = initial.exposure;
+      sun.target.position.copy(initial.sunTarget);sun.target.updateMatrixWorld();
       sun.position.copy(initial.sunPosition); sun.color.copy(initial.sunColor); sun.intensity = initial.sunIntensity; sun.castShadow = initial.sunCastShadow;
       hemisphere.color.copy(initial.skyColor); hemisphere.groundColor.copy(initial.groundColor); hemisphere.intensity = initial.skyIntensity;
       fill.color.copy(initial.fillColor); fill.intensity = initial.fillIntensity;

@@ -1,4 +1,4 @@
-import { bridges, bridgeHeightAt, houses, portals, riverCenter, RIVER_HALF_WIDTH, bridgeAt } from './world-layout.js';
+import { bridges, bridgeHeightAt, houses, portals, riverCenter, RIVER_HALF_WIDTH, bridgeAt, RIVER_REACH, WORLD_SCALE } from './world-layout.js';
 import { projects } from './data.js';
 
 // These are geometry-built objects rather than downloaded models, so the world
@@ -70,10 +70,10 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   // The stream has a shaped bed, low banks, moving surface and drifting foam.
   const riverGeometry = ownGeo(new THREE.BufferGeometry());
   const riverPositions = [], riverColors = [], riverIndices = [];
-  const riverSegments = 180;
+  const riverSegments = Math.max(180,Math.ceil(RIVER_REACH*2/.8));
   const edgeColor = new THREE.Color('#9cc8b8'), centreColor = new THREE.Color('#68a9a4');
   for (let i = 0; i <= riverSegments; i++) {
-    const x = -29 + i / riverSegments * 58;
+    const x = -RIVER_REACH + i / riverSegments * RIVER_REACH*2;
     for (let side = -1; side <= 1; side++) {
       riverPositions.push(x, .16, riverCenter(x) + side * RIVER_HALF_WIDTH);
       const color = side === 0 ? centreColor : edgeColor; riverColors.push(color.r, color.g, color.b);
@@ -86,7 +86,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   riverGeometry.setAttribute('color', new THREE.Float32BufferAttribute(riverColors, 3)); riverGeometry.setIndex(riverIndices); riverGeometry.computeVertexNormals();
   const waterMaterial = ownMat('#ffffff', { vertexColors: true, roughness: .24, metalness: .08, side: THREE.DoubleSide });
   const water = mesh(riverGeometry, waterMaterial, root, 0, 0, 0, false); water.name = 'Winding animated river';
-  for (const x of [-28.7, 28.7]) {
+  for (const x of [-RIVER_REACH+.3, RIVER_REACH-.3]) {
     const fall = box(.16, 1.58, RIVER_HALF_WIDTH * 1.85, ownMat('#8bbeb3', { transparent: true, opacity: .8, roughness: .2 }), root, x, -.6, riverCenter(x), false);
     fall.name = 'River mouth waterfall';
     const splash = mesh(ownGeo(new THREE.RingGeometry(.55, .66, 24)), basic('#d3e6d9', { transparent: true, opacity: .6, side: THREE.DoubleSide }), root, x, -1.4, riverCenter(x), false);
@@ -95,23 +95,23 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   for (const bank of [-1, 1]) {
     const positions = [], indices = [];
     for (let i = 0; i <= riverSegments; i++) {
-      const x = -29 + i / riverSegments * 58, z = riverCenter(x) + bank * RIVER_HALF_WIDTH;
+      const x = -RIVER_REACH + i / riverSegments * RIVER_REACH*2, z = riverCenter(x) + bank * RIVER_HALF_WIDTH;
       positions.push(x, .155, z, x, .22, z + bank * .24, x, .04, z + bank * .5);
       if (i < riverSegments) for (let j = 0; j < 2; j++) { const a = i * 3 + j; indices.push(a, a + 3, a + 1, a + 1, a + 3, a + 4); }
     }
     const geometry = ownGeo(new THREE.BufferGeometry()); geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3)); geometry.setIndex(indices); geometry.computeVertexNormals();
     mesh(geometry, ownMat(bank < 0 ? '#c5c4a3' : '#b5bc94', { side: THREE.DoubleSide }), root, 0, 0, 0, false);
   }
-  const foamPositions = new Float32Array((coarse ? 24 : 40) * 6);
+  const foamPositions = new Float32Array((coarse ? 60 : 120) * 6);
   const foamGeometry = ownGeo(new THREE.BufferGeometry()); foamGeometry.setAttribute('position', new THREE.BufferAttribute(foamPositions, 3));
   for (let i = 0; i < foamPositions.length / 6; i++) {
-    const x = -28 + i / (foamPositions.length / 6) * 56, z = riverCenter(x) + Math.sin(i * 2.3) * .65, at = i * 6;
+    const x = -RIVER_REACH+1 + i / (foamPositions.length / 6) * (RIVER_REACH*2-2), z = riverCenter(x) + Math.sin(i * 2.3) * .65, at = i * 6;
     foamPositions.set([x, .19, z, x + .3, .19, z + .035], at);
   }
   const foamMaterial = new THREE.LineBasicMaterial({ color: '#d9ede0', transparent: true, opacity: .6 }); ownedMaterials.add(foamMaterial);
   const foam = new THREE.LineSegments(foamGeometry, foamMaterial); root.add(foam); foam.name = 'River current glints';
 
-  // Three real crossings share the exact driveable profile used by physics.
+  // Every crossing shares the exact driveable profile used by physics.
   for (const bridge of bridges) {
     const crossing = group(root, bridge.x, bridge.z); crossing.rotation.y = bridge.heading; crossing.name = `Arched ${bridge.id} bridge`;
     const planks = coarse ? 15 : 23;
@@ -408,7 +408,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
     }
     position.needsUpdate = true;
     for (let i = 0; i < foamPositions.length / 6; i++) {
-      const x = ((i * 1.71 + time * .72 + 30) % 58) - 29, z = riverCenter(x) + Math.sin(i * 2.3) * .65;
+      const x = ((i * 2.41 + time * .72 + RIVER_REACH) % (RIVER_REACH*2)) - RIVER_REACH, z = riverCenter(x) + Math.sin(i * 2.3) * .65;
       const at = i * 6; foamPositions[at] = x; foamPositions[at + 1] = .19; foamPositions[at + 2] = z;
       foamPositions[at + 3] = x + .22 + (i % 3) * .12; foamPositions[at + 4] = .19; foamPositions[at + 5] = z + .035;
     }

@@ -4,15 +4,17 @@ A personal portfolio you can drive through. Six original projects become miniatu
 
 Snow is the default weather. Three snowmen appear only while it is snowing, and two vendors stand behind detailed market stalls. A small propeller plane periodically crosses the island. Clouds have been removed completely; rain keeps its slanted streaks, splashes, and overcast lighting. The main roads are about a third wider, with wider bridge decks, timber grain, metal fasteners, ropes, and glowing cage lanterns. Layered leaf clusters, forked branches, pine sprays, willows, birches, and frost make the forest more detailed. The hero title and supporting text follow the map’s sunrise, sunset, and night lighting, while the panel theme remains independent.
 
+The island is now five times wider and deeper, with the original village and all objects kept at their authored scale. An outer road loop, four connecting roads, two additional river crossings, and sparse woodland leave large open areas for future additions. The camera keeps a close driving view; snow, rain, and local shadows follow the car across the expanded terrain.
+
 The Hội An Ceremony landmark uses a compact 85% scale, including its base and decorations, with matching collision bounds.
 
-The expanded world includes a winding river and waterfalls, three drivable arched bridges, paired portals, detailed cottages and trees, glowing lanterns, rocky banks, and pushable crates, barrels, stones, and cones. The car has detailed bodywork, tires, interior, roof luggage, suspension, working headlights, and brake lamps.
+The expanded world includes a winding river and waterfalls, five drivable arched bridges, paired portals, detailed cottages and trees, glowing lanterns, rocky banks, and pushable crates, barrels, stones, and cones. The car has detailed bodywork, tires, interior, roof luggage, suspension, working headlights, and brake lamps.
 
 The portfolio panels use a wide, two-column studio layout, drawing inspiration from [Julian Ozen’s narrative and 3D project displays](https://www.julianozen.com/). Each project pairs an interactive physical display with its real demo, a concise case study, three supported capabilities, two annotated demo stills, and related work. Hovering or focusing a project card updates the large display; selecting a gallery still jumps to that moment in the muted video. About adds capability groups and a linked project timeline, while Contact offers conversation prompts and example projects. Narrow screens use the full-width reader. Every new section is available in English and Vietnamese.
 
 Click the computer’s screen to switch between Project and Stack, or use the two buttons below it. The physical monitor displays project notes or the complete technology stack. The Preview tab has been removed. Select a tool below the monitor to read its role. Turning the object does not activate the screen. Keyboard users can use the same display controls and tool buttons; their readable information remains available if WebGL cannot start.
 
-The header uses its own neutral charcoal/ivory palette, so the monogram and tagline stay readable over either daylight or night scenery. The name uses [React Bits Tech Text](https://reactbits.dev/text-animations/tech-text): letters reveal dashed outlines and a selection frame on pointer hover or keyboard focus. Its published canvas engine is adapted to the existing static site; a static label remains for reduced motion or unavailable canvas. Upstream attribution and the MIT + Commons Clause license are retained in `src/vendor/REACT-BITS-LICENSE.txt`.
+“Follow your curiosity” is the bilingual header tagline. The location/time badge uses an opaque theme-aware surface, with readable text in both light and dark mode. The header uses its own neutral charcoal/ivory palette, so the monogram and tagline stay readable over either daylight or night scenery. The name uses [React Bits Tech Text](https://reactbits.dev/text-animations/tech-text): letters reveal dashed outlines and a selection frame on pointer hover or keyboard focus. Its published canvas engine is adapted to the existing static site; a static label remains for reduced motion or unavailable canvas. Upstream attribution and the MIT + Commons Clause license are retained in `src/vendor/REACT-BITS-LICENSE.txt`.
 
 ## Run
 
@@ -39,7 +41,8 @@ The `dist/` folder is a complete static site. Deploy it to any static host with 
 - Drag with a mouse or trackpad to orbit the camera. Right-drag or Shift-drag to pan. Scroll or pinch to zoom; Shift-scroll to pan.
 - On a touchscreen, use two fingers to pan and pinch to zoom.
 - Zoom stays within a shallow range, and the island remains viewport-sized. Camera tracking keeps the car clear of the header and controls.
-- Space: hop. H: honk (when sound is enabled). R: reset the car.
+- Space: hydraulic jump, with visible compression, piston extension, and landing rebound. H: honk (when sound is enabled). R: reset the car and props.
+- While the car moves or jumps, all page overlays disappear. Stop, click the car, or press Escape to restore the controls. Projects and map shortcuts remain available; opening a panel pauses driving. Touch users can tap the car to stop.
 - M: map. P: projects. Escape: close a panel.
 - Touch controls appear after entering the world on small screens.
 - “Take a tour” drives between project stops; each detail panel leads to the next stop.
@@ -70,7 +73,7 @@ The world and showcase objects use original procedural geometry in the scene mod
 - `src/data.js`: project details, links, translations, and landmark locations.
 - `src/world.js`: scene, buildings, vegetation, car, lighting, and camera.
 - `src/driving.js`: vehicle behavior and guided-tour road routing.
-- `src/controls.js`: physical WASD keys, mouse, trackpad, and touch gestures.
+- `src/controls.js` / `src/driving-hud.js`: physical WASD/Space keys, mouse, trackpad and touch gestures, and automatic overlay visibility while driving.
 - `src/media.js` / `src/panel-previews.js`: muted autoplay, safe main-demo playback, and visible card previews.
 - `src/preferences.js`: language selection from a URL, saved choice, or browser locale.
 - `src/physics.js` / `src/world-physics.js`: rigid bodies, spatial collision queries, geometry-derived contacts, complete movable props, stacking, gravity, click impulses, and portal travel.

@@ -2,10 +2,26 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from '../src/vendor/three.module.js';
 import { createVehicle } from '../src/vehicle.js';
+import { Driver } from '../src/driving.js';
 import { MIN_ZOOM, MAX_ZOOM, clampZoom, islandFrame, constrainIslandFocus, keepVehicleVisible } from '../src/camera-framing.js';
-import { portals } from '../src/world-layout.js';
+import { portals, ISLAND_BOUNDS } from '../src/world-layout.js';
 
 const driverState = overrides => ({ x: 0, z: 0, heading: 0, speed: 0, distance: 0, steering: 0, groundHeight: 0, hop: 0, pitch: 0, roll: 0, ...overrides });
+
+test('four visible hydraulic rams retract for charging and extend during the physical jump',()=>{
+  const {vehicle}=fixture(),driver=new Driver();
+  const pistons=vehicle.root.children.filter(object=>object.name==='hydraulic-piston');
+  const cylinders=vehicle.root.children.filter(object=>object.name==='hydraulic-cylinder');
+  assert.equal(pistons.length,4);assert.equal(cylinders.length,4);
+  vehicle.update(1/60,{driver});const resting=pistons.map(p=>p.scale.y);
+  driver.jump();for(let i=0;i<6;i++){driver.step(1/60);vehicle.update(1/60,{driver});}
+  assert.ok(vehicle.body.position.y<-.07);assert.ok(pistons.every((p,i)=>p.scale.y<resting[i]));
+  for(let i=0;i<25;i++){driver.step(1/60);vehicle.update(1/60,{driver});}
+  assert.ok(driver.hop>1);assert.ok(pistons.every((p,i)=>p.scale.y>resting[i]));
+  for(let i=0;i<180;i++){driver.step(1/60);vehicle.update(1/60,{driver});}
+  assert.equal(vehicle.root.position.y,0);assert.equal(vehicle.body.position.y,0);
+  assert.ok(pistons.every((p,i)=>Math.abs(p.scale.y-resting[i])<1e-8));vehicle.dispose();
+});
 function fixture(options = {}) {
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'document');
   Object.defineProperty(globalThis, 'document', { configurable: true, value: { createElement(type) {
@@ -113,7 +129,7 @@ test('shallow zoom bounds always keep the island footprint at least as large as 
     camera.position.set(Math.sin(yaw) * Math.cos(pitch) * 100, Math.sin(pitch) * 100, Math.cos(yaw) * Math.cos(pitch) * 100); camera.lookAt(0, 0, 0); camera.updateMatrixWorld();
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     for (let i = 0; i < 160; i++) {
-      const angle = i / 160 * Math.PI * 2; point.set(Math.cos(angle) * 28, 0, Math.sin(angle) * 21).project(camera);
+      const angle = i / 160 * Math.PI * 2; point.set(Math.cos(angle) * ISLAND_BOUNDS.x, 0, Math.sin(angle) * ISLAND_BOUNDS.z).project(camera);
       minX = Math.min(minX, point.x); maxX = Math.max(maxX, point.x); minY = Math.min(minY, point.y); maxY = Math.max(maxY, point.y);
     }
     assert.ok(maxX - minX >= 2 && maxY - minY >= 2, `Island must cover viewport bounds at aspect=${aspect}, yaw=${yaw}, pitch=${pitch}, zoom=${zoom}`);
@@ -123,8 +139,8 @@ test('shallow zoom bounds always keep the island footprint at least as large as 
 test('camera panning remains within spare projected land so it cannot expose empty margins', () => {
   for (const aspect of [.4, 1, 1.6, 3]) for (const yaw of [0, .7, Math.PI / 2, -2.3]) for (const pitch of [.4, .8, 1.12]) {
     const frame = islandFrame(aspect, yaw, pitch, 1.04);
-    const landWidth = 2 * Math.hypot(28 * Math.cos(yaw), 21 * Math.sin(yaw));
-    const landHeight = 2 * Math.sin(pitch) * Math.hypot(28 * Math.sin(yaw), 21 * Math.cos(yaw));
+    const landWidth = 2 * Math.hypot(ISLAND_BOUNDS.x * Math.cos(yaw), ISLAND_BOUNDS.z * Math.sin(yaw));
+    const landHeight = 2 * Math.sin(pitch) * Math.hypot(ISLAND_BOUNDS.x * Math.sin(yaw), ISLAND_BOUNDS.z * Math.cos(yaw));
     for (const [x, z] of [[0, 0], [999, -999], [-999, 999], [400, 600]]) {
       const focus = constrainIslandFocus(x, z, frame);
       assert.ok(Number.isFinite(focus.x) && Number.isFinite(focus.z));

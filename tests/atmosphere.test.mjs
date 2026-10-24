@@ -67,6 +67,19 @@ test('rain and snow have real bounded particle geometry and pause without fallin
   f.cleanup();
 });
 
+test('weather and sunlight follow distant driving positions while ground patches stay anchored',()=>{
+  const f=fixture();f.atmosphere.setWeather('snow');
+  const root=f.scene.getObjectByName('island-atmosphere'),patches=f.scene.getObjectByName('Weather ground patches');
+  const localSnow=[...f.scene.getObjectByName('atmosphere-snow').geometry.attributes.position.array];
+  const patch=patches.children[0],position=patch.position.clone(),relativeSun=f.sun.position.clone();
+  f.atmosphere.update(0,{focus:{x:110,z:-70}});
+  assert.deepEqual(root.position.toArray(),[110,0,-70]);assert.deepEqual(f.sun.target.position.toArray(),[110,0,-70]);
+  assert.ok(f.sun.position.clone().sub(root.position).distanceTo(relativeSun)<1e-8);
+  assert.deepEqual([...f.scene.getObjectByName('atmosphere-snow').geometry.attributes.position.array],localSnow);
+  assert.ok(patch.position.equals(position));assert.equal(patch.parent,patches);
+  f.cleanup();assert.equal(patches.parent,null);
+});
+
 test('coarse and reduced-motion configurations keep weather recognizable with fewer particles', () => {
   const desktop = fixture(), mobile = fixture({ coarse: true }), reduced = fixture({ reducedMotion: true });
   assert.ok(mobile.atmosphere.getState().particleCounts.rain < desktop.atmosphere.getState().particleCounts.rain);
