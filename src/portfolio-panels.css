@@ -1,0 +1,1548 @@
+/* Portfolio views pair a persistent visual with scrollable, substantive stories. */
+dialog#panel.portfolio-panel {
+  inset: 90px 24px 24px;
+  width: min(1380px, calc(100vw - 48px));
+  max-width: calc(100vw - 48px);
+  height: calc(100dvh - 114px);
+  max-height: calc(100dvh - 114px);
+  margin: 0 auto;
+  overflow: hidden;
+  background: var(--paper);
+}
+
+dialog#panel.portfolio-panel[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+dialog#panel.portfolio-panel::backdrop {
+  background: #10251a4d;
+  backdrop-filter: blur(5px);
+}
+
+.portfolio-panel .panel-topbar {
+  position: relative;
+  flex: 0 0 72px;
+  min-height: 72px;
+  padding: 15px 28px;
+  background: var(--paper);
+}
+
+.portfolio-panel #panel-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.portfolio-panel .panel-layout {
+  display: grid;
+  grid-template-columns: minmax(0, .79fr) minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+
+.portfolio-panel .panel-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 30px 34px 28px;
+  overflow: auto;
+  scrollbar-width: thin;
+  border-right: 1px solid var(--line);
+  background: radial-gradient(ellipse at 48% 42%, var(--surface) 0%, transparent 68%), var(--surface-soft);
+}
+
+.portfolio-panel .stage-eyebrow {
+  flex: none;
+  margin: 0 0 14px;
+  color: var(--muted);
+  font: 9px var(--mono);
+  line-height: 1.5;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+.portfolio-panel .stage-title {
+  flex: none;
+  max-width: 100%;
+  margin: 0 0 12px;
+  color: var(--ink);
+  font-size: clamp(32px, 2.8vw, 44px);
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: -1.9px;
+  text-wrap: balance;
+}
+
+.portfolio-panel .stage-description {
+  display: -webkit-box;
+  flex: none;
+  max-width: 410px;
+  margin: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.75;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.portfolio-panel .stage-art {
+  position: relative;
+  display: flex;
+  flex: 1 1 260px;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 150px;
+  margin: 12px -20px 0;
+  isolation: isolate;
+}
+
+.portfolio-panel .stage-art::after {
+  position: absolute;
+  z-index: -1;
+  bottom: 4%;
+  left: 19%;
+  width: 62%;
+  height: 12%;
+  border-radius: 50%;
+  background: var(--shadow-color);
+  filter: blur(18px);
+  content: "";
+}
+
+.portfolio-panel .stage-poster {
+  display: block;
+  width: 86%;
+  height: auto;
+  max-height: 90%;
+  border: 7px solid var(--surface);
+  border-radius: 12px;
+  object-fit: contain;
+  background: var(--media-bg);
+  box-shadow: 0 20px 40px var(--shadow-color);
+  transform: perspective(900px) rotateY(-9deg) rotateX(5deg) rotateZ(-3deg);
+  transition: opacity .3s ease;
+}
+
+.portfolio-panel .stage-art [data-showcase] {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .35s ease;
+}
+
+.portfolio-panel .stage-art [data-showcase].showcase-ready {
+  opacity: 1;
+  cursor: grab;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.portfolio-panel .stage-art:has([data-showcase].showcase-ready) > .stage-poster,
+.portfolio-panel .stage-art:has([data-showcase].showcase-ready) > .stage-fallback,
+.portfolio-panel .stage-art:has([data-showcase].showcase-ready) > .stage-symbol,
+.portfolio-panel .stage-art [data-showcase].showcase-ready ~ .stage-fallback {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.portfolio-panel .stage-art [data-showcase] canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline-offset: -4px;
+}
+
+.portfolio-panel .stage-fallback {
+  width: 90%;
+  max-height: 95%;
+  transition: opacity .3s;
+}
+
+.portfolio-panel .stage-fallback-art {
+  position: absolute;
+  inset: 5%;
+  display: block;
+  width: 90%;
+  height: 90%;
+  min-width: 0;
+  min-height: 0;
+  object-fit: contain;
+}
+
+.portfolio-panel .stage-reset {
+  position: absolute;
+  z-index: 3;
+  top: 7px;
+  right: 12px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  place-items: center;
+  background: var(--paper);
+  color: var(--ink);
+  visibility: hidden;
+}
+
+.portfolio-panel [data-showcase].showcase-ready ~ .stage-reset {
+  visibility: visible;
+}
+
+.portfolio-panel .stage-reset:hover {
+  background: var(--hover-bg);
+}
+
+.portfolio-panel .stage-reset .icon {
+  width: 15px;
+  height: 15px;
+}
+
+.portfolio-panel .stage-symbol {
+  color: var(--muted);
+  font-size: 130px;
+  line-height: 1;
+  transition: opacity .3s;
+}
+
+.portfolio-panel .stage-caption {
+  flex: none;
+  margin: 5px 0 0;
+  color: var(--muted);
+  font: 8px var(--mono);
+  line-height: 1.6;
+  letter-spacing: .3px;
+  text-align: center;
+}
+
+.portfolio-panel .stage-caption strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.portfolio-panel .stage-caption > span {
+  display: block;
+}
+
+.portfolio-panel .stage-meta {
+  display: grid;
+  flex: none;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 15px 0 0;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.portfolio-panel .stage-meta > * {
+  min-width: 0;
+  margin: 0;
+}
+
+.portfolio-panel .stage-meta strong,
+.portfolio-panel .stage-meta dd {
+  display: block;
+  margin: 0 0 5px;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.portfolio-panel .stage-meta small,
+.portfolio-panel .stage-meta dt {
+  display: block;
+  color: var(--muted);
+  font: 7px var(--mono);
+  line-height: 1.6;
+  letter-spacing: .55px;
+  text-transform: uppercase;
+}
+
+.portfolio-panel .stage-has-screen .stage-description {
+  display: none;
+}
+
+.portfolio-panel .stage-has-screen .stage-title {
+  font-size: clamp(28px, 2.4vw, 38px);
+}
+
+.portfolio-panel .screen-inspector {
+  flex: none;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+}
+
+.portfolio-panel .screen-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 7px;
+  background: var(--surface-soft);
+}
+
+.portfolio-panel .screen-tabs button {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 28px;
+  padding: 6px;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.portfolio-panel .screen-tabs button:hover,
+.portfolio-panel .screen-tools button:hover {
+  background: var(--hover-bg);
+}
+
+.portfolio-panel .screen-tabs button[aria-pressed="true"],
+.portfolio-panel .screen-tools button[aria-pressed="true"] {
+  background: var(--active-bg);
+  color: var(--active-ink);
+}
+
+.portfolio-panel .screen-readout {
+  height: 122px;
+  overflow: auto;
+  padding: 12px 3px 0;
+  scrollbar-width: thin;
+  overscroll-behavior: contain;
+}
+
+.portfolio-panel .screen-readout h4 {
+  margin: 0 0 7px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.portfolio-panel .screen-readout p {
+  margin: 0 0 7px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.portfolio-panel .screen-readout .screen-facts,
+.portfolio-panel .screen-hint {
+  color: var(--muted);
+  font: 8px var(--mono);
+  line-height: 1.6;
+}
+
+.portfolio-panel .screen-hint {
+  margin: 9px 3px 0;
+}
+
+.portfolio-panel .screen-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-bottom: 8px;
+}
+
+.portfolio-panel .screen-tools button {
+  min-height: 25px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.portfolio-panel .screen-tool-detail strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.portfolio-panel .demo-caption {
+  flex-wrap: wrap;
+  row-gap: 7px;
+}
+
+.portfolio-panel .demo-language {
+  margin-left: auto;
+  font-size: 8px;
+}
+
+.portfolio-panel .stage-project-nav {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 16px 0 0;
+}
+
+.portfolio-panel .stage-project-nav button {
+  display: grid;
+  width: 31px;
+  height: 31px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  place-items: center;
+  background: var(--paper);
+  color: var(--muted);
+  font: 9px var(--mono);
+}
+
+.portfolio-panel .stage-project-nav button:hover {
+  background: var(--hover-bg);
+}
+
+.portfolio-panel .stage-project-nav button[aria-pressed="true"],
+.portfolio-panel .stage-project-nav button[aria-current="true"],
+.portfolio-panel .stage-project-nav button[aria-current="page"] {
+  border-color: var(--active-bg);
+  background: var(--active-bg);
+  color: var(--active-ink);
+}
+
+.portfolio-panel .stage-cta {
+  display: flex;
+  flex: none;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.portfolio-panel .stage-cta .primary-button {
+  min-height: 45px;
+  padding: 13px 17px;
+  font-size: 11px;
+}
+
+.portfolio-panel .stage-cta .secondary-button {
+  min-height: 45px;
+  font-size: 10px;
+}
+
+.portfolio-panel .stage-map {
+  position: relative;
+  display: grid;
+  flex: 1 1 270px;
+  min-height: 0;
+  margin: 18px -14px 0;
+  place-items: center;
+  container-type: size;
+}
+
+.portfolio-panel .stage-map-surface {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 66 / 50;
+}
+
+@supports (width: 1cqh) {
+  .portfolio-panel .stage-map-surface {
+    width: min(100%, 132cqh);
+  }
+}
+
+.portfolio-panel .stage-map > svg,
+.portfolio-panel .stage-map-surface > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  overflow: visible;
+  aspect-ratio: 66 / 50;
+}
+
+.portfolio-panel .stage-map-stop {
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  width: 33px;
+  height: 33px;
+  padding: 0;
+  border: 2px solid var(--marker-color, var(--yellow));
+  border-radius: 50%;
+  place-items: center;
+  background: var(--marker-bg, var(--paper));
+  color: var(--marker-ink, var(--ink));
+  box-shadow: 0 4px 12px var(--shadow-color);
+  font: 10px var(--mono);
+  transform: translate(-50%, -50%);
+  transition: transform .2s ease;
+}
+
+.portfolio-panel .stage-map-stop:hover {
+  transform: translate(-50%, -50%) scale(1.14);
+}
+
+.portfolio-panel .panel-reader {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+.portfolio-panel .panel-reader .panel-intro {
+  padding: 30px 30px 0;
+}
+
+.portfolio-panel .panel-reader .panel-intro h2 {
+  font-size: clamp(31px, 2.6vw, 39px);
+  line-height: 1.08;
+}
+
+.portfolio-panel .panel-reader .panel-intro > p:last-child {
+  max-width: 48ch;
+  font-size: 12px;
+}
+
+.portfolio-panel .work-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 22px 30px 0;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.portfolio-panel .work-summary > * {
+  min-width: 0;
+  margin: 0;
+}
+
+.portfolio-panel .work-summary strong {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--ink);
+  font-size: 21px;
+  font-weight: 500;
+  letter-spacing: -.5px;
+}
+
+.portfolio-panel .work-summary span,
+.portfolio-panel .work-summary small {
+  display: block;
+  color: var(--muted);
+  font: 8px var(--mono);
+  line-height: 1.6;
+}
+
+.portfolio-panel .project-filters {
+  gap: 7px;
+  padding: 22px 30px;
+}
+
+.portfolio-panel .project-filters button {
+  padding: 9px 14px;
+  font-size: 10px;
+}
+
+.portfolio-panel .project-list {
+  align-items: stretch;
+  gap: 15px;
+  padding: 0 30px 30px;
+}
+
+.portfolio-panel .project-list:is(.cards-count-3,.cards-count-5,.cards-count-7) > .project-card:first-child {
+  grid-column: 1 / -1;
+}
+
+.portfolio-panel .project-list .project-card .card-art {
+  height: 150px;
+  padding: 18px 16px 0;
+}
+
+.portfolio-panel .project-list:is(.cards-count-3,.cards-count-5,.cards-count-7) > .project-card:first-child .card-art {
+  height: 190px;
+  padding: 22px 28px 0;
+}
+
+.portfolio-panel .project-list .card-content {
+  padding: 17px;
+}
+
+.portfolio-panel .project-list .card-category {
+  margin-bottom: 8px;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.portfolio-panel .project-list .card-content h3 {
+  margin: 0 18px 9px 0;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.portfolio-panel .project-list:is(.cards-count-3,.cards-count-5,.cards-count-7) > .project-card:first-child .card-content h3 {
+  font-size: 19px;
+}
+
+.portfolio-panel .card-excerpt {
+  display: -webkit-box;
+  margin: 0 0 12px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.75;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.portfolio-panel .project-list .card-tech {
+  padding-right: 18px;
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.portfolio-panel .project-list .card-content > .icon {
+  right: 17px;
+  bottom: 17px;
+  width: 14px;
+  height: 14px;
+}
+
+.portfolio-panel .project-list .card-number {
+  top: 11px;
+  left: 11px;
+  width: 27px;
+  height: 27px;
+  font-size: 9px;
+}
+
+.portfolio-panel .project-detail,
+.portfolio-panel .info-content {
+  padding: 28px 30px 34px;
+}
+
+.portfolio-panel .project-detail h2 {
+  max-width: none;
+  font-size: clamp(32px, 2.7vw, 42px);
+}
+
+.portfolio-panel .info-content h2 {
+  font-size: clamp(34px, 2.9vw, 45px);
+}
+
+.portfolio-panel .project-description,
+.portfolio-panel .case-lead {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.9;
+}
+
+.portfolio-panel .case-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 24px 0;
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.portfolio-panel .case-meta > * {
+  min-width: 0;
+  margin: 0;
+}
+
+.portfolio-panel .case-meta dt {
+  margin: 0 0 7px;
+  color: var(--muted);
+  font: 8px var(--mono);
+  line-height: 1.5;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+
+.portfolio-panel .case-meta dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 11px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+
+.portfolio-panel .case-section {
+  margin: 29px 0;
+}
+
+.portfolio-panel .case-section > h3,
+.portfolio-panel .case-section > header > h3 {
+  margin: 0 0 13px;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -.6px;
+}
+
+.portfolio-panel .case-section > p,
+.portfolio-panel .case-lead {
+  margin: 0 0 16px;
+}
+
+.portfolio-panel .case-section > p {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.85;
+}
+
+.portfolio-panel .case-features {
+  display: grid;
+  gap: 10px;
+}
+
+.portfolio-panel .case-feature {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  padding: 17px 18px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-soft);
+}
+
+.portfolio-panel .case-feature > span {
+  padding-top: 3px;
+  color: var(--muted);
+  font: 9px var(--mono);
+  line-height: 1.5;
+}
+
+.portfolio-panel .case-feature > div {
+  min-width: 0;
+}
+
+.portfolio-panel .case-feature h4,
+.portfolio-panel .case-feature h3,
+.portfolio-panel .case-feature strong {
+  display: block;
+  margin: 0 0 7px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.portfolio-panel .case-feature p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.85;
+}
+
+.portfolio-panel .case-gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 13px;
+}
+
+.portfolio-panel .case-gallery figure {
+  min-width: 0;
+  margin: 0;
+}
+
+.portfolio-panel .case-gallery figure > button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+}
+
+.portfolio-panel .case-gallery figure > button:hover img {
+  border-color: var(--ink);
+}
+
+.portfolio-panel .case-gallery figure > button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
+}
+
+.portfolio-panel .case-gallery img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 240px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  object-fit: contain;
+  background: var(--media-bg);
+  aspect-ratio: 16 / 10;
+}
+
+.portfolio-panel .case-gallery figcaption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+.portfolio-panel .case-gallery figcaption time {
+  flex: none;
+  font: 9px var(--mono);
+}
+
+.portfolio-panel .related-work {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+}
+
+.portfolio-panel .related-work > button,
+.portfolio-panel .contact-projects > button {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+  transition: background .2s, transform .2s;
+}
+
+.portfolio-panel .related-work > button:hover,
+.portfolio-panel .contact-projects > button:hover {
+  background: var(--hover-bg);
+  transform: translateY(-2px);
+}
+
+.portfolio-panel .related-work img,
+.portfolio-panel .related-work video,
+.portfolio-panel .contact-projects img,
+.portfolio-panel .contact-projects video {
+  display: block;
+  width: 100%;
+  height: 95px;
+  object-fit: cover;
+  object-position: top;
+  border-bottom: 1px solid var(--line);
+}
+
+.portfolio-panel .related-work > button > span,
+.portfolio-panel .contact-projects > button > span {
+  display: block;
+  padding: 12px;
+}
+
+.portfolio-panel .related-work strong,
+.portfolio-panel .contact-projects strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.portfolio-panel .related-work small,
+.portfolio-panel .contact-projects small {
+  display: block;
+  color: var(--muted);
+  font: 8px var(--mono);
+  line-height: 1.7;
+}
+
+.portfolio-panel .work-journey {
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.portfolio-panel .work-journey > * {
+  margin: 0;
+  list-style: none;
+}
+
+.portfolio-panel .work-journey button {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr) 15px;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  min-height: 62px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--ink);
+  text-align: left;
+}
+
+.portfolio-panel .work-journey button:hover {
+  color: var(--muted);
+}
+
+.portfolio-panel .work-journey time,
+.portfolio-panel .work-journey .journey-date {
+  color: var(--muted);
+  font: 9px var(--mono);
+  line-height: 1.6;
+}
+
+.portfolio-panel .work-journey strong {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.portfolio-panel .work-journey small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.6;
+}
+
+.portfolio-panel .work-journey .icon {
+  width: 15px;
+  height: 15px;
+}
+
+.portfolio-panel .capability-grid {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0 24px;
+}
+
+.portfolio-panel .capability-card {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 17px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+}
+
+.portfolio-panel .capability-card h4 {
+  display: block;
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.portfolio-panel .capability-grid span,
+.portfolio-panel .capability-grid p {
+  display: block;
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.portfolio-panel .capability-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 13px;
+}
+
+.portfolio-panel .capability-links button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.portfolio-panel .capability-links button:hover {
+  background: var(--hover-bg);
+}
+
+.portfolio-panel .capability-links .icon {
+  width: 12px;
+  height: 12px;
+}
+
+.portfolio-panel .contact-projects {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 15px;
+}
+
+.portfolio-panel .contact-projects > button:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.portfolio-panel .section-divider {
+  height: 1px;
+  margin: 27px 0;
+  border: 0;
+  background: var(--line);
+}
+
+.portfolio-panel .contact-prompts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.portfolio-panel .contact-prompts li {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.75;
+}
+
+.portfolio-panel .contact-prompts li:first-child {
+  padding-top: 0;
+}
+
+.portfolio-panel .contact-prompts .icon {
+  flex: 0 0 14px;
+  width: 14px;
+  height: 14px;
+  margin-top: 4px;
+  color: var(--ink);
+}
+
+.portfolio-panel .reader-closing {
+  margin: 0 30px 27px;
+  padding: 21px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.portfolio-panel .reader-closing p {
+  margin: 0 0 15px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.85;
+}
+
+.portfolio-panel .reader-closing .secondary-button {
+  min-height: 42px;
+  font-size: 11px;
+}
+
+.portfolio-panel .panel-reader > .panel-footnote {
+  padding-top: 5px;
+}
+
+@media (min-width: 901px) and (min-height: 621px) {
+  .portfolio-panel[data-view="map"] .panel-reader .large-map {
+    display: none;
+  }
+}
+
+@media (min-width: 1600px) {
+  .portfolio-panel .panel-stage {
+    padding-right: 42px;
+    padding-left: 42px;
+  }
+
+  .portfolio-panel .stage-title {
+    font-size: 46px;
+  }
+
+  .portfolio-panel .stage-art {
+    margin-right: -25px;
+    margin-left: -25px;
+  }
+}
+
+@media (min-width: 901px) and (max-height: 820px) {
+  .portfolio-panel .panel-topbar {
+    flex-basis: 62px;
+    min-height: 62px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .portfolio-panel .panel-stage {
+    padding: 22px 25px;
+  }
+
+  .portfolio-panel .stage-eyebrow {
+    margin-bottom: 10px;
+    font-size: 8px;
+  }
+
+  .portfolio-panel .stage-title {
+    margin-bottom: 8px;
+    font-size: 32px;
+    letter-spacing: -1.2px;
+  }
+
+  .portfolio-panel .stage-description {
+    font-size: 11px;
+    line-height: 1.6;
+  }
+
+  .portfolio-panel .stage-art {
+    flex-basis: 200px;
+    min-height: 110px;
+    margin-top: 5px;
+  }
+
+  .portfolio-panel .stage-meta {
+    margin-top: 10px;
+    padding-top: 10px;
+  }
+
+  .portfolio-panel .stage-meta strong,
+  .portfolio-panel .stage-meta dd {
+    font-size: 15px;
+  }
+
+  .portfolio-panel .stage-project-nav {
+    margin-top: 10px;
+  }
+
+  .portfolio-panel .stage-project-nav button {
+    width: 28px;
+    height: 28px;
+    font-size: 8px;
+  }
+
+  .portfolio-panel .stage-cta {
+    margin-top: 12px;
+  }
+
+  .portfolio-panel .stage-cta .primary-button,
+  .portfolio-panel .stage-cta .secondary-button {
+    min-height: 40px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+}
+
+@media (max-width: 1100px) and (min-width: 901px) {
+  .portfolio-panel .panel-layout {
+    grid-template-columns: minmax(0, .72fr) minmax(0, 1fr);
+  }
+
+  .portfolio-panel .panel-stage {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+
+  .portfolio-panel .stage-title {
+    font-size: 32px;
+  }
+
+  .portfolio-panel .panel-reader .panel-intro,
+  .portfolio-panel .project-detail,
+  .portfolio-panel .info-content {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+
+  .portfolio-panel .project-list,
+  .portfolio-panel .project-filters,
+  .portfolio-panel .panel-footnote {
+    padding-right: 24px;
+    padding-left: 24px;
+  }
+
+  .portfolio-panel .work-summary {
+    margin-right: 24px;
+    margin-left: 24px;
+  }
+
+  .portfolio-panel .project-list .project-card .card-art {
+    height: 130px;
+  }
+}
+
+/* Leave room for the artifact and its action on laptop-height displays. */
+@media (min-width: 901px) and (max-height: 780px) {
+  .portfolio-panel .panel-stage {
+    padding-top: 18px;
+    padding-bottom: 18px;
+  }
+
+  .portfolio-panel .stage-description,
+  .portfolio-panel .stage-meta,
+  .portfolio-panel .stage-caption > span {
+    display: none;
+  }
+
+  .portfolio-panel .stage-art {
+    min-height: 110px;
+  }
+
+  .portfolio-panel .screen-hint {
+    display: none;
+  }
+}
+
+@media (min-width: 901px) and (max-height: 700px) {
+  .portfolio-panel .stage-has-screen .stage-title {
+    display: none;
+  }
+}
+
+@media (max-width: 900px), (max-height: 620px) {
+  dialog#panel.portfolio-panel {
+    inset: 80px 12px 12px;
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    height: calc(100dvh - 92px);
+    max-height: calc(100dvh - 92px);
+  }
+
+  .portfolio-panel .panel-topbar {
+    flex-basis: 64px;
+    min-height: 64px;
+    padding: 13px 22px;
+  }
+
+  .portfolio-panel .panel-layout {
+    display: block;
+    height: 100%;
+  }
+
+  .portfolio-panel .panel-stage {
+    display: none;
+  }
+
+  .portfolio-panel .panel-reader {
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+  }
+
+  .portfolio-panel .project-list:is(.cards-count-3,.cards-count-5,.cards-count-7) > .project-card:first-child {
+    grid-column: auto;
+  }
+
+  .portfolio-panel .project-list:is(.cards-count-3,.cards-count-5,.cards-count-7) > .project-card:first-child .card-art {
+    height: 150px;
+    padding: 18px 16px 0;
+  }
+
+  .portfolio-panel .project-list:is(.cards-count-3,.cards-count-5,.cards-count-7) > .project-card:first-child .card-content h3 {
+    font-size: 15px;
+  }
+
+  .portfolio-panel .project-detail h2,
+  .portfolio-panel .info-content h2 {
+    max-width: 560px;
+  }
+
+  .portfolio-panel .project-video-wrap {
+    max-height: 430px;
+  }
+}
+
+@media (max-width: 560px) {
+  dialog#panel.portfolio-panel {
+    inset: 75px 8px 8px;
+    width: calc(100vw - 16px);
+    max-width: calc(100vw - 16px);
+    height: calc(100dvh - 83px);
+    max-height: calc(100dvh - 83px);
+    border-radius: 15px;
+  }
+
+  .portfolio-panel .panel-topbar {
+    flex-basis: 60px;
+    min-height: 60px;
+    padding: 11px 18px;
+  }
+
+  .portfolio-panel .panel-reader .panel-intro {
+    padding: 24px 20px 0;
+  }
+
+  .portfolio-panel .panel-reader .panel-intro h2 {
+    font-size: 31px;
+  }
+
+  .portfolio-panel .panel-reader .panel-intro > p:last-child {
+    font-size: 11px;
+  }
+
+  .portfolio-panel .work-summary {
+    gap: 10px;
+    margin: 19px 20px 0;
+    padding: 13px 0;
+  }
+
+  .portfolio-panel .work-summary strong {
+    font-size: 19px;
+  }
+
+  .portfolio-panel .work-summary span,
+  .portfolio-panel .work-summary small {
+    font-size: 7px;
+  }
+
+  .portfolio-panel .project-filters {
+    gap: 5px;
+    padding: 19px 20px;
+  }
+
+  .portfolio-panel .project-filters button {
+    padding: 8px 12px;
+    font-size: 9px;
+  }
+
+  .portfolio-panel .project-list {
+    gap: 11px;
+    padding: 0 20px 25px;
+  }
+
+  .portfolio-panel .project-list .project-card .card-art,
+  .portfolio-panel .project-list:is(.cards-count-3,.cards-count-5,.cards-count-7) > .project-card:first-child .card-art {
+    height: 105px;
+    padding: 13px 10px 0;
+  }
+
+  .portfolio-panel .project-list .card-content {
+    padding: 12px;
+  }
+
+  .portfolio-panel .project-list .card-category {
+    font-size: 6px;
+    line-height: 1.6;
+    letter-spacing: .5px;
+  }
+
+  .portfolio-panel .project-list .card-content h3,
+  .portfolio-panel .project-list:is(.cards-count-3,.cards-count-5,.cards-count-7) > .project-card:first-child .card-content h3 {
+    min-height: 31px;
+    margin-right: 0;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .portfolio-panel .card-excerpt {
+    font-size: 9px;
+    line-height: 1.75;
+    -webkit-line-clamp: 3;
+  }
+
+  .portfolio-panel .project-list .card-tech {
+    font-size: 8px;
+  }
+
+  .portfolio-panel .project-list .card-content > .icon {
+    right: 10px;
+    bottom: 12px;
+    width: 12px;
+    height: 12px;
+  }
+
+  .portfolio-panel .project-list .card-number {
+    top: 7px;
+    left: 7px;
+    width: 23px;
+    height: 23px;
+    font-size: 8px;
+  }
+
+  .portfolio-panel .project-detail,
+  .portfolio-panel .info-content {
+    padding: 23px 20px 27px;
+  }
+
+  .portfolio-panel .project-detail h2 {
+    font-size: 32px;
+  }
+
+  .portfolio-panel .info-content h2 {
+    font-size: 37px;
+  }
+
+  .portfolio-panel .project-description,
+  .portfolio-panel .case-lead {
+    font-size: 12px;
+  }
+
+  .portfolio-panel .case-meta {
+    gap: 11px;
+    margin: 21px 0;
+    padding: 15px 0;
+  }
+
+  .portfolio-panel .case-meta dt {
+    font-size: 7px;
+  }
+
+  .portfolio-panel .case-meta dd {
+    font-size: 10px;
+    line-height: 1.7;
+  }
+
+  .portfolio-panel .case-section {
+    margin: 25px 0;
+  }
+
+  .portfolio-panel .case-section > h3,
+  .portfolio-panel .case-section > header > h3 {
+    font-size: 19px;
+  }
+
+  .portfolio-panel .case-section > p {
+    font-size: 11px;
+  }
+
+  .portfolio-panel .case-feature {
+    padding: 14px;
+  }
+
+  .portfolio-panel .case-feature h4,
+  .portfolio-panel .case-feature h3,
+  .portfolio-panel .case-feature strong {
+    font-size: 12px;
+  }
+
+  .portfolio-panel .case-feature p {
+    font-size: 10px;
+  }
+
+  .portfolio-panel .case-gallery {
+    gap: 10px;
+  }
+
+  .portfolio-panel .case-gallery figcaption {
+    font-size: 9px;
+  }
+
+  .portfolio-panel .related-work,
+  .portfolio-panel .contact-projects {
+    gap: 10px;
+  }
+
+  .portfolio-panel .related-work img,
+  .portfolio-panel .related-work video,
+  .portfolio-panel .contact-projects img,
+  .portfolio-panel .contact-projects video {
+    height: 80px;
+  }
+
+  .portfolio-panel .related-work strong,
+  .portfolio-panel .contact-projects strong {
+    font-size: 10px;
+  }
+
+  .portfolio-panel .related-work small,
+  .portfolio-panel .contact-projects small {
+    font-size: 7px;
+  }
+
+  .portfolio-panel .work-journey button {
+    grid-template-columns: 65px minmax(0, 1fr) 13px;
+    gap: 10px;
+  }
+
+  .portfolio-panel .work-journey time,
+  .portfolio-panel .work-journey .journey-date {
+    font-size: 8px;
+  }
+
+  .portfolio-panel .work-journey strong {
+    font-size: 11px;
+  }
+
+  .portfolio-panel .work-journey small {
+    font-size: 8px;
+  }
+
+  .portfolio-panel .capability-card {
+    padding: 15px;
+  }
+
+  .portfolio-panel .capability-card h4 {
+    font-size: 12px;
+  }
+
+  .portfolio-panel .capability-grid span,
+  .portfolio-panel .capability-grid p {
+    font-size: 10px;
+  }
+
+  .portfolio-panel .panel-footnote {
+    padding-right: 20px;
+    padding-left: 20px;
+  }
+
+  .portfolio-panel .reader-closing {
+    margin-right: 20px;
+    margin-left: 20px;
+    padding: 17px;
+  }
+
+  .portfolio-panel .reader-closing p,
+  .portfolio-panel .contact-prompts li {
+    font-size: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portfolio-panel .stage-art [data-showcase],
+  .portfolio-panel .stage-poster,
+  .portfolio-panel .related-work > button,
+  .portfolio-panel .contact-projects > button {
+    transition: none;
+  }
+}
+
+
+.portfolio-panel .demo-source-note {
+  margin: 9px 0 18px;
+  padding: 10px 12px;
+  border-left: 2px solid var(--accent-shadow);
+  border-radius: 0 6px 6px 0;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+
+.portfolio-panel video[data-preview-project] {
+  pointer-events: none;
+  background: var(--surface-soft);
+}

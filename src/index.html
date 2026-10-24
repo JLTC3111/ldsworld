@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f1f0e8">
+  <meta name="description" content="A little world of things built by Long D., a software engineer in Hanoi. Drive through six projects, watch demos, and explore the work.">
+  <meta property="og:title" content="Long D. — A little world of work">
+  <meta property="og:description" content="Six projects. One little island. Take the scenic route through Long D.’s interactive software portfolio.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://longd-project-island.lsd99999999.chatgpt.site">
+  <title>Long D. — A little world of work</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./portfolio-panels.css">
+  <link rel="modulepreload" href="./data.js">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <defs>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+      <symbol id="i-up-right" viewBox="0 0 24 24"><path d="M6 18 18 6M6 6h12v12"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+      <symbol id="i-grid" viewBox="0 0 24 24"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></symbol>
+      <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+      <symbol id="i-sound" viewBox="0 0 24 24"><path d="m11 4-6 5H2v6h3l6 5zM15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></symbol>
+      <symbol id="i-muted" viewBox="0 0 24 24"><path d="m11 4-6 5H2v6h3l6 5zM16 9l6 6m0-6-6 6"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14A8.5 8.5 0 0 1 10 4a8.5 8.5 0 1 0 10 10Z"/></symbol>
+      <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 1 8M4 4v6h6"/></symbol>
+      <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 4.3 1.7c-1.3.8-1.8 1.3-1.8 2.8M12 17h.01"/></symbol>
+      <symbol id="i-map" viewBox="0 0 24 24"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3Zm6-3v15m6-12v15"/></symbol>
+      <symbol id="i-pin" viewBox="0 0 24 24"><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0Z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+      <symbol id="i-car" viewBox="0 0 24 24"><path d="m4 10 2-6h12l2 6m-16 0h16v8H4Zm-1 8v3m18-3v3M7 14h.01M17 14h.01"/></symbol>
+      <symbol id="i-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 6 9 7 9-7"/></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/></symbol>
+      <symbol id="i-github" viewBox="0 0 24 24"><path d="M9 19c-4 1.5-4-2-6-2m12 5v-4a3.5 3.5 0 0 0-1-2.5c3.5-.4 7-1.7 7-6a4.5 4.5 0 0 0-1.2-3.1A4 4 0 0 0 19.7 3S18.4 2.6 16 4a11 11 0 0 0-8 0C5.6 2.6 4.3 3 4.3 3a4 4 0 0 0-.1 3.4A4.5 4.5 0 0 0 3 9.5c0 4.3 3.5 5.6 7 6A3.5 3.5 0 0 0 9 18v4"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+      <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M4 20 19 5M5 16C-1 5 10 1 21 3c2 11-3 21-13 15M10 14v-4m4 0h4"/></symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7Z"/></symbol>
+      <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    </defs>
+  </svg>
+
+  <a class="skip-link" href="#browse" id="skip-link" data-copy="skipProjects">Skip to projects</a>
+
+  <div id="world" role="region" aria-label="Interactive 3D project island" data-aria="worldAria">
+    <div id="world-loading" role="status"><span class="loading-flower">✳</span><span data-copy="loading">Growing a little world…</span></div>
+    <div id="webgl-fallback" hidden><svg class="fallback-island" viewBox="0 0 800 600" aria-hidden="true"><ellipse cx="430" cy="430" rx="300" ry="100" fill="#c3d2c8"/><path d="m130 310 280-160 280 160-280 165Z" fill="#b8c9a4"/><path d="m130 310 280 165 280-165v24L410 500 130 334Z" fill="#d5c5a6"/><path d="m200 315 210-120 210 120-210 120Z" fill="none" stroke="#eee9d9" stroke-width="26"/><g fill="#688470"><path d="m230 290 23-80 23 80Z"/><path d="m520 300 23-80 23 80Z"/><path d="m320 230 23-80 23 80Z"/></g><g fill="#e7d5b7"><path d="m290 300 50-30 50 30v70l-50 30-50-30Z"/><path d="m430 275 50-30 50 30v70l-50 30-50-30Z"/></g><path d="m290 300 50-50 50 50-50 30Z" fill="#c57d64"/><path d="m430 275 50-50 50 50-50 30Z" fill="#7b9292"/></svg><p data-copy="fallback">The 3D island needs WebGL. You can still explore every project below.</p><button class="primary-button" data-action="projects"><span data-copy="browseProjects">Browse projects</span> <svg class="icon"><use href="#i-arrow"/></svg></button></div>
+  </div>
+
+  <header class="site-header">
+    <a class="brand" href="#" id="home-link" aria-label="Long D. — Home" data-aria="homeAria"><span class="brand-mark" aria-hidden="true">l<span>d</span><i></i></span><span class="brand-text"><span class="brand-wordmark" id="brand-wordmark"><span class="tech-text-fallback">long d.</span></span><small data-copy="siteSubtitle">A LITTLE WORLD OF WORK</small></span></a>
+    <nav class="navigation" aria-label="Main navigation" data-aria="navigationAria">
+      <button data-action="projects"><span data-copy="navProjects">Projects</span><sup data-project-count>06</sup></button>
+      <button data-action="about" data-copy="navAbout">About</button>
+      <button data-action="contact"><span data-copy="navContact">Say hello</span><svg class="icon small"><use href="#i-up-right"/></svg></button>
+    </nav>
+    <div class="header-tools"><span class="location"><span class="live-dot"></span><span data-copy="locationShort">HANOI, VN</span> <span id="local-time"></span></span><div class="language-switch" role="group" data-aria="languageAria" aria-label="Language"><button class="language-option" data-language="en" lang="en" aria-label="English" aria-pressed="true">EN</button><button class="language-option" data-language="vi" lang="vi" aria-label="Tiếng Việt" aria-pressed="false">VI</button></div></div>
+  </header>
+
+  <main>
+    <div class="world-toolbar" id="world-toolbar" hidden><button class="world-settings-button" data-action="world" data-aria="worldSettings"><svg class="icon"><use href="#i-leaf"/></svg><span><strong data-copy="worldSettings">World</strong><small id="environment-summary">08:30 · Clear</small></span><svg class="icon small"><use href="#i-down"/></svg></button></div>
+    <section class="hero" aria-labelledby="hero-title">
+      <p class="eyebrow"><span class="tiny-star">✳</span><span data-copy="eyebrow">SOFTWARE ENGINEER · CURIOUS BY NATURE</span></p>
+      <h1 id="hero-title" data-html="hero">Ideas, made<br>into things.</h1>
+      <p class="hero-intro" data-html="intro">I’m Long. I build useful software, thoughtful<br class="desktop-break"> websites, and things worth exploring.</p>
+      <button class="primary-button explore-button" id="explore"><svg class="icon"><use href="#i-car"/></svg><span data-copy="explore">Let’s explore</span><svg class="icon"><use href="#i-arrow"/></svg></button>
+      <button class="text-button" id="browse" data-action="projects"><span data-copy="browse">Or, go straight to the projects</span><svg class="icon small"><use href="#i-up-right"/></svg></button>
+      <div class="hero-note"><span class="note-loop">↝</span><p data-copy="hint">A small world of things I’ve built.</p><p data-copy="hintSub">Drive around. Follow your curiosity.</p></div>
+    </section>
+
+    <div class="world-caption" aria-hidden="true"><span data-copy="worldCaption">THE PROJECT ISLAND</span><svg viewBox="0 0 50 50"><circle cx="25" cy="25" r="22"/><path d="m25 9 4 12 12 4-12 4-4 12-4-12-12-4 12-4Z"/><circle cx="25" cy="25" r="3"/></svg><span>21° N · 105° E</span></div>
+
+    <div class="explore-status" id="explore-status" hidden><span class="status-dot"></span><span id="status-text" data-copy="driving">Follow your curiosity.</span><button id="stop-tour" hidden><span data-copy="stopTour">Stop tour</span><svg class="icon small"><use href="#i-close"/></svg></button></div>
+
+    <button id="nearby-project" class="nearby-project" hidden><span class="nearby-number" id="nearby-number">01</span><span><small data-copy="nearby">Nearby</small><strong id="nearby-title"></strong></span><kbd>↵</kbd><svg class="icon"><use href="#i-arrow"/></svg></button>
+
+    <div class="control-dock">
+      <div class="drive-instructions" id="drive-instructions"><span class="keys" aria-label="WASD"><kbd>W</kbd><span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></span><span data-copy="controls">Drive</span><span class="dock-separator"></span><kbd class="shift-key">shift</kbd><span data-copy="boost">Boost</span></div>
+      <div class="dock-tools"><button class="icon-button" id="reset" aria-label="Reset car" title="Reset car (R)"><svg class="icon"><use href="#i-reset"/></svg></button><button class="icon-button" id="sound" aria-label="Sound off" aria-pressed="false" title="Turn on sound"><svg class="icon"><use href="#i-muted"/></svg></button><button class="icon-button" id="music" data-action="toggle-music" aria-label="Pause music" aria-pressed="true" title="Pause music"><svg class="icon"><use href="#i-pause"/></svg></button><button class="icon-button" id="theme" aria-label="Switch to evening" aria-pressed="false" title="Switch to evening"><svg class="icon"><use href="#i-sun"/></svg></button><button class="icon-button" id="help" data-action="help" aria-label="How to explore" title="How to explore"><svg class="icon"><use href="#i-help"/></svg></button></div>
+    </div>
+
+    <div class="minimap-wrap"><div class="map-heading"><span class="mini-signal"><i></i><i></i><i></i></span><span id="speed">00</span><small>KM/H</small><button class="tour-link" data-action="tour"><span data-copy="navTour">Take a tour</span><svg class="icon small"><use href="#i-arrow"/></svg></button></div><button class="minimap" id="minimap" data-action="map" aria-label="Open island map"><svg id="minimap-svg" viewBox="-33 -25 66 50" aria-hidden="true"></svg><span class="map-caption"><svg class="icon small"><use href="#i-map"/></svg><span data-copy="map">Island map</span><kbd>M</kbd></span></button></div>
+
+    <p class="navigation-hint" data-copy="navigationHint">WASD to drive · Drag to orbit · Scroll to zoom</p>
+    <div class="touch-controls" id="touch-controls" aria-label="Driving controls" data-aria="touchAria"><button data-drive="ArrowLeft" aria-label="Steer left" data-aria="steerLeft">←</button><div><button data-drive="ArrowUp" aria-label="Accelerate" data-aria="accelerate">↑</button><button data-drive="ArrowDown" aria-label="Reverse" data-aria="reverse">↓</button></div><button data-drive="ArrowRight" aria-label="Steer right" data-aria="steerRight">→</button><button class="touch-boost" data-drive="Shift" aria-label="Boost" data-aria="boost">↟</button></div>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <dialog id="panel" aria-labelledby="panel-title"><div class="panel-topbar"><span class="panel-context" id="panel-context">SELECTED WORK</span><div class="panel-tools"><div class="language-switch" role="group" data-aria="languageAria" aria-label="Language"><button class="language-option" data-language="en" lang="en" aria-label="English" aria-pressed="true">EN</button><button class="language-option" data-language="vi" lang="vi" aria-label="Tiếng Việt" aria-pressed="false">VI</button></div><button class="icon-button panel-close" id="panel-close" aria-label="Close panel" data-aria="closePanel"><svg class="icon"><use href="#i-close"/></svg></button></div></div><div id="panel-content"></div></dialog>
+
+  <noscript><div class="noscript"><h1>Long D. — Software Engineer</h1><p>This interactive portfolio uses JavaScript. Browse my original work at <a href="https://longd.tech">longd.tech</a>, find me on <a href="https://github.com/JLTC3111">GitHub</a>, or email <a href="mailto:dev@icue.vn">dev@icue.vn</a>.</p></div></noscript>
+</body>
+</html>

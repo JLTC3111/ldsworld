@@ -1,0 +1,13 @@
+{
+  "name": "longd-project-island",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Long D.'s interactive, drivable 3D portfolio.",
+  "scripts": {
+    "dev": "node scripts/serve.mjs --source",
+    "build": "node scripts/build.mjs",
+    "preview": "node scripts/serve.mjs",
+    "test": "node --test tests/*.test.mjs"
+  }
+}
