@@ -4,6 +4,7 @@ import * as THREE from '../src/vendor/three.module.js';
 import { createBlastDamage,treeBlastTargets,BLAST_BURN_SECONDS } from '../src/blast-damage.js';
 import { PhysicsWorld,colliderActive } from '../src/physics.js';
 import { collectWorldColliders,syncPhysicsBodies } from '../src/world-physics.js';
+import {collectBreakableTargets} from '../src/breakables.js';
 
 function fixture(){
   const scene=new THREE.Scene(),trunks=new THREE.InstancedMesh(new THREE.CylinderGeometry(.2,.3,3,8),new THREE.MeshStandardMaterial(),2),matrix=new THREE.Matrix4();scene.add(trunks);
@@ -35,4 +36,17 @@ test('reset restores exact tree instances and contacts, revives props, and relea
   const f=fixture(),original=new THREE.Matrix4();f.trunks.getMatrixAt(0,original);f.damage.blast({x:0,z:0});f.damage.reset();f.physics.reset();syncPhysicsBodies(THREE,f.physics.bodies);
   const restored=new THREE.Matrix4();f.trunks.getMatrixAt(0,restored);assert.deepEqual(restored.elements,original.elements);assert.equal(colliderActive(f.colliders[0]),true);assert.equal(f.prop.visible,true);assert.equal(f.physics.kick('crate'),true);assert.equal(f.damage.destroyed.size,0);
   const owned=new Set();f.damage.root.traverse(o=>{if(o.geometry)owned.add(o.geometry);if(o.material)owned.add(o.material);});let releases=0;owned.forEach(r=>r.addEventListener('dispose',()=>releases++));f.damage.dispose();f.damage.dispose();assert.equal(releases,owned.size);
+});
+
+test('a strong impact breaks scenery, respects buildings, and restores original instances after their individual delay',()=>{
+  const f=fixture();f.damage.dispose();const targets=collectBreakableTargets({THREE,colliders:f.colliders,existing:[{id:'tree',kind:'tree',x:2,z:2,parts:[{object:f.trunks,index:0}]}]});const damage=createBlastDamage({THREE,scene:f.scene,physics:f.physics,targets});
+  assert.equal(damage.impact(f.colliders[0],4),false);assert.equal(damage.impact(f.colliders[0],20),true);assert.equal(colliderActive(f.colliders[0]),false);assert.equal(f.building.visible,true);
+  for(let i=0;i<1100;i++)damage.update(.1,{focus:{x:2,z:2}});assert.ok(damage.destroyed.has('tree'),'Respawning waits until the car leaves the original tree position');
+  damage.update(.1,{focus:{x:100,z:100}});assert.equal(damage.destroyed.has('tree'),false);assert.equal(colliderActive(f.colliders[0]),true);damage.dispose();
+});
+
+test('small props respawn sooner than trees and fallen pins are reset without reviving destroyed objects early',()=>{
+  const f=fixture();f.physics.bodies[0].impactSpeed=10;f.damage.processImpacts();assert.equal(f.physics.bodies[0].destroyed,true);syncPhysicsBodies(THREE,f.physics.bodies);assert.equal(f.prop.visible,false);
+  for(let i=0;i<180;i++)f.damage.update(.1,{focus:{x:100,z:100}});assert.equal(f.prop.visible,false);
+  for(let i=0;i<30;i++)f.damage.update(.1,{focus:{x:100,z:100}});syncPhysicsBodies(THREE,f.physics.bodies);assert.equal(f.prop.visible,true);assert.equal(f.physics.bodies[0].x,-2);assert.equal(f.physics.bodies[0].sleeping,true);assert.equal(f.damage.respawns.size,0);f.damage.dispose();
 });

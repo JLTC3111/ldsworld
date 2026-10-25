@@ -1,4 +1,4 @@
-import { ROAD_WIDTHS } from './world-layout.js';
+import { ROAD_WIDTHS,DISTRICT_SCALE } from './world-layout.js';
 import { roadNodes } from './driving.js';
 // Project facts, links and demos are from the existing longd.tech portfolio.
 // Source: full-stack-course/1.web-portfolio-en/index.html (and its VN counterpart).
@@ -70,6 +70,7 @@ export const projects = [
 
 // Keep local model dimensions separate from rotated world-space collision bounds.
 for(const project of projects){
+  project.position=project.position.map((value,i)=>roadNodes[project.stop][i]+value-roadNodes[project.stop][i]/DISTRICT_SCALE);
   project.baseFootprint=[...project.footprint];
   const [width,depth]=project.baseFootprint,c=Math.abs(Math.cos(project.rotation)),s=Math.abs(Math.sin(project.rotation));
   project.footprint=[((width+1.1)*c+(depth+1.1)*s)*project.scale,((width+1.1)*s+(depth+1.1)*c)*project.scale];
@@ -109,6 +110,7 @@ export const copy = {
     skipProjects: 'Skip to projects', browseProjects: 'Browse projects', homeAria: 'Long D. — Home', worldAria: 'Interactive 3D project island', navigationAria: 'Main navigation', languageAria: 'Language', closePanel: 'Close panel',
     languageEnglish: 'English', languageVietnamese: 'Tiếng Việt', filtersAria: 'Project filters', technologiesAria: 'Technologies',
     touchAria: 'Driving controls', steerLeft: 'Steer left', steerRight: 'Steer right', accelerate: 'Accelerate', reverse: 'Reverse',
+    mapBuildings:'Project buildings',mapObjects:'Objects & activities',mapOverview:'Fit whole island',mapZoomIn:'Zoom map in',mapZoomOut:'Zoom map out',mapRespawn:'Broken objects return on their own. Small props come back sooner; trees and structures take longer.',
     worldCaption: 'THE PROJECT ISLAND', selectedWork: 'SELECTED WORK', mapEyebrow: '06 STOPS / ONE LITTLE WORLD', town:'TOWN', chooseCar:'Choose your car', garageIntro:'Four rides. One island. Your choice is remembered.', selectedCar:'Selected', selectCar:'Drive this car', teleportHint:'A top view of your island. Select a diamond or a destination to teleport there.', destinations:'Destinations', teleportTo:'Teleport to', teleported:'Arrived at', mapHint:'Follow the road arrows to the town centre. The striped perimeter marks the island boundary.', youAreHere: 'You are here',
     location: 'Hanoi, Vietnam', locationShort: 'HANOI, VN', factRole: 'SOFTWARE ENGINEER', factCuriosity: 'ALWAYS BUILDING SOMETHING',
     frontend: 'Frontend', backend: 'Backend', data: 'Data', delivery: 'Delivery', dataTools: 'Data analysis & visualization',
@@ -120,7 +122,7 @@ export const copy = {
     timeLabel: 'TIME OF DAY', timeAuto: 'Daylight cycle', timeSunrise: 'Sunrise', timeDay: 'Day', timeSunset: 'Sunset', timeNight: 'Night',
     weatherLabel: 'WEATHER', weatherClear: 'Clear', weatherRain: 'Rain', weatherSnow: 'Snow', weatherAuto: 'Changing',
     headlightsLabel: 'HEADLIGHTS', lightsAuto: 'Automatic', lightsOn: 'On', lightsOff: 'Off',
-    worldPhysics: 'Push the crates and barrels, hop over bumps, and feel the suspension settle on the bridges. Rain and snow make the roads more slippery. R resets the car and loose objects.',
+    worldPhysics: 'Push props gently or hit them at speed to break them. Trees, fences, bridge parts and other scenery can break too; buildings stay intact. Objects return on their own, with trees taking longer. R restores everything immediately.',
     worldCycle: 'The sun makes a full journey in about four and a half minutes. Choose a fixed moment to stay there.',
     zoomLabel: 'CAMERA ZOOM', zoomIn: 'Zoom in', zoomOut: 'Zoom out', zoomReset: 'Reset view', zoomNote: 'A little closer, a little wider. The island always fills your view.',
     portalLabel: 'PORTALS', westGate: 'Forest portal', eastGate: 'Coastal portal', portalArrival: 'Through the portal — welcome to the other side.',
@@ -160,6 +162,7 @@ export const copy = {
     skipProjects: 'Đi thẳng đến các dự án', browseProjects: 'Xem các dự án', homeAria: 'Long D. — Trang chủ', worldAria: 'Hòn đảo dự án 3D tương tác', navigationAria: 'Điều hướng chính', languageAria: 'Ngôn ngữ', closePanel: 'Đóng bảng thông tin',
     languageEnglish: 'English', languageVietnamese: 'Tiếng Việt', filtersAria: 'Lọc dự án', technologiesAria: 'Công nghệ sử dụng',
     touchAria: 'Điều khiển xe', steerLeft: 'Rẽ trái', steerRight: 'Rẽ phải', accelerate: 'Tiến lên', reverse: 'Lùi lại',
+    mapBuildings:'Các tòa nhà dự án',mapObjects:'Đồ vật & hoạt động',mapOverview:'Xem toàn bộ đảo',mapZoomIn:'Phóng to bản đồ',mapZoomOut:'Thu nhỏ bản đồ',mapRespawn:'Đồ vật bị phá hủy sẽ tự khôi phục. Vật nhỏ trở lại sớm hơn; cây và công trình cần lâu hơn.',
     worldCaption: 'HÒN ĐẢO DỰ ÁN', selectedWork: 'DỰ ÁN TIÊU BIỂU', mapEyebrow: '06 ĐIỂM ĐẾN / MỘT THẾ GIỚI NHỎ', town:'THỊ TRẤN', chooseCar:'Chọn xe của bạn', garageIntro:'Bốn chiếc xe. Một hòn đảo. Lựa chọn được ghi nhớ.', selectedCar:'Đã chọn', selectCar:'Lái chiếc xe này', teleportHint:'Góc nhìn từ trên cao. Chọn hình thoi hoặc địa điểm để dịch chuyển đến đó.', destinations:'Địa điểm', teleportTo:'Dịch chuyển đến', teleported:'Đã đến', mapHint:'Đi theo mũi tên trên đường về trung tâm thị trấn. Vành đai sọc đánh dấu ranh giới hòn đảo.', youAreHere: 'Bạn đang ở đây',
     location: 'Hà Nội, Việt Nam', locationShort: 'HÀ NỘI, VN', factRole: 'KỸ SƯ PHẦN MỀM', factCuriosity: 'LUÔN XÂY DỰNG ĐIỀU GÌ ĐÓ',
     frontend: 'Giao diện', backend: 'Hệ thống', data: 'Dữ liệu', delivery: 'Triển khai', dataTools: 'Phân tích & trực quan hóa dữ liệu',
@@ -171,7 +174,7 @@ export const copy = {
     timeLabel: 'THỜI ĐIỂM', timeAuto: 'Ngày đêm tự động', timeSunrise: 'Bình minh', timeDay: 'Ban ngày', timeSunset: 'Hoàng hôn', timeNight: 'Ban đêm',
     weatherLabel: 'THỜI TIẾT', weatherClear: 'Trời quang', weatherRain: 'Mưa', weatherSnow: 'Tuyết', weatherAuto: 'Thay đổi',
     headlightsLabel: 'ĐÈN PHA', lightsAuto: 'Tự động', lightsOn: 'Bật', lightsOff: 'Tắt',
-    worldPhysics: 'Đẩy các thùng gỗ, nhảy qua gờ nhỏ và cảm nhận hệ thống treo khi qua cầu. Mưa và tuyết khiến đường trơn hơn. Phím R đưa xe và các vật thể về vị trí ban đầu.',
+    worldPhysics: 'Đẩy nhẹ đồ vật hoặc đâm mạnh để phá vỡ. Cây, hàng rào, cầu và cảnh vật cũng có thể bị phá; các tòa nhà vẫn nguyên vẹn. Đồ vật sẽ tự trở lại, cây cần lâu hơn. R khôi phục mọi thứ ngay lập tức.',
     worldCycle: 'Một vòng ngày đêm kéo dài khoảng bốn phút rưỡi. Chọn một thời điểm cố định nếu bạn muốn giữ nguyên ánh sáng.',
     zoomLabel: 'GÓC NHÌN', zoomIn: 'Phóng to', zoomOut: 'Thu nhỏ', zoomReset: 'Đặt lại góc nhìn', zoomNote: 'Gần hơn một chút, rộng hơn một chút. Hòn đảo luôn phủ đầy khung hình.',
     portalLabel: 'CÁNH CỔNG', westGate: 'Cổng khu rừng', eastGate: 'Cổng ven biển', portalArrival: 'Qua cánh cổng — chào mừng bạn đến phía bên kia.',

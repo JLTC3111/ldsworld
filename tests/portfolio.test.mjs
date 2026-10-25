@@ -1,3 +1,4 @@
+import { ISLAND_BOUNDS } from '../src/world-layout.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, stat } from 'node:fs/promises';
@@ -70,7 +71,7 @@ test('boost is bounded, reverse works, and the car stays inside the shoreline', 
   let maxSpeed = 0;
   for (let i = 0; i < 600; i++) { driver.step(1 / 60, { forward: true, boost: true }); maxSpeed = Math.max(maxSpeed, driver.speed); }
   assert.ok(maxSpeed > 30 && maxSpeed <= 48);
-  assert.ok(Math.hypot(driver.x / 140, driver.z / 105) <= 1);
+  assert.ok(Math.hypot(driver.x / ISLAND_BOUNDS.x, driver.z / ISLAND_BOUNDS.z) <= 1);
   driver.reset();
   for (let i = 0; i < 60; i++) driver.step(1 / 60, { reverse: true });
   assert.ok(driver.speed < 0 && driver.speed >= -7);

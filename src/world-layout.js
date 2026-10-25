@@ -1,5 +1,6 @@
 // Expand the land, never the scale of a vehicle, building, tree or prop.
-export const WORLD_SCALE = 5;
+export const WORLD_SCALE = 20;
+export const DISTRICT_SCALE=WORLD_SCALE/5;
 export const ISLAND_BOUNDS = Object.freeze({ x:28*WORLD_SCALE, z:21*WORLD_SCALE });
 export const RIVER_REACH = 29*WORLD_SCALE;
 export const MAP_BOUNDS = Object.freeze({ x:33*WORLD_SCALE, z:25*WORLD_SCALE });
@@ -12,8 +13,8 @@ export const bridges = [
   { id: 'west', x: -19.4, z: riverCenter(-19.4), heading: .165, width: 14.25, length: 10.5 },
   { id: 'village', x: 0, z: riverCenter(0), heading: 0, width: 14.25, length: 10.5 },
   { id: 'east', x: 19.15, z: riverCenter(19.15), heading: -.278, width: 14.25, length: 10.5 },
-  { id: 'outer-west', x:-99.4, z:riverCenter(-99.4), heading:.165, width:14.25, length:10.5 },
-  { id: 'outer-east', x:99, z:riverCenter(99), heading:-.25, width:14.25, length:10.5 }
+  { id: 'outer-west', x:-99.4*DISTRICT_SCALE, z:riverCenter(-99.4*DISTRICT_SCALE), heading:.165, width:14.25, length:10.5 },
+  { id: 'outer-east', x:99*DISTRICT_SCALE, z:riverCenter(99*DISTRICT_SCALE), heading:-.25, width:14.25, length:10.5 }
 ];
 export const portals = [
   { id: 'west-gate', x: -32, z: -11, exitX: 27, exitZ: 16, heading: -Math.PI / 2, color: '#78dfd1' },
@@ -22,9 +23,10 @@ export const portals = [
 export const houses = [
   {x:-36,z:-42,scale:1.5,color:'#d6a178'}, {x:28,z:-48,scale:1.5,color:'#d2bc87'},
   {x:58,z:27,scale:1.5,color:'#a3b9ab'}, {x:-45,z:50,scale:1.5,color:'#b0a1bd'}
-];
+].map(h=>({...h,x:h.x*DISTRICT_SCALE,z:h.z*DISTRICT_SCALE}));
 export function bridgeAt(x, z) {
   return bridges.find(bridge => {
+    if(bridge.active&&!bridge.active())return false;
     const dx = x - bridge.x, dz = z - bridge.z;
     const side = dx * Math.cos(bridge.heading) - dz * Math.sin(bridge.heading);
     const along = dx * Math.sin(bridge.heading) + dz * Math.cos(bridge.heading);
@@ -48,4 +50,4 @@ export function crossesWater(a, b) {
   return false;
 }
 
-export const LANDMARKS=Object.freeze({lighthouse:{x:32,z:-20},pond:{x:-46,z:-10},welcome:{x:-10,z:30},sculpture:{x:12,z:-28},cart:{x:-37,z:10}});
+export const LANDMARKS=Object.freeze(Object.fromEntries(Object.entries({lighthouse:{x:32,z:-20},pond:{x:-46,z:-10},welcome:{x:-10,z:30},sculpture:{x:12,z:-28},cart:{x:-37,z:10}}).map(([id,p])=>[id,{x:p.x*DISTRICT_SCALE,z:p.z*DISTRICT_SCALE}])));

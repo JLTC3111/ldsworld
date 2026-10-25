@@ -1,5 +1,6 @@
+import { loadCarAssets } from './car-assets.js';
 import { VEHICLE_MODELS,vehicleModel } from './vehicle-models.js';
-import { mapLocations } from './locations.js';
+import { mapLocations,mapFrame } from './locations.js';
 import { TOWN_CENTER,outerTownDirections } from './wayfinding.js';
 import { ISLAND_BOUNDS as DRIVING_BOUNDS } from './world-layout.js';
 import { BOUNDARY_INSET } from './island-boundary.js';
@@ -42,6 +43,7 @@ const local = project => localizeProject(project, state.language);
 const mediaFor = project => getProjectMedia(typeof project === 'string' ? project : project.id, state.language);
 state.music = storage.get('music','on') !== 'off';
 state.carModel=vehicleModel(storage.get('car','8-ball')).id;
+state.mapCategory='buildings';state.mapZoom=1;state.carPosition={x:0,z:13,heading:Math.PI/2};
 state.showcaseScreen = 'project'; state.showcaseTool = null;
 const panel = $('#panel');
 const drivingHud=createDrivingHud();
@@ -335,11 +337,14 @@ function mapSvg(large = false, carId = large ? 'large-car' : 'mini-car') {
   return `<path d="M-28 0C-30 13-19 22-8 22C7 24 22 21 27 11C32 1 29-12 22-17C12-24-6-25-19-19C-27-15-30-7-28 0Z" fill="#c4cfae" transform="scale(${WORLD_SCALE})"/><path d="M${outerRoadLoop.map(point=>point.join(',')).join('L')}Z" fill="none" stroke="#eeeddc" stroke-width="${ROAD_WIDTHS.ring}"/><path d="M${roadLoop.map(point => point.join(',')).join('L')}Z M0,-13V13 M-20,0H20" fill="none" stroke="#eeeddc" stroke-width="${ROAD_WIDTHS.spine}" stroke-linecap="round" stroke-linejoin="round"/>${connectorPaths.map(path=>`<path d="M${path.map(key=>roadNodes[key].join(",")).join("L")}" fill="none" stroke="#eeeddc" stroke-width="${ROAD_WIDTHS.spine}"/>`).join("")}${features}${boundaryMarkup}${projects.map(p => `<rect x="${p.position[0] - p.footprint[0]/2}" y="${p.position[1] - p.footprint[1]/2}" width="${p.footprint[0]}" height="${p.footprint[1]}" rx=".4" fill="${p.color}" opacity=".7"/>`).join('')}${large ? '' : projects.map(p => `<circle cx="${p.position[0]}" cy="${p.position[1]}" r=".55" fill="#fffdf0"/>`).join('')}<g id="${carId}" transform="translate(0,13)"><circle r="1.9" fill="#f8efcd" opacity=".8"/><path d="m0 1.25-.9-1.8L0-.15l.9-.4Z" fill="#e94e31"/></g>`;
 }
 function renderMap(){
-  const locations=mapLocations(state.language),picture=world?.captureMap?.()||'';
-  const map=picture?`<svg viewBox="${MAP_VIEWBOX}" aria-hidden="true"><image href="${picture}" x="${-MAP_BOUNDS.x}" y="${-MAP_BOUNDS.z}" width="${MAP_BOUNDS.x*2}" height="${MAP_BOUNDS.z*2}" preserveAspectRatio="none"/></svg>`:`<svg viewBox="${MAP_VIEWBOX}" aria-hidden="true">${mapSvg(true)}</svg>`;
-  return `<article class="travel-map"><p class="panel-eyebrow">${t('mapEyebrow')}</p><h2 id="panel-title">${t('map')}</h2><p class="map-intro">${t('teleportHint')}</p><div class="travel-map-layout"><div class="large-map top-view-map">${map}${locations.map((location,i)=>`<button class="map-pin" data-teleport="${location.id}" style="left:${(location.x+MAP_BOUNDS.x)/(MAP_BOUNDS.x*2)*100}%;top:${(location.z+MAP_BOUNDS.z)/(MAP_BOUNDS.z*2)*100}%;--pin-color:${location.color||'#f4dfac'}" aria-label="${t('teleportTo')} ${location.name}"><span class="map-pin-label">${location.name}</span></button>`).join('')}</div><aside class="map-destinations"><h3>${t('destinations')}</h3><div class="map-location-list">${locations.map(location=>`<button data-teleport="${location.id}"><span class="destination-diamond" aria-hidden="true">◇</span><span>${location.name}</span>${icon('arrow')}</button>`).join('')}</div><p class="panel-footnote">${t('mapHint')}</p></aside></div><button class="secondary-button" data-action="close-world">${t('return')}</button></article>`;
+  const all=mapLocations(state.language),locations=all.filter(l=>l.category===state.mapCategory),frame=mapFrame({zoom:state.mapZoom,centre:state.mapZoom>1?state.carPosition:{x:0,z:0}}),picture=world?.captureMap?.(frame)||'';
+  const left=frame.x-frame.halfWidth,top=frame.z-frame.halfHeight,width=frame.halfWidth*2,height=frame.halfHeight*2,box=`${left} ${top} ${width} ${height}`;
+  const image=picture?`<image href="${picture}" x="${left}" y="${top}" width="${width}" height="${height}" preserveAspectRatio="none"/>`:mapSvg(true,'map-fallback-car').replace(/<g id="map-fallback-car"[\s\S]*?<\/g>/,'');
+  const car=state.carPosition,carScale=frame.halfWidth/35;
+  const vehicle=`<g id="large-car" data-map-scale="${carScale}" transform="translate(${car.x},${car.z}) rotate(${-car.heading*180/Math.PI}) scale(${carScale})"><circle r="1.3" fill="#fff8de" stroke="#24383e" stroke-width=".12"/><path d="m0 1.1-.65-1.5L0-.1l.65-.3Z" fill="#ed5838"/></g>`;
+  return `<article class="travel-map"><p class="panel-eyebrow">${t('mapEyebrow')}</p><h2 id="panel-title">${t('map')}</h2><p class="map-intro">${t('teleportHint')}</p><div class="atlas-tabs" role="group" aria-label="${t('destinations')}">${['buildings','objects'].map(category=>`<button data-map-category="${category}" aria-pressed="${state.mapCategory===category}">${t(category==='buildings'?'mapBuildings':'mapObjects')}<span>${all.filter(l=>l.category===category).length}</span></button>`).join('')}</div><div class="travel-map-layout"><div><div class="large-map top-view-map"><svg viewBox="${box}" aria-hidden="true">${image}${vehicle}</svg><span class="atlas-north" aria-hidden="true">N ↑</span><div class="atlas-zoom"><button data-map-zoom="in" aria-label="${t('mapZoomIn')}">+</button><button data-map-zoom="out" aria-label="${t('mapZoomOut')}">−</button><button data-map-zoom="fit" aria-label="${t('mapOverview')}">↺</button></div>${locations.filter(l=>Math.abs(l.x-frame.x)<frame.halfWidth&&Math.abs(l.z-frame.z)<frame.halfHeight).map(l=>`<button class="map-pin ${l.projectId?'is-building':'is-object'}" data-teleport="${l.id}" style="left:${(l.x-left)/width*100}%;top:${(l.z-top)/height*100}%;--pin-color:${l.color||'#d3efdb'}" aria-label="${t('teleportTo')} ${l.name}"><span class="map-pin-label">${l.name}</span></button>`).join('')}</div><div class="atlas-legend"><span><i class="atlas-car-dot"></i>${t('youAreHere')}</span><span>${t(state.mapCategory==='buildings'?'mapBuildings':'mapObjects')}</span><span>${state.mapZoom.toFixed(1)}×</span></div></div><aside class="map-destinations"><h3>${t('destinations')}</h3><div class="map-location-list">${locations.map(l=>`<button data-teleport="${l.id}"><span class="destination-diamond" aria-hidden="true">${l.projectId?'◆':'◇'}</span><span>${l.name}</span>${icon('arrow')}</button>`).join('')}</div><p class="panel-footnote">${t('mapRespawn')}</p></aside></div><button class="secondary-button" data-action="close-world">${t('return')}</button></article>`;
 }
-function carIcon(id){const c=vehicleModel(id).color;return `<svg viewBox="0 0 120 66" aria-hidden="true"><ellipse cx="60" cy="58" rx="48" ry="5" fill="currentColor" opacity=".09"/><path d="M17 37 28 28h64l15 12v12H17Z" fill="${c}"/><circle cx="32" cy="51" r="${id==='monster-truck'?13:9}" fill="#26383b"/><circle cx="92" cy="51" r="${id==='monster-truck'?13:9}" fill="#26383b"/>${id==='8-ball'?'<path d="M39 36a22 22 0 0 1 44 0" fill="#142329"/><circle cx="61" cy="22" r="10" fill="#f5f1df"/><text x="61" y="27" text-anchor="middle" font-size="15" font-weight="700" fill="#142329">8</text>':id==='toy-story'?'<path d="M42 31V20h39v12" fill="#f4ce48"/><ellipse cx="62" cy="18" rx="30" ry="7" fill="#765044"/><path d="M48 18V9h26v9" fill="#765044"/>':id==='monster-truck'?'<path d="m23 29 8-15 19 8 8-9 38 12-2 13Z" fill="#659d41"/><path d="m26 28 6 8 6-8 6 8 6-8" fill="#efdc9c"/>':'<path d="m40 29 8-18h30l14 18" fill="#f0e5c9"/><path d="m48 15-6 13h16V15Zm17 0v13h19l-9-13" fill="#344e5a"/>'}</svg>`;}
+function carIcon(id){if(id!=='explorer')return `<img src="./assets/cars/${id}-preview.png" alt="" loading="lazy" decoding="async">`;const c=vehicleModel(id).color;return `<svg viewBox="0 0 120 66" aria-hidden="true"><ellipse cx="60" cy="58" rx="48" ry="5" fill="currentColor" opacity=".09"/><path d="M17 37 28 28h64l15 12v12H17Z" fill="${c}"/><circle cx="32" cy="51" r="${id==='monster-truck'?13:9}" fill="#26383b"/><circle cx="92" cy="51" r="${id==='monster-truck'?13:9}" fill="#26383b"/>${id==='8-ball'?'<path d="M39 36a22 22 0 0 1 44 0" fill="#142329"/><circle cx="61" cy="22" r="10" fill="#f5f1df"/><text x="61" y="27" text-anchor="middle" font-size="15" font-weight="700" fill="#142329">8</text>':id==='toy-story'?'<path d="M42 31V20h39v12" fill="#f4ce48"/><ellipse cx="62" cy="18" rx="30" ry="7" fill="#765044"/><path d="M48 18V9h26v9" fill="#765044"/>':id==='monster-truck'?'<path d="m23 29 8-15 19 8 8-9 38 12-2 13Z" fill="#659d41"/><path d="m26 28 6 8 6-8 6 8 6-8" fill="#efdc9c"/>':'<path d="m40 29 8-18h30l14 18" fill="#f0e5c9"/><path d="m48 15-6 13h16V15Zm17 0v13h19l-9-13" fill="#344e5a"/>'}</svg>`;}
 function renderGarage(){return `<section id="car-selector" class="garage-section"><h3 class="skill-heading">${t('chooseCar')}</h3><p>${t('garageIntro')}</p><div class="garage-grid">${VEHICLE_MODELS.map(model=>`<button class="garage-card" data-car-model="${model.id}" aria-pressed="${state.carModel===model.id}">${carIcon(model.id)}<strong>${state.language==='vi'?model.nameVi:model.name}</strong><small>${state.language==='vi'?model.descriptionVi:model.description}</small><span>${state.carModel===model.id?t('selectedCar'):t('selectCar')}</span></button>`).join('')}</div></section>`;}
 const weatherKey = mode => ({ clear: 'weatherClear', rain: 'weatherRain', snow: 'weatherSnow', auto: 'weatherAuto' }[mode] || 'weatherClear');
 function updateEnvironment(environment) {
@@ -432,8 +437,10 @@ document.addEventListener('pointerdown',event=>{if(!panel.open&&event.target.clo
 document.addEventListener('pointerover', spotlightFromCard);
 document.addEventListener('focusin', spotlightFromCard);
 document.addEventListener('click', event => {
-  const button = event.target.closest('[data-teleport], [data-car-model], [data-screen-mode], [data-stack-tool], [data-spotlight], [data-demo-time], [data-time-mode], [data-weather], [data-headlights], [data-zoom], [data-go-portal], [data-go-playground], [data-language], [data-action], [data-open-project], [data-drive-project], [data-next-project], [data-filter]');
+  const button = event.target.closest('[data-map-category], [data-map-zoom], [data-teleport], [data-car-model], [data-screen-mode], [data-stack-tool], [data-spotlight], [data-demo-time], [data-time-mode], [data-weather], [data-headlights], [data-zoom], [data-go-portal], [data-go-playground], [data-language], [data-action], [data-open-project], [data-drive-project], [data-next-project], [data-filter]');
   if (!button) return;
+  if(button.dataset.mapCategory){state.mapCategory=button.dataset.mapCategory==='objects'?'objects':'buildings';state.mapZoom=state.mapCategory==='objects'?3:1;renderPanel();return;}
+  if(button.dataset.mapZoom){state.mapZoom=button.dataset.mapZoom==='fit'?1:Math.max(1,Math.min(6,state.mapZoom*(button.dataset.mapZoom==='in'?1.5:1/1.5)));renderPanel();return;}
   if(button.dataset.teleport){const location=mapLocations(state.language).find(l=>l.id===button.dataset.teleport);if(world?.teleportTo(button.dataset.teleport)){closePanel();drivingHud.reveal();engineAudio.update({...engineAudio.motion,paused:false});engineAudio.impact?.('teleport',3);showToast(`${t('teleported')} ${location?.name||''}`);}return;}
   if(button.dataset.carModel){state.carModel=world?.setCarModel(button.dataset.carModel)||vehicleModel(button.dataset.carModel).id;storage.set('car',state.carModel);renderPanel();return;}
   if (button.dataset.screenMode) setShowcaseScreen(button.dataset.screenMode);
@@ -506,10 +513,11 @@ function readHash() {
   else if (['projects', 'about', 'contact', 'map', 'help', 'world'].includes(hash)) showPanel(hash);
 }
 window.addEventListener('hashchange', readHash);
-$('#minimap-svg').innerHTML = mapSvg(); translatePage(); syncVisitedProjects(); updateClock(); setInterval(updateClock, 30000); readHash();
+$('#minimap-svg').setAttribute('viewBox','-85 -52 170 130');$('#minimap-svg').innerHTML = mapSvg(); translatePage(); syncVisitedProjects(); updateClock(); setInterval(updateClock, 30000); readHash();
 
 try {
   const { createWorld } = await import('./world.js');
+  await loadCarAssets();
   world = createWorld({
     container: $('#world'), carModel:state.carModel, reducedMotion,
     onStart: startExploring,
@@ -523,9 +531,10 @@ try {
     onEnvironment: updateEnvironment,
     onFrame({ x, z, heading, speed, actualSpeed, rpm, gear, throttle,carModel, acceleration, paused, hop, elapsed,surface,airborne,boosting,landingImpact,steering,weather }) {
       drivingHud.update({speed:actualSpeed,hop,elapsed,paused,panelOpen:panel.open});
+      state.carPosition={x,z,heading};$('#minimap-svg').setAttribute('viewBox',`${x-85} ${z-65} 170 130`);
       state.riverDistance = Math.abs(z-riverCenter(x));
       const transform = `translate(${x.toFixed(2)},${z.toFixed(2)}) rotate(${(-heading * 180 / Math.PI).toFixed(1)})`;
-      $('#mini-car')?.setAttribute('transform', transform); $('#large-car')?.setAttribute('transform', transform); $('#stage-map-car')?.setAttribute('transform', transform);
+      $('#mini-car')?.setAttribute('transform',transform+' scale(3)');const mapCar=$('#large-car');mapCar?.setAttribute('transform',transform+` scale(${mapCar.dataset.mapScale||1})`); $('#stage-map-car')?.setAttribute('transform', transform);
       const value = Math.round(speed * 3.6); if (value !== speedValue) { speedValue = value; $('#speed').textContent = String(value).padStart(2, '0'); }
       engineAudio.update({speed:actualSpeed,rpm,gear,throttle,model:carModel,acceleration,paused,surface,airborne,boosting,elapsed,slip:Math.min(1,Math.abs((steering||0)*actualSpeed)/35*(weather==='snow'?1.2:1))});
     }

@@ -50,6 +50,11 @@ export class PhysicsWorld {
     // Keep the array identity so a renderer can retain a reference to it.
     this.bodies.splice(0, this.bodies.length, ...this.initial.map(body => ({ ...body, vx: 0, vz: 0, vy: 0, rotation: body.rotation || 0, angularVelocity: 0, tiltX: 0, tiltZ: 0, sleepTime: 0, sleeping: Boolean(body.initialSleeping), displaced: false })));
   }
+  restoreBody(id){
+    const index=this.initial.findIndex(b=>b.id===id);if(index<0)return null;const initial=this.initial[index];
+    const body={...initial,vx:0,vz:0,vy:0,rotation:initial.rotation||0,angularVelocity:0,tiltX:0,tiltZ:0,sleepTime:0,sleeping:true,displaced:false,destroyed:false};
+    this.bodies[index]=body;return body;
+  }
   explode({x,y=.6,z,radius=8,strength=15,carStrength=0},driver){
     for(const body of this.bodies){
       if(!activeBody(body))continue;
@@ -239,7 +244,7 @@ export class PortalSystem {
   reset() { this.cooldown = 0; this.armed = true; }
   update(elapsed, driver) {
     this.cooldown = Math.max(0, this.cooldown - clamp(elapsed, 0, .1));
-    const near = this.portals.find(portal => Math.hypot(driver.x - portal.x, driver.z - portal.z) < (portal.radius || 1.25));
+    const near = this.portals.find(portal => (!portal.active||portal.active())&&Math.hypot(driver.x - portal.x, driver.z - portal.z) < (portal.radius || 1.25));
     if (!near) { if (!this.cooldown) this.armed = true; return null; }
     if (!this.armed || this.cooldown || (driver.hop || 0) > 1) return null;
     driver.x = near.exitX; driver.z = near.exitZ; driver.heading = near.heading ?? driver.heading;

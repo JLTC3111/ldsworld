@@ -25,14 +25,14 @@ test('all four garage models have complete moving suspension, lamps, finite geom
 }));
 
 test('the map has unique bilingual destinations inside its top-down frustum and safe land arrivals',()=>{
-  const en=mapLocations('en'),vi=mapLocations('vi');assert.equal(en.length,17);assert.deepEqual(en.map(l=>l.id),vi.map(l=>l.id));assert.equal(new Set(en.map(l=>l.id)).size,en.length);
+  const en=mapLocations('en'),vi=mapLocations('vi');assert.equal(en.length,29);assert.deepEqual(en.map(l=>l.id),vi.map(l=>l.id));assert.equal(new Set(en.map(l=>l.id)).size,en.length);
   assert.ok(en.filter(l=>l.projectId).length===6);assert.ok(vi.some(l=>l.name.includes('thị trấn')));
   for(const location of en){assert.ok(Math.abs(location.x)<MAP_BOUNDS.x&&Math.abs(location.z)<MAP_BOUNDS.z);assert.ok(location.spawn.every(Number.isFinite));assert.notEqual(drivingSurfaceAt(...location.spawn),'water',location.id);}
 });
 
 test('the widened road, stream, and bridge dimensions stay coherent with surface audio classification',()=>{
   assert.equal(ROAD_WIDTHS.ring,4.9*2.5);assert.equal(ROAD_WIDTHS.spine,4.2*2.5);assert.ok(Math.abs(RIVER_HALF_WIDTH-1.05*3)<1e-8);
-  assert.equal(drivingSurfaceAt(0,13),'road');assert.equal(drivingSurfaceAt(1,80),'grass');
+  assert.equal(drivingSurfaceAt(0,13),'road');assert.equal(drivingSurfaceAt(55,-80),'grass');
   for(const bridge of bridges){assert.ok(bridge.width>ROAD_WIDTHS.ring);assert.equal(drivingSurfaceAt(bridge.x,bridge.z),'bridge');}
 });
 

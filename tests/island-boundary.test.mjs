@@ -20,7 +20,7 @@ test('a striped continuous perimeter stays inside the shoreline and stops a boos
 
 test('the visible curb reflects loose props, night reflectors stay readable, and resources release once',()=>{
   const scene=new THREE.Scene(),boundary=createIslandBoundary({THREE,scene});scene.updateMatrixWorld(true);const contacts=collectWorldColliders({THREE,roots:[boundary.root]});
-  const physics=new PhysicsWorld({bodies:[{id:'edge-prop',x:132,z:0,radius:.4,height:.8,mass:1}],colliders:contacts});physics.bodies[0].vx=25;let maxX=0,reflected=false;
+  const physics=new PhysicsWorld({bodies:[{id:'edge-prop',x:boundaryPoint(0).x-5,z:0,radius:.4,height:.8,mass:1}],colliders:contacts});physics.bodies[0].vx=25;let maxX=0,reflected=false;
   for(let frame=0;frame<120;frame++){physics.update(1/60);maxX=Math.max(maxX,physics.bodies[0].x);reflected ||= physics.bodies[0].vx<0;}
   assert.ok(reflected&&maxX<boundaryPoint(0).x-.25);boundary.update({night:0});const day=boundary.rail.material.emissiveIntensity;boundary.update({night:1});assert.ok(boundary.rail.material.emissiveIntensity>day);assert.ok(boundary.reflectors.material.isMeshBasicMaterial);
   const geometry=new Set(),material=new Set();boundary.root.traverse(o=>{if(o.geometry)geometry.add(o.geometry);if(o.material)material.add(o.material);});let released=0;for(const resource of [...geometry,...material])resource.addEventListener('dispose',()=>released++);

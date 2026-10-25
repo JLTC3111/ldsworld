@@ -98,7 +98,7 @@ test('click navigation can leave a building wall after a manual collision', () =
   const driver = new Driver(colliders), wall = colliders[0];
   driver.x = wall.x + wall.width / 2 + .66; driver.z = wall.z;
   driver.driveTo(-20, -7); assert.ok(driver.route.length > 0);
-  for (let i = 0; i < 2100 && driver.route.length; i++) assert.equal(driver.step(1 / 60).cancelled, false);
+  for (let i = 0; i < Math.ceil(driver.routeDurationLimit*60)+120 && driver.route.length; i++) assert.equal(driver.step(1 / 60).cancelled, false);
   assert.ok(Math.hypot(driver.x + 20, driver.z + 7) < 1.3);
 });
 

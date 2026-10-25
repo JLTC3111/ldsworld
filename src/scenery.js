@@ -7,7 +7,7 @@ import { projects } from './data.js';
 // stays small, works offline, and shares one consistent handcrafted scale.
 export function createScenery({ THREE, scene, land, box, cylinder, sphere, group, mesh, mat, coarse = false, reducedMotion = false }) {
   const root = group(land); root.name = 'River village and portals';
-  const colliders = [], bodies = [], lamps = [], portalGroups = [];
+  const colliders = [], bodies = [], lamps = [], portalGroups = [],breakableTargets=[],bridgeGroups=[];
   const ownedGeometries = new Set(), ownedMaterials = new Set();
   // Box helpers share the world's unit cube; sphere/cylinder helpers allocate
   // their own geometry, which belongs to this module's lifetime.
@@ -40,7 +40,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   }
   function curveLine(points, color, parent, radius = .016) {
     const curve = new THREE.CatmullRomCurve3(points.map(point => new THREE.Vector3(...point)));
-    return mesh(ownGeo(new THREE.TubeGeometry(curve, coarse?10:16, radius, 4, false)), color, parent);
+    return mesh(ownGeo(new THREE.TubeGeometry(curve, coarse?10:15, radius, 4, false)), color, parent);
   }
   function beamBetween(a, b, width, color, parent) {
     const start = new THREE.Vector3(...a), end = new THREE.Vector3(...b);
@@ -74,6 +74,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   // Every crossing shares the exact driveable profile used by physics.
   for (const bridge of bridges) {
     const crossing = group(root, bridge.x, bridge.z); crossing.rotation.y = bridge.heading; crossing.name = `Arched ${bridge.id} bridge`;
+    crossing.userData.breakableId=`bridge-${bridge.id}`;crossing.userData.breakableKind='bridge';bridgeGroups.push({bridge,object:crossing});
     const planks = coarse ? 15 : 23;
     const bolts=new THREE.InstancedMesh(ownGeo(new THREE.CylinderGeometry(.055,.055,.025,8)),mat('#65726a'),planks*2);bolts.name='Bridge iron fasteners';crossing.add(bolts);
     const grain=new THREE.InstancedMesh(ownGeo(new THREE.BoxGeometry(1,1,1)),mat('#8c7556'),planks*3);grain.name='Bridge timber grain';crossing.add(grain);
@@ -142,6 +143,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   const windowMaterials = [];
   houses.forEach((house, index) => {
     const home = group(root, house.x, house.z); home.name = `Riverside cottage ${index + 1}`;home.scale.setScalar(house.scale||1);
+    home.userData.building=true;
     const wall = ownMat(house.color), timber = '#8f795b', roofColor = ['#a77e5e', '#899474', '#8b7772', '#7c8f82'][index];
     box(3.05, .22, 2.85, '#c8c5a5', home, 0, .16, 0);
     box(2.65, 2.2, 2.45, wall, home, 0, 1.35, 0);
@@ -215,6 +217,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   treeLocations.forEach(([x, z, authoredScale], index) => {
     const scale=authoredScale*1.8;
     const tree = group(root, x, z); tree.name = `River willow ${index + 1}`;
+    const target={id:`willow-${index+1}`,kind:'tree',x,z,parts:[{object:tree}]};tree.userData.breakableId=target.id;tree.userData.breakableKind='tree';breakableTargets.push(target);
     const trunk = cylinder(.12 * scale, .23 * scale, 2.2 * scale, '#988565', tree, 0, 1.2 * scale, 0, 7); trunk.rotation.z = -.08;
     for (let branch = 0; branch < 3; branch++) {
       const angle = branch / 3 * Math.PI * 2 + index;
@@ -223,19 +226,20 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
     for (let i = 0; i < (coarse?48:84); i++) {
       const angle = i * 2.39996, radius = .4+random()*.85;
       dummy.position.set(x + Math.cos(angle) * radius * scale, (1.85+random()*1.35-radius*.22) * scale, z + Math.sin(angle) * radius * scale);
-      dummy.rotation.set(random(), angle, Math.sin(angle) * .4); dummy.scale.set(.2 * scale, (.23+random()*.18) * scale, .18 * scale); dummy.updateMatrix(); willowLeaves.setMatrixAt(leafIndex++, dummy.matrix);
+      dummy.rotation.set(random(), angle, Math.sin(angle) * .4); dummy.scale.set(.2 * scale, (.23+random()*.18) * scale, .18 * scale); dummy.updateMatrix();target.parts.push({object:willowLeaves,index:leafIndex});willowLeaves.setMatrixAt(leafIndex++, dummy.matrix);
     }
   });
   const birches=[[-10,-24]];
   const birchLeaves = new THREE.InstancedMesh(leafGeometry, birchMaterial, birches.length * (coarse?30:54)); birchLeaves.castShadow = true; root.add(birchLeaves); leafIndex = 0;
   birchLeaves.userData.physicsIgnore = true;
   birches.forEach(([x, z], index) => {
-    cylinder(.15,.28,5.6,'#e6dfc6',root,x,2.9,z,7);
-    for (let i = 0; i < 7; i++) box(.12, .035, .035, '#938e75', root, x + (i % 2 ? -.04 : .04), .6 + i * .4, z + .115);
-    for (let i = 0; i < (coarse?30:54); i++) {const a=i*2.4,r=.3+random()*.65; dummy.position.set(x + Math.sin(a) * r, 4.5 + random()*2.1, z + Math.cos(a) * r); dummy.rotation.set(random(), a + index, .2); dummy.scale.set(.34,.4+random()*.23,.31); dummy.updateMatrix(); birchLeaves.setMatrixAt(leafIndex++, dummy.matrix); }
+    const tree=group(root,x,z),target={id:`birch-${index+1}`,kind:'tree',x,z,parts:[{object:tree}]};tree.userData.breakableId=target.id;tree.userData.breakableKind='tree';breakableTargets.push(target);
+    cylinder(.15,.28,5.6,'#e6dfc6',tree,0,2.9,0,7);
+    for (let i = 0; i < 7; i++) box(.12, .035, .035, '#938e75', tree, i % 2 ? -.04 : .04, .6 + i * .4, .115);
+    for (let i = 0; i < (coarse?30:54); i++) {const a=i*2.4,r=.3+random()*.65; dummy.position.set(x + Math.sin(a) * r, 4.5 + random()*2.1, z + Math.cos(a) * r); dummy.rotation.set(random(), a + index, .2); dummy.scale.set(.34,.4+random()*.23,.31); dummy.updateMatrix();target.parts.push({object:birchLeaves,index:leafIndex});birchLeaves.setMatrixAt(leafIndex++, dummy.matrix); }
   });
   const pebbleLocations = [];
-  for (let i = 0; i < 120; i++) {
+  for (let i = 0; i < 96; i++) {
     const x = -27 + random() * 54, bank = i % 2 ? -1 : 1;
     const z = riverCenter(x) + bank * (RIVER_HALF_WIDTH + .16 + random() * .24);
     if(noBridge(x,z,1)&&noProject(x,z,.3)&&drivingSurfaceAt(x,z)==='grass') pebbleLocations.push({ x, z, size: .18 + random() * .24 });
@@ -254,6 +258,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
 
   // A riverside handcart, sacks and tool racks give the props a place to belong.
   const cart = group(root,LANDMARKS.cart.x,LANDMARKS.cart.z); cart.rotation.y = Math.PI - .2;
+  cart.userData.breakableId='riverside-cart';cart.userData.breakableKind='cart';
   box(1.5, .13, .95, '#aa8b5f', cart, 0, .55, 0);
   for (const x of [-.7, .7]) {
     box(.1, .5, 1, '#b79b6c', cart, x, .85, 0);
@@ -263,7 +268,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   for (const z of [-.46, .46]) box(1.4, .5, .1, '#b79b6c', cart, 0, .85, z);
   for (const x of [-.45, .45]) box(.07, .07, 1.7, '#9a825c', cart, x, .5, 1.1);
   for (let i = 0; i < 3; i++) { const sack = sphere(.3, '#c7b88e', cart, -.4 + i * .38, .92, 0, 1); sack.scale.set(.7, 1.2, .8); }
-  colliders.push({ x:LANDMARKS.cart.x,z:LANDMARKS.cart.z, width: 1.8, depth: 1.2, kind: 'cart' });
+  colliders.push({ x:LANDMARKS.cart.x,z:LANDMARKS.cart.z, width: 1.8, depth: 1.2, kind: 'cart',active:()=>cart.visible });
 
   function crate(id, x, z, size = .85) {
     const object = group(root, x, z); object.position.y = .12 + size / 2; object.userData.propId = id; object.name = `Pushable ${id}`;
@@ -298,6 +303,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   portals.forEach((portal, index) => {
     const gate = group(root, portal.x, portal.z); gate.rotation.y = portal.heading;
     gate.userData.portalId = portal.id; gate.name = `Portal ${portal.id}`; portalGroups.push(gate);
+    gate.userData.breakableId=portal.id;gate.userData.breakableKind='portal';
     cylinder(1.9, 2.04, .16, '#acb39b', gate, 0, .12, 0, 16);
     const floorRing = mesh(ownGeo(new THREE.TorusGeometry(1.72, .03, 4, 48)), basic(portal.color, { transparent: true, opacity: .7, toneMapped: false }), gate, 0, .22, 0, false); floorRing.rotation.x = -Math.PI / 2;
     const frame = mesh(portalRingGeometry, '#a4ac98', gate, 0, 1.65, 0); frame.scale.y = 1.07;
@@ -338,16 +344,18 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   root.traverse(object => {
     if (!object.isMesh || object.isInstancedMesh || object.userData.bridgeDeck || object.material.transparent || !['BoxGeometry', 'CylinderGeometry'].includes(object.geometry.type)) return;
     for (let ancestor = object; ancestor && ancestor !== root; ancestor = ancestor.parent) if (movingRoots.has(ancestor)) return;
-    const key = object.geometry.type + JSON.stringify(object.geometry.parameters) + object.material.uuid + object.castShadow;
-    if (!batches.has(key)) batches.set(key, []); batches.get(key).push(object);
+    let owner=root;for(let ancestor=object.parent;ancestor&&ancestor!==root;ancestor=ancestor.parent)if(ancestor.userData.building||ancestor.userData.breakableId){owner=ancestor;break;}
+    const key = owner.uuid+object.geometry.type + JSON.stringify(object.geometry.parameters) + object.material.uuid + object.castShadow;
+    if (!batches.has(key)) batches.set(key, {owner,objects:[]}); batches.get(key).objects.push(object);
   });
   let staticBatches = 0, batchedObjects = 0;
-  for (const objects of batches.values()) {
+  for (const {owner,objects} of batches.values()) {
     if (objects.length < 3) continue;
     const batch = new THREE.InstancedMesh(objects[0].geometry, objects[0].material, objects.length);
     batch.castShadow = objects[0].castShadow; batch.receiveShadow = true; batch.name = 'Batched village details';
-    objects.forEach((object, i) => { batch.setMatrixAt(i, new THREE.Matrix4().multiplyMatrices(inverseRoot, object.matrixWorld)); object.removeFromParent(); });
-    root.add(batch); staticBatches++; batchedObjects += objects.length;
+    const inverse=owner===root?inverseRoot:owner.matrixWorld.clone().invert();
+    objects.forEach((object, i) => { batch.setMatrixAt(i, new THREE.Matrix4().multiplyMatrices(inverse, object.matrixWorld)); object.removeFromParent(); });
+    owner.add(batch); staticBatches++; batchedObjects += objects.length;
   }
 
   const baseWillow = new THREE.Color('#90a974'), baseBirch = new THREE.Color('#b1bd85'), snowColor = new THREE.Color('#e7ece0');
@@ -382,7 +390,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   }
   update(0, 0);
   return {
-    root, colliders, bodies, lamps, portalGroups, stats: { staticBatches, batchedObjects },
+    root, colliders, bodies, lamps, portalGroups,bridgeGroups,breakableTargets, stats: { staticBatches, batchedObjects },
     update,
     reset() { stream.reset();tick = 0; swaying.forEach(item => { item.object.rotation.z = 0; }); portalEffects.forEach(effect => { effect.vortex.rotation.z = effect.phase; }); },
     dispose() { stream.dispose();root.removeFromParent(); ownedGeometries.forEach(geometry => geometry.dispose()); ownedMaterials.forEach(material => material.dispose()); }

@@ -264,6 +264,8 @@ export class Driver {
       const roof=!airBounds&&(collider.minY??0)>this.groundHeight+this.hop+1.5;
       const contact=fixedContact(nextX+(airBounds?.offsetX||0),nextZ+(airBounds?.offsetZ||0),airBounds?0:this.heading,collider,airBounds?.halfX??(roof?this.profile.halfWidth*.74:this.profile.halfWidth),airBounds?.halfZ??(roof?this.profile.halfLength*.6:this.profile.halfLength));
       if (!contact) continue;
+      const impactSpeed=Math.max(0,-((flying?this.vx:Math.sin(this.velocityHeading)*this.speed)*contact.nx+(flying?this.vz:Math.cos(this.velocityHeading)*this.speed)*contact.nz));
+      if(impactSpeed>.1&&this.onImpact?.(collider,impactSpeed)){this.speed*=.88;continue;}
       nextX += contact.nx * (contact.depth + .003); nextZ += contact.nz * (contact.depth + .003);
       const inward = (flying?this.vx:Math.sin(this.velocityHeading)*this.speed)*contact.nx+(flying?this.vz:Math.cos(this.velocityHeading)*this.speed)*contact.nz;
       if (inward < -.001) {

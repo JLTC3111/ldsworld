@@ -1,10 +1,11 @@
 import { CAR_PIVOT_HEIGHT } from './aerial-dynamics.js';
 import { createReferenceVehicle } from './toy-vehicles.js';
+import { createAssetVehicle } from './asset-vehicle.js';
 import { vehicleModel } from './vehicle-models.js';
 export function createVehicle(options){
   const id=options.model||'explorer';
-  const vehicle=id==='explorer'?createExplorer(options):createReferenceVehicle({...options,model:vehicleModel(id)});
-  vehicle.modelId=id==='explorer'?'explorer':vehicleModel(id).id;vehicle.profile=vehicleModel(vehicle.modelId).profile;
+  const config=vehicleModel(id),vehicle=id==='explorer'?createExplorer(options):createAssetVehicle({...options,model:config})||createReferenceVehicle({...options,model:config});
+  vehicle.modelId=id==='explorer'?'explorer':config.id;vehicle.profile||=vehicleModel(vehicle.modelId).profile;
   return vehicle;
 }
 function createExplorer({ THREE, scene, reducedMotion = false }) {

@@ -1,6 +1,6 @@
 /** Fade the page chrome while driving; keep the canvas and scene fully interactive. */
 export function createDrivingHud({document:page=globalThis.document}={}) {
-  const overlays=[...page.querySelectorAll('[data-world-overlay]')];
+  const overlays=[...page.querySelectorAll('[data-world-overlay]:not([data-driving-persistent])')];
   let hidden=false,idleTime=0,revealed=false;
   function setHidden(value){
     if(hidden===value)return;
