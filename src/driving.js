@@ -166,19 +166,21 @@ export class Driver {
     if(!this.attitude.flying){this.attitude.takeoff(this.heading,this.pitch,this.roll);this.vx=Math.sin(this.velocityHeading)*this.speed;this.vz=Math.cos(this.velocityHeading)*this.speed;}
     this.cancelRoute();this.jumpPending=false;this.jumpCharge=0;this.airborne=true;this.hop=Math.max(.03,this.hop);this.hopVelocity=Math.min(16,Math.max(0,this.hopVelocity)+y);this.vx+=x;this.vz+=z;this.attitude.angularVelocity.z+=spin;this.hydraulicPhase='airborne';
   }
-  launchFromBlast({x,z,strength=34}){
+  launchFromBlast({x,z,strength=8}){
     const dx=this.x-x,dz=this.z-z,length=Math.hypot(dx,dz);
     const nx=length>.05?dx/length:-Math.sin(this.heading),nz=length>.05?dz/length:-Math.cos(this.heading);
-    const continuing=this.blastFlightTime>0&&this.attitude.flying;
+    // Nearby chained crates share one short reaction instead of stacking
+    // velocity and airtime until the car crosses the island.
+    if(this.blastFlightTime>0)return false;
+    const shove=clamp(strength,3,8);
     if(!this.attitude.flying)this.attitude.takeoff(this.heading,this.pitch,this.roll);
     this.cancelRoute();this.jumpPending=false;this.jumpCharge=0;this.airborne=true;
-    this.hop=Math.max(.15,this.hop);this.hopVelocity=Math.min(23,Math.max(this.hopVelocity,15+strength*.19));
+    this.hop=Math.max(.08,this.hop);this.hopVelocity=Math.max(2.8,Math.min(4,this.hopVelocity));
     // Replace forward momentum so a frontal collision throws the car back away
     // from the crate, rather than letting it continue driving through the blast.
-    this.vx=continuing?clamp(this.vx+nx*strength*.22,-48,48):nx*strength;this.vz=continuing?clamp(this.vz+nz*strength*.22,-48,48):nz*strength;this.speed=Math.hypot(this.vx,this.vz);
-    if(!continuing)this.attitude.angularVelocity.set(-8.5,0,.35);
-    this.attitude.impulseTime=Math.max(this.attitude.impulseTime,1.2);
-    this.blastFlightTime=4;this.hydraulicPhase='airborne';return true;
+    this.vx=nx*shove;this.vz=nz*shove;this.speed=shove;
+    this.attitude.angularVelocity.set(-1.3,0,0);this.attitude.impulseTime=.12;
+    this.blastFlightTime=.9;this.hydraulicPhase='airborne';return true;
   }
   toggleHydraulics(){this.hydraulicsRaised=!this.hydraulicsRaised;return this.hydraulicsRaised;}
   jump() {
@@ -213,7 +215,7 @@ export class Driver {
       const thrust=this.boosting?DRIVE_TUNING.airThrust:0, nose=this.attitude.forward;
       this.vx=(this.vx+nose.x*thrust*dt)*Math.exp(-.06*dt);this.vz=(this.vz+nose.z*thrust*dt)*Math.exp(-.06*dt);this.hopVelocity+=nose.y*thrust*dt;
       const speed=Math.hypot(this.vx,this.vz);if(speed>DRIVE_TUNING.airSpeed){this.vx*=DRIVE_TUNING.airSpeed/speed;this.vz*=DRIVE_TUNING.airSpeed/speed;}
-      this.hopVelocity=clamp(this.hopVelocity,-26,this.blastFlightTime>0?23:16);if(this.hop>(this.blastFlightTime>0?36:DRIVE_TUNING.ceiling))this.hopVelocity=Math.min(0,this.hopVelocity);
+      this.hopVelocity=clamp(this.hopVelocity,-26,16);if(this.hop>DRIVE_TUNING.ceiling)this.hopVelocity=Math.min(0,this.hopVelocity);
       if(Math.hypot(nose.x,nose.z)>.15)this.heading=Math.atan2(nose.x,nose.z);
       this.speed=Math.hypot(this.vx,this.vz);
     } else if (this.route.length) {

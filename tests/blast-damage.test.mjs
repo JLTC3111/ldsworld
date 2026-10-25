@@ -4,7 +4,7 @@ import * as THREE from '../src/vendor/three.module.js';
 import { createBlastDamage,treeBlastTargets,BLAST_BURN_SECONDS } from '../src/blast-damage.js';
 import { PhysicsWorld,colliderActive } from '../src/physics.js';
 import { collectWorldColliders,syncPhysicsBodies } from '../src/world-physics.js';
-import {collectBreakableTargets} from '../src/breakables.js';
+import {collectBreakableTargets,isProtectedObject} from '../src/breakables.js';
 
 function fixture(){
   const scene=new THREE.Scene(),trunks=new THREE.InstancedMesh(new THREE.CylinderGeometry(.2,.3,3,8),new THREE.MeshStandardMaterial(),2),matrix=new THREE.Matrix4();scene.add(trunks);
@@ -49,4 +49,33 @@ test('small props respawn sooner than trees and fallen pins are reset without re
   const f=fixture();f.physics.bodies[0].impactSpeed=10;f.damage.processImpacts();assert.equal(f.physics.bodies[0].destroyed,true);syncPhysicsBodies(THREE,f.physics.bodies);assert.equal(f.prop.visible,false);
   for(let i=0;i<180;i++)f.damage.update(.1,{focus:{x:100,z:100}});assert.equal(f.prop.visible,false);
   for(let i=0;i<30;i++)f.damage.update(.1,{focus:{x:100,z:100}});syncPhysicsBodies(THREE,f.physics.bodies);assert.equal(f.prop.visible,true);assert.equal(f.physics.bodies[0].x,-2);assert.equal(f.physics.bodies[0].sleeping,true);assert.equal(f.damage.respawns.size,0);f.damage.dispose();
+});
+
+test('stalls, bridges and their details stay visible and collidable under impacts and explosions',()=>{
+  const scene=new THREE.Scene(),protectedTargets=[];
+  for(const [i,kind]of ['bridge','stall'].entries()){
+    const object=new THREE.Group();object.userData.blastProtected=true;object.userData.breakableKind=kind;object.position.set(i*3,0,0);scene.add(object);
+    const part=new THREE.Mesh(new THREE.BoxGeometry(2,2,2),new THREE.MeshStandardMaterial());part.position.y=1;object.add(part);
+    assert.equal(isProtectedObject(part),true);protectedTargets.push({id:kind,kind,x:i*3,z:0,parts:[{object}]});
+  }
+  const colliders=collectWorldColliders({THREE,roots:[scene]}),registered=collectBreakableTargets({THREE,colliders,existing:protectedTargets});
+  assert.equal(registered.length,0);assert.ok(colliders.every(c=>!c.breakableId&&colliderActive(c)));
+  const physics=new PhysicsWorld({bodies:[]}),damage=createBlastDamage({THREE,scene,physics,targets:protectedTargets});
+  for(const target of protectedTargets)assert.equal(damage.impact(target.id,999),false);
+  assert.equal(damage.blast({x:0,z:0,radius:20}),0);assert.equal(damage.destroyed.size,0);assert.ok(protectedTargets.every(t=>t.parts[0].object.visible));assert.ok(colliders.every(c=>colliderActive(c)));damage.dispose();
+});
+
+test('fallen pins occupying each other’s starting spots respawn together instead of waiting forever',()=>{
+  const scene=new THREE.Scene(),physics=new PhysicsWorld({bodies:[0,3].map((x,i)=>({id:'pin-'+i,kind:'bowling-pin',x,z:0,y:1.175,radius:.4,height:2.11,initialSleeping:true}))}),damage=createBlastDamage({THREE,scene,physics});
+  physics.bodies.forEach((b,i)=>{b.x=i?0:3;b.tipAngle=1.5;b.radius=1.1;b.height=.8;b.y=.52;});damage.processImpacts();assert.equal(damage.respawns.size,2);
+  for(let i=0;i<200;i++)damage.update(.1,{focus:{x:100,z:100}});
+  assert.equal(damage.respawns.size,0);assert.deepEqual(physics.bodies.map(b=>b.x),[0,3]);assert.ok(physics.bodies.every(b=>!b.tipAngle&&b.sleeping));damage.dispose();
+});
+
+test('a group waits safely when the car blocks one return position, then restores every dependent prop',()=>{
+  const scene=new THREE.Scene(),physics=new PhysicsWorld({bodies:[0,3].map((x,i)=>({id:'crate-'+i,kind:'crate',x,z:0,y:.62,radius:.5,height:1,initialSleeping:true}))}),damage=createBlastDamage({THREE,scene,physics});
+  physics.bodies[0].x=3;physics.bodies[1].x=0;damage.processImpacts();assert.equal(damage.respawns.size,2,'Displaced props also return');
+  for(let i=0;i<250;i++)damage.update(.1,{focus:{x:3,z:0}});
+  assert.equal(damage.respawns.size,2);assert.deepEqual(physics.bodies.map(b=>b.x),[3,0],'Neither object is restored into the car or a waiting prop');
+  damage.update(.1,{focus:{x:100,z:100}});assert.equal(damage.respawns.size,0);assert.deepEqual(physics.bodies.map(b=>b.x),[0,3]);damage.dispose();
 });

@@ -27,7 +27,7 @@ export function createIslandLife({THREE:T,scene,reducedMotion=false}={}) {
   });
   const caps=[];
   islandLifeLayout.filter(p=>p.kind==='stall').forEach((p,i)=>{
-    const stall=new T.Group();stall.name=i?'Garden produce stall':'Lantern coffee stall';stall.position.set(p.x,.12,p.z);root.add(stall);stalls.push(stall);
+    const stall=new T.Group();stall.name=i?'Garden produce stall':'Lantern coffee stall';stall.userData.blastProtected=true;stall.userData.breakableKind='stall';stall.position.set(p.x,.12,p.z);root.add(stall);stalls.push(stall);
     const paint=i?'#9eae78':'#be8f6e';box(3.35,.14,2.5,'#b49b76',stall,0,.08,0);
     box(3.1,.9,.65,paint,stall,0,.65,.61);box(3.35,.14,.9,'#d1b58a',stall,0,1.15,.61);
     for(let j=0;j<10;j++)box(.025,.79,.018,'#8a785c',stall,-1.4+j*.31,.65,.95);

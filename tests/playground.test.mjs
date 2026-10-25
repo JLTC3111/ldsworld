@@ -31,7 +31,7 @@ test('gentle contact leaves TNT intact; a driving impact detonates it, chains to
   const f=fixture();f.driver.x=-44;f.driver.z=20.1;f.driver.heading=f.driver.velocityHeading=0;f.driver.speed=.6;step(f,20);assert.equal(f.play.detonated.size,0);
   f.driver.x=-44;f.driver.z=18;f.driver.speed=14;let peak=0;
   for(let i=0;i<180;i++){step(f,1,i<30?{forward:true}:{});peak=Math.max(peak,f.driver.hop);}
-  assert.equal(f.play.detonated.size,5);assert.equal(f.events.length,5);assert.ok(peak>1);assert.ok(f.physics.bodies.filter(b=>b.kind==='tnt').every(b=>!b.object.visible));
+  assert.equal(f.play.detonated.size,5);assert.equal(f.events.length,5);assert.ok(peak>.1&&peak<1.5);assert.ok(f.physics.bodies.filter(b=>b.kind==='tnt').every(b=>!b.object.visible));
   f.play.reset();f.physics.reset();syncPhysicsBodies(THREE,f.physics.bodies);assert.equal(f.play.detonated.size,0);assert.ok(f.physics.bodies.every(b=>b.object.visible));f.play.dispose();
 });
 
@@ -44,16 +44,16 @@ test('blast impulses affect props and pins; pausing freezes fuses/effects and di
   f.play.dispose();f.play.dispose();for(const key of Object.keys(owned))assert.equal(counts[key],owned[key].size);assert.ok(!f.scene.children.includes(f.play.root));
 });
 
-test('TNT has large readable labels and launches the car backward into a long slow-motion backflip',()=>{
+test('TNT keeps readable labels and gives the car a small backward shove with a brief time effect',()=>{
   const f=fixture();f.driver.x=-44;f.driver.z=19;f.driver.heading=f.driver.velocityHeading=0;f.driver.speed=15;
   const crate=f.play.bodies.find(b=>b.id==='tnt-1');assert.equal(crate.object.children.filter(o=>o.name==='TNT warning label').length,4);assert.ok(crate.object.getObjectByName('TNT roof label'));assert.ok(crate.object.children.filter(o=>o.name==='TNT warning label').every(o=>o.scale.x>1));
-  f.play.detonate(crate.id,f.physics,f.driver);assert.ok(f.driver.vz<-25);assert.ok(f.driver.hopVelocity>20);assert.ok(f.driver.attitude.angularVelocity.x<-8);assert.equal(f.play.timeScale(),.25);
+  f.play.detonate(crate.id,f.physics,f.driver);assert.ok(f.driver.vz<0&&f.driver.vz>=-8);assert.ok(f.driver.hopVelocity<=4);assert.equal(f.play.timeScale(),.75);
   const paused=f.play.timeScale();f.play.update(.05,f.physics,f.driver,{paused:true});assert.equal(f.play.timeScale(),paused);
-  let peak=0,inverted=false,simulated=0;
-  for(let i=0;i<600;i++){
-    const dt=1/60*f.play.timeScale();simulated+=dt;f.driver.step(dt);f.physics.update(dt,f.driver);f.play.update(dt,f.physics,f.driver,{realElapsed:1/60});peak=Math.max(peak,f.driver.hop);inverted||=f.driver.attitude.up.y<-.8;
+  let peak=0,inverted=false,maxDistance=0;
+  for(let i=0;i<360;i++){
+    const dt=1/60*f.play.timeScale();f.driver.step(dt);f.physics.update(dt,f.driver);f.play.update(dt,f.physics,f.driver,{realElapsed:1/60});peak=Math.max(peak,f.driver.hop);inverted ||= f.driver.attitude.up.y<0;maxDistance=Math.max(maxDistance,Math.hypot(f.driver.x+44,f.driver.z-19));
   }
-  assert.ok(simulated<9&&simulated>6);assert.ok(peak>12);assert.ok(inverted);assert.ok(Math.hypot(f.driver.x+44,f.driver.z-19)>35);assert.equal(f.play.timeScale(),1);assert.equal(f.driver.airborne,false);
+  assert.ok(peak>.1&&peak<1.5,`Small hop: ${peak}`);assert.equal(inverted,false);assert.ok(maxDistance>1&&maxDistance<10,`Nearby knockback: ${maxDistance}`);assert.equal(f.play.detonated.size,5);assert.equal(f.play.timeScale(),1);assert.equal(f.driver.airborne,false);
   f.play.reset();assert.equal(f.play.timeScale(),1);f.play.dispose();
 });
 
@@ -61,9 +61,10 @@ test('reduced motion keeps the physical blast but suppresses the slow-motion cam
   const f=fixture({reducedMotion:true});f.driver.x=-44;f.driver.z=19;f.play.detonate('tnt-1',f.physics,f.driver);assert.equal(f.driver.airborne,true);assert.equal(f.play.timeScale(),1);f.play.update(1/60,f.physics,f.driver);const lights=[];f.play.root.traverse(o=>{if(o.isPointLight)lights.push(o);});assert.ok(lights.every(l=>l.intensity===0));f.play.dispose();
 });
 
-test('a neighboring chain blast adds momentum without erasing the original backward launch',()=>{
+test('a neighboring chain blast cannot stack launch momentum or extend the small hop',()=>{
   const driver=new Driver();driver.x=0;driver.z=0;driver.heading=0;driver.speed=25;
-  driver.launchFromBlast({x:0,z:3,strength:34});assert.ok(driver.vz<-30);
-  driver.launchFromBlast({x:-6,z:1,strength:25});assert.ok(driver.vx>0);assert.ok(driver.vz<-30);assert.ok(driver.attitude.angularVelocity.x<-8);
+  assert.equal(driver.launchFromBlast({x:0,z:3,strength:34}),true);assert.equal(driver.vz,-8);
+  const before={vx:driver.vx,vz:driver.vz,up:driver.hopVelocity,flight:driver.blastFlightTime};
+  assert.equal(driver.launchFromBlast({x:-6,z:1,strength:25}),false);assert.deepEqual({vx:driver.vx,vz:driver.vz,up:driver.hopVelocity,flight:driver.blastFlightTime},before);
   driver.teleport(0,13);assert.equal(driver.blastFlightTime,0);assert.equal(driver.hop,0);assert.equal(driver.airborne,false);
 });

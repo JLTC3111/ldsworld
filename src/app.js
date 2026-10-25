@@ -22,6 +22,7 @@ import { createEnvironmentAudio } from './environment-audio.js';
 import { createPanelPreviews } from './panel-previews.js';
 import { createDrivingHud } from './driving-hud.js';
 import { drivingKey } from './controls.js';
+import { createDialogDrag } from './dialog-drag.js';
 
 const $ = selector => document.querySelector(selector);
 const formatCount = value => String(value).padStart(2,'0');
@@ -47,6 +48,7 @@ state.carModel=vehicleModel(storage.get('car','8-ball')).id;
 state.mapCategory='buildings';state.mapZoom=1;state.carPosition={x:0,z:13,heading:Math.PI/2};
 state.showcaseScreen = 'project'; state.showcaseTool = null;
 const panel = $('#panel');
+const panelDrag=createDialogDrag({dialog:panel,handle:$('.panel-topbar'),keyboardHandle:$('#panel-context')});
 const drivingHud=createDrivingHud();
 let world = null, previousFocus = null, toastTimer = null, speedValue = -1;
 const engineAudio = new EngineAudio();
@@ -149,7 +151,7 @@ function setHash(view, id) {
   history.replaceState(null, '', `${location.pathname}${location.search}${hash}`);
 }
 function showPanel(view, id = null) {
-  if (!panel.open) previousFocus = document.activeElement;
+  if (!panel.open) { previousFocus = document.activeElement;panelDrag.reset(); }
   drivingHud.reveal();
   if(view==='map')state.mapZoom=1;
   state.panel = view; state.projectId = id; renderPanel({ mount: false });
@@ -562,4 +564,4 @@ try {
   document.body.classList.add('loaded'); state.ready = true;
   $('#explore').innerHTML = `${icon('grid')}<span data-copy="browseProjects">${t('browseProjects')}</span>${icon('arrow')}`;
 }
-window.addEventListener('pagehide', event => { if (!event.persisted) { drivingHud.dispose();panelPreviews?.destroy(); disposeShowcase(); world?.dispose(); engineAudio.dispose(); backgroundMusic.dispose(); brandTechText.dispose(); environmentAudio.dispose(); } });
+window.addEventListener('pagehide', event => { if (!event.persisted) { panelDrag.dispose();drivingHud.dispose();panelPreviews?.destroy(); disposeShowcase(); world?.dispose(); engineAudio.dispose(); backgroundMusic.dispose(); brandTechText.dispose(); environmentAudio.dispose(); } });

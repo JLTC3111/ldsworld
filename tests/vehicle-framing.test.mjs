@@ -140,10 +140,10 @@ test('disposing the car releases every geometry, material, and number-plate text
   for (const key of Object.keys(owned)) assert.equal(disposed[key], owned[key].size, `Every ${key} should be disposed exactly once`);
 });
 
-test('shallow zoom bounds always keep the island footprint at least as large as the viewport', () => {
-  assert.equal(MIN_ZOOM, .88); assert.equal(MAX_ZOOM, 1.04); assert.equal(clampZoom(.1), MIN_ZOOM); assert.equal(clampZoom(9), MAX_ZOOM);
+test('wider zoom bounds always keep the island footprint at least as large as the viewport', () => {
+  assert.equal(MIN_ZOOM, .88); assert.equal(MAX_ZOOM, 1.55); assert.equal(clampZoom(.1), MIN_ZOOM); assert.equal(clampZoom(9), MAX_ZOOM);
   const point = new THREE.Vector3();
-  for (const aspect of [320 / 932, 390 / 844, .75, 1, 1.6, 2.4, 3.3]) for (const yaw of [0, .5, Math.PI / 2, Math.PI, -Math.PI / 2, 11 * Math.PI]) for (const pitch of [.4, .7, 1.12]) for (const zoom of [.1, .88, 1, 1.04, 9]) {
+  for (const aspect of [320 / 932, 390 / 844, .75, 1, 1.6, 2.4, 3.3]) for (const yaw of [0, .5, Math.PI / 2, Math.PI, -Math.PI / 2, 11 * Math.PI]) for (const pitch of [.4, .7, 1.12]) for (const zoom of [.1, .88, 1, 1.25, MAX_ZOOM, 9]) {
     const frame = islandFrame(aspect, yaw, pitch, zoom);
     assert.ok(frame.width > 0 && frame.height > 0 && Number.isFinite(frame.width));
     const camera = new THREE.OrthographicCamera(-frame.width / 2, frame.width / 2, frame.height / 2, -frame.height / 2, .1, 350);
@@ -159,7 +159,7 @@ test('shallow zoom bounds always keep the island footprint at least as large as 
 
 test('camera panning remains within spare projected land so it cannot expose empty margins', () => {
   for (const aspect of [.4, 1, 1.6, 3]) for (const yaw of [0, .7, Math.PI / 2, -2.3]) for (const pitch of [.4, .8, 1.12]) {
-    const frame = islandFrame(aspect, yaw, pitch, 1.04);
+    const frame = islandFrame(aspect, yaw, pitch, MAX_ZOOM);
     const landWidth = 2 * Math.hypot(ISLAND_BOUNDS.x * Math.cos(yaw), ISLAND_BOUNDS.z * Math.sin(yaw));
     const landHeight = 2 * Math.sin(pitch) * Math.hypot(ISLAND_BOUNDS.x * Math.sin(yaw), ISLAND_BOUNDS.z * Math.cos(yaw));
     for (const [x, z] of [[0, 0], [999, -999], [-999, 999], [400, 600]]) {

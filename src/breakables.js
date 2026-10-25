@@ -3,16 +3,19 @@ export const BREAK_PROFILES={
   snowman:{speed:5,respawn:35},planter:{speed:6,respawn:30},barrel:{speed:8,respawn:35},'trash-can':{speed:9,respawn:40},
   bench:{speed:8,respawn:50},cart:{speed:7,respawn:45},fence:{speed:5,respawn:35},sign:{speed:6,respawn:35},
   tree:{speed:11,respawn:100},rock:{speed:13,respawn:90},stone:{speed:12,respawn:75},sculpture:{speed:16,respawn:90},
-  bridge:{speed:13,respawn:75},portal:{speed:18,respawn:60},stall:{speed:10,respawn:65},scenery:{speed:7,respawn:45}
+  portal:{speed:18,respawn:60},scenery:{speed:7,respawn:45}
 };
-export const breakProfile=kind=>BREAK_PROFILES[kind]||BREAK_PROFILES.scenery;
-export function isProtectedObject(object){for(let p=object;p;p=p.parent)if(p.userData.projectId||p.userData.building||p.userData.blastProtected)return true;return false;}
+export const isProtectedKind=kind=>['building','bridge','stall'].includes(kind);
+const protectedProfile=Object.freeze({speed:Infinity,respawn:Infinity});
+export const breakProfile=kind=>isProtectedKind(kind)?protectedProfile:BREAK_PROFILES[kind]||BREAK_PROFILES.scenery;
+export function isProtectedObject(object){for(let p=object;p;p=p.parent)if(p.userData.projectId||p.userData.building||p.userData.blastProtected||isProtectedKind(p.userData.breakableKind))return true;return false;}
 
 // Keep authored objects whole. Every physical contact either belongs to a
-// building or maps to a restorable object/instance; decorative parts follow it.
+// protected structure or a restorable object/instance; decorative parts follow it.
 export function collectBreakableTargets({THREE:T,colliders,existing=[]}){
-  const targets=new Map(existing.map(t=>[t.id,t])),parts=new WeakMap();
-  for(const target of existing)for(const part of target.parts){
+  const allowed=existing.filter(t=>!t.protected&&!isProtectedKind(t.kind)&&!t.parts.some(p=>isProtectedObject(p.object)));
+  const targets=new Map(allowed.map(t=>[t.id,t])),parts=new WeakMap();
+  for(const target of allowed)for(const part of target.parts){
     if(part.index!==undefined){let ids=parts.get(part.object);if(!ids){ids=new Map();parts.set(part.object,ids);}ids.set(part.index,target.id);}
     else part.object.userData.breakableId=target.id;
   }

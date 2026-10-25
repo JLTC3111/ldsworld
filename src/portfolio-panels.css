@@ -1550,6 +1550,13 @@ dialog#panel.portfolio-panel::backdrop {
 .portfolio-panel .spotlight-demo{padding:0 30px 25px;}
 .portfolio-panel .spotlight-demo h3{margin:0 0 12px;font-size:15px;font-weight:500;color:var(--ink);}
 .portfolio-panel[data-view="map"] .panel-reader .large-map{display:block;}
+.portfolio-panel[data-view="map"] #panel-content{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;}
+.portfolio-panel[data-view="map"] .panel-layout{height:auto;min-height:100%;}
+.portfolio-panel[data-view="map"] .panel-reader{overflow:visible;}
+.portfolio-panel .panel-topbar{cursor:grab;touch-action:none;user-select:none;}
+.portfolio-panel.is-dragging{animation:none;}
+.portfolio-panel.is-dragging .panel-topbar{cursor:grabbing;}
+.portfolio-panel .panel-context:focus-visible{outline:2px solid var(--ink);outline-offset:5px;border-radius:2px;}
 @media(min-width:721px) and (max-height:700px){
   dialog#panel.portfolio-panel{inset:16px 14px;width:min(1380px,calc(100vw - 28px));max-width:calc(100vw - 28px);height:calc(100dvh - 32px);max-height:calc(100dvh - 32px);}
   .portfolio-panel .panel-topbar{flex-basis:50px;min-height:50px;padding:8px 18px;}

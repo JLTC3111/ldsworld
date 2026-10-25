@@ -61,8 +61,8 @@ export function createPlayground({THREE:T,scene,coarse=false,reducedMotion=false
     const body=physics.bodies.find(b=>b.id===id);if(!body||detonated.has(id))return false;
     detonated.add(id);body.object.visible=false;fuses.delete(id);
     const burst=bursts[burstIndex++%bursts.length];burst.age=0;burst.group.visible=true;burst.group.position.set(body.x,body.y,body.z);
-    flash.position.copy(burst.group.position);const launched=physics.explode({x:body.x,y:body.y,z:body.z,radius:12,strength:22,carStrength:36},driver);
-    if(launched&&!reducedMotion)slowMotion=Math.max(slowMotion,2.8);
+    flash.position.copy(burst.group.position);const launched=physics.explode({x:body.x,y:body.y,z:body.z,radius:12,strength:22,carStrength:8},driver);
+    if(launched&&!reducedMotion)slowMotion=Math.max(slowMotion,.35);
     for(const other of physics.bodies){if(other.kind==='tnt'&&!detonated.has(other.id)&&Math.hypot(other.x-body.x,other.z-body.z)<6&&!fuses.has(other.id))fuses.set(other.id,.1+Math.hypot(other.x-body.x,other.z-body.z)*.035);}
     onExplosion?.({x:body.x,y:body.y,z:body.z,radius:11,sourceId:id,distance:Math.hypot(body.x-driver.x,body.z-driver.z),launched});return true;
   }
@@ -82,5 +82,5 @@ export function createPlayground({THREE:T,scene,coarse=false,reducedMotion=false
     }
   }
   function reset(){detonated.clear();fuses.clear();slowMotion=0;flash.intensity=0;bursts.forEach(b=>{b.age=10;b.group.visible=false;});bodies.forEach(b=>b.object.visible=true);}
-  return {root,bodies,update,reset,detonate,detonated,rearm(id){detonated.delete(id);fuses.delete(id);},timeScale:()=>slowMotion>.6?.25:1-.75*slowMotion/.6,dispose(){if(disposed)return;disposed=true;root.removeFromParent();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());}};
+  return {root,bodies,update,reset,detonate,detonated,rearm(id){detonated.delete(id);fuses.delete(id);},timeScale:()=>1-.25*Math.min(1,slowMotion/.35),dispose(){if(disposed)return;disposed=true;root.removeFromParent();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());}};
 }

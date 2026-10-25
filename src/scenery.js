@@ -74,7 +74,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   // Every crossing shares the exact driveable profile used by physics.
   for (const bridge of bridges) {
     const crossing = group(root, bridge.x, bridge.z); crossing.rotation.y = bridge.heading; crossing.name = `Arched ${bridge.id} bridge`;
-    crossing.userData.breakableId=`bridge-${bridge.id}`;crossing.userData.breakableKind='bridge';bridgeGroups.push({bridge,object:crossing});
+    crossing.userData.blastProtected=true;crossing.userData.breakableKind='bridge';bridgeGroups.push({bridge,object:crossing});
     const planks = coarse ? 15 : 23;
     const bolts=new THREE.InstancedMesh(ownGeo(new THREE.CylinderGeometry(.055,.055,.025,8)),mat('#65726a'),planks*2);bolts.name='Bridge iron fasteners';crossing.add(bolts);
     const grain=new THREE.InstancedMesh(ownGeo(new THREE.BoxGeometry(1,1,1)),mat('#8c7556'),planks*3);grain.name='Bridge timber grain';crossing.add(grain);
@@ -344,7 +344,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   root.traverse(object => {
     if (!object.isMesh || object.isInstancedMesh || object.userData.bridgeDeck || object.material.transparent || !['BoxGeometry', 'CylinderGeometry'].includes(object.geometry.type)) return;
     for (let ancestor = object; ancestor && ancestor !== root; ancestor = ancestor.parent) if (movingRoots.has(ancestor)) return;
-    let owner=root;for(let ancestor=object.parent;ancestor&&ancestor!==root;ancestor=ancestor.parent)if(ancestor.userData.building||ancestor.userData.breakableId){owner=ancestor;break;}
+    let owner=root;for(let ancestor=object.parent;ancestor&&ancestor!==root;ancestor=ancestor.parent)if(ancestor.userData.building||ancestor.userData.breakableId||ancestor.userData.blastProtected){owner=ancestor;break;}
     const key = owner.uuid+object.geometry.type + JSON.stringify(object.geometry.parameters) + object.material.uuid + object.castShadow;
     if (!batches.has(key)) batches.set(key, {owner,objects:[]}); batches.get(key).objects.push(object);
   });

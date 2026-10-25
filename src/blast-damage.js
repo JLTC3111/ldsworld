@@ -1,5 +1,5 @@
 import { driveHeightAt } from './world-layout.js';
-import { breakProfile,isProtectedObject } from './breakables.js';
+import { breakProfile,isProtectedObject,isProtectedKind } from './breakables.js';
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export const BLAST_BURN_SECONDS=7;
 
@@ -24,6 +24,7 @@ export function createBlastDamage({THREE:T,scene,physics,targets=[],coarse=false
   const root=new T.Group();root.name='Blast debris and residual fires';root.userData.physicsIgnore=true;scene.add(root);
   const count=coarse?12:24,sites=Array.from({length:count},()=>({age:100,used:false}));
   const destroyed=new Set(),snapshots=new Map(),respawns=new Map(),targetById=new Map(targets.map(t=>[t.id,t])),geometries=new Set(),materials=new Set();let disposed=false,clock=0;
+  const initialById=new Map(physics.initial.map(body=>[body.id,body]));
   const geometry=g=>{geometries.add(g);return g;},material=m=>{materials.add(m);return m;};
   const flameGeometry=geometry(new T.ConeGeometry(1,1,7)),smokeGeometry=geometry(new T.IcosahedronGeometry(1,1)),chunkGeometry=geometry(new T.BoxGeometry(1,1,1));
   const instanced=(g,m,n,name)=>{const object=new T.InstancedMesh(g,m,n);object.name=name;object.frustumCulled=false;root.add(object);return object;};
@@ -53,14 +54,14 @@ export function createBlastDamage({THREE:T,scene,physics,targets=[],coarse=false
     return site;
   }
   function destroyBody(body,{burn=false,force=false}={}){
-    if(!body||destroyed.has(body.id)||body.kind==='building'||body.blastProtected||isProtectedObject(body.object)||!force&&(body.destroyed||body.active&&!body.active()))return false;
+    if(!body||destroyed.has(body.id)||isProtectedKind(body.kind)||body.blastProtected||isProtectedObject(body.object)||!force&&(body.destroyed||body.active&&!body.active()))return false;
     body.destroyed=true;destroyed.add(body.id);if(body.object)body.object.visible=false;
     respawns.set(body.id,{id:body.id,kind:body.kind,body:true,at:clock+breakProfile(body.kind).respawn});
     ignite({x:body.x,z:body.z,scale:clamp(body.radius,.5,1.6),burn:burn&&!['rock','stone','snowman'].includes(body.kind),kind:body.kind,ownerId:body.id});
     onBreak?.({id:body.id,kind:body.kind,x:body.x,z:body.z});return true;
   }
   function destroyTarget(target,{burn=false}={}){
-    if(!target||target.protected||target.kind==='building'||destroyed.has(target.id))return false;
+    if(!target||target.protected||isProtectedKind(target.kind)||target.parts.some(part=>isProtectedObject(part.object))||destroyed.has(target.id))return false;
     destroyed.add(target.id);target.parts.forEach(hidePart);
     respawns.set(target.id,{id:target.id,kind:target.kind,body:false,at:clock+breakProfile(target.kind).respawn});
     ignite({x:target.x,z:target.z,scale:target.kind==='tree'?1.5:1.15,burn:burn&&!['rock','stone','portal','sculpture'].includes(target.kind),kind:target.kind,ownerId:target.id});
@@ -72,9 +73,10 @@ export function createBlastDamage({THREE:T,scene,physics,targets=[],coarse=false
   }
   function processImpacts(){
     for(const body of physics.bodies){
-      if(body.destroyed||body.active&&!body.active()||body.kind==='tnt')continue;
-      if((body.impactSpeed||0)>=breakProfile(body.kind).speed)destroyBody(body);
-      else if(body.kind==='bowling-pin'&&(body.tipAngle||0)>1.25&&!respawns.has(body.id))respawns.set(body.id,{id:body.id,kind:body.kind,body:true,at:clock+breakProfile(body.kind).respawn});
+      if(body.destroyed||body.active&&!body.active()||isProtectedKind(body.kind)||isProtectedObject(body.object))continue;
+      const initial=initialById.get(body.id),displaced=initial&&Math.hypot(body.x-initial.x,body.z-initial.z)>Math.max(.75,initial.radius);
+      if(body.kind!=='tnt'&&(body.impactSpeed||0)>=breakProfile(body.kind).speed)destroyBody(body);
+      else if((displaced||body.kind==='bowling-pin'&&(body.tipAngle||0)>1.25)&&!respawns.has(body.id))respawns.set(body.id,{id:body.id,kind:body.kind,body:true,at:clock+breakProfile(body.kind).respawn});
     }
   }
   function blast({x,y=.7,z,radius=11,sourceId}){
@@ -103,8 +105,8 @@ export function createBlastDamage({THREE:T,scene,physics,targets=[],coarse=false
     else targetById.get(id)?.parts.forEach(restorePart);
     destroyed.delete(id);respawns.delete(id);sites.forEach((s,i)=>{if(s.ownerId===id){s.used=false;clearSite(i);}});return true;
   }
-  function respawnReady(record,focus){
-    const body=record.body?physics.initial.find(b=>b.id===record.id):null,target=body||targetById.get(record.id);if(!target)return true;
+  function respawnReady(record,focus,returning=new Set()){
+    const body=record.body?initialById.get(record.id):null,target=body||targetById.get(record.id);if(!target)return true;
     const radius=body?.radius||Math.min(9,target.radius||1.5);
     const carRadius=Math.max(focus.profile?.halfWidth||1,focus.profile?.halfLength||1.6)+.45;
     if((focus.hop||0)<4){
@@ -112,8 +114,11 @@ export function createBlastDamage({THREE:T,scene,physics,targets=[],coarse=false
       if(Math.hypot(dx,dz)<carRadius+(record.body||!target.width?radius:0))return false;
     }
     return !physics.bodies.some(b=>{
-      if(b.id===record.id||b.destroyed||b.active&&!b.active())return false;
-      if(record.body)return Math.hypot(b.x-target.x,b.z-target.z)<radius+(b.radius||.3)*.75;
+      if(b.id===record.id||b.destroyed||returning.has(b.id)||b.active&&!b.active())return false;
+      if(record.body){
+        if(b.y-b.height/2>=body.y+body.height/2||b.y+b.height/2<=body.y-body.height/2)return false;
+        return Math.hypot(b.x-target.x,b.z-target.z)<radius+(b.radius||.3)*.75;
+      }
       return (target.contacts||[]).some(c=>{
         if((c.maxY??Infinity)<=b.y-b.height/2||(c.minY??-Infinity)>=b.y+b.height/2)return false;
         const dx=Math.max(0,Math.abs(b.x-c.x)-(c.width||c.radius*2||.1)/2),dz=Math.max(0,Math.abs(b.z-c.z)-(c.depth||c.radius*2||.1)/2);return Math.hypot(dx,dz)<b.radius+.05;
@@ -123,7 +128,12 @@ export function createBlastDamage({THREE:T,scene,physics,targets=[],coarse=false
   const put=(object,index,x,y,z,sx,sy,sz,rx=0,ry=0,rz=0)=>{dummy.position.set(x,y,z);dummy.rotation.set(rx,ry,rz);dummy.scale.set(sx,sy,sz);dummy.updateMatrix();object.setMatrixAt(index,dummy.matrix);};
   function update(dt,{paused=false,focus={x:0,z:0}}={}){
     if(disposed||paused)return;dt=clamp(Number(dt)||0,0,.1);clock+=dt;let nearest=Infinity;light.intensity=0;
-    for(const record of respawns.values())if(record.at<=clock&&respawnReady(record,focus))restore(record.id);
+    // Fallen or displaced props can occupy each other's starting spots. Resolve
+    // a ready group together, so those objects cannot permanently block each
+    // other's return. Anything blocked by the car stays out of the group.
+    const ready=new Set([...respawns.values()].filter(record=>record.at<=clock).map(record=>record.id));
+    let changed=true;while(changed){changed=false;for(const id of ready)if(!respawnReady(respawns.get(id),focus,ready)){ready.delete(id);changed=true;}}
+    for(const id of ready)restore(id);
     sites.forEach((site,index)=>{
       if(!site.used)return;site.age+=dt;
       const fade=clamp(((site.burn?BLAST_BURN_SECONDS:1.2)-site.age)/1.2,0,1),fire=site.burn?fade:0,base=site.y,age=site.age,s=site.scale;

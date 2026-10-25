@@ -8,7 +8,7 @@ import { createPlayground,reservesPlaygroundSpace,PLAYGROUND_APPROACHES } from '
 import { createBlastDamage, treeBlastTargets } from './blast-damage.js';
 import { collectBreakableTargets,breakProfile } from './breakables.js';
 import { createProjectLabels } from './project-labels.js';
-import { ASPHALT_COLOR,createAsphaltTexture,addRacingCurbs } from './road-style.js';
+import { ASPHALT_COLOR,createAsphaltTexture,createRoadCurve,createRoadGeometry,addRacingCurbs } from './road-style.js';
 import { createIslandBoundary } from './island-boundary.js';
 import { createWayfinding } from './wayfinding.js';
 import { createNightFires } from './night-fires.js';
@@ -160,16 +160,9 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   const asphaltTexture=createAsphaltTexture(THREE,{coarse}),asphalt=new THREE.MeshStandardMaterial({color:ASPHALT_COLOR,map:asphaltTexture,roughness:.96,side:THREE.DoubleSide});materials.set('asphalt',asphalt);
   const asphaltRoads=[];
   function road(points, width, closed = false, color = colors.road, height = .1) {
-    const curve = new THREE.CatmullRomCurve3(points.map(p => new THREE.Vector3(p[0], height, p[1])), closed, 'catmullrom', .25);
-    const count = Math.max(closed?360:100,Math.ceil(curve.getLength()/3));
-    const vertices=[],indices=[],uvs=[],across=8,length=curve.getLength();
-    for(let i=0;i<=count;i++){
-      const t=i/count,p=curve.getPoint(t),tangent=curve.getTangent(t),normal=new THREE.Vector3(-tangent.z,0,tangent.x).normalize();
-      for(let j=0;j<=across;j++){const offset=(j/across-.5)*width,x=p.x+normal.x*offset,z=p.z+normal.z*offset;vertices.push(x,isWater(x,z)?-.04:p.y,z);uvs.push(j/across,t*length/4);}
-      if(i<count)for(let j=0;j<across;j++){const a=i*(across+1)+j,b=a+across+1;indices.push(a,b,a+1,a+1,b,b+1);}
-    }
-    const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2)); geometry.setIndex(indices); geometry.computeVertexNormals();
-    const surface = mesh(geometry,color===colors.road?asphalt:mat(color, { side: THREE.DoubleSide }), land, 0, 0, 0, false);surface.name=color===colors.road?'Textured asphalt road':'Sandy road verge';
+    const curve=createRoadCurve(points,closed,height);
+    const geometry=createRoadGeometry({THREE,curve,width,height});
+    const surface = mesh(geometry,color===colors.road?asphalt:mat(color, { side: THREE.DoubleSide }), land, 0, color===colors.road?asphaltRoads.length*.0007:0, 0, false);surface.name=color===colors.road?'Textured asphalt road':'Sandy road verge';
     if(color===colors.road)asphaltRoads.push({curve,width});
     surface.userData.roadWidth=width;
     return { curve, surface };
@@ -401,7 +394,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   const pondRim = mesh(new THREE.RingGeometry(3.2, 3.45, 40), '#b5c3a0', land,LANDMARKS.pond.x,.045,LANDMARKS.pond.z,false); pondRim.rotation.x = -Math.PI / 2; pondRim.scale.set(1, .62, 1);
   for (let i = 0; i < 3; i++) { const lily = mesh(new THREE.CircleGeometry(.24, 7), '#809d82', land,LANDMARKS.pond.x-1+i*1.2,.07,LANDMARKS.pond.z+Math.sin(i)*.5,false); lily.rotation.x = -Math.PI / 2; }
   const dock = group(land,LANDMARKS.pond.x-3,LANDMARKS.pond.z+1);
-  dock.userData.breakableId='pond-dock';dock.userData.breakableKind='bridge';
+  dock.userData.blastProtected=true;dock.userData.breakableKind='bridge';
   for (let i = 0; i < 8; i++) box(.35, .12, 1.5, '#b9a077', dock, -1.3 + i * .36, .13, 0);
   [-1.2, 1.2].forEach(x => [-.65, .65].forEach(z => cylinder(.09, .09, .8, '#a98d67', dock, x, .15, z, 5)));
   bench(land,LANDMARKS.pond.x-3,LANDMARKS.pond.z-4, -Math.PI / 2); bench(land,-14,25,0); bench(land, 9, -16, Math.PI);
@@ -459,8 +452,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   const colliders = collectWorldColliders({ THREE, roots:[land,trunks,rocks,islandLife.root,nightFires.root,boundary.root,wayfinding.root], exclude:[...bodyDefinitions.map(body=>body.object).filter(Boolean),rocks] });
   const physics = new PhysicsWorld({ bodies:bodyDefinitions, colliders });
   const treeTargets=treeBlastTargets({THREE,trees:treePositions,objects:[trunks,pines,rounds,winterPines,winterRounds,...detailedTrees.root.children]});
-  const stallTargets=islandLife.stalls.map((object,i)=>({id:`market-stall-${i+1}`,kind:'stall',x:object.position.x,z:object.position.z,parts:[{object}]}));
-  const breakableTargets=collectBreakableTargets({THREE,colliders,existing:[...treeTargets,...stallTargets,...scenery.breakableTargets]});
+  const breakableTargets=collectBreakableTargets({THREE,colliders,existing:[...treeTargets,...scenery.breakableTargets]});
   blastDamage=createBlastDamage({THREE,scene,physics,targets:breakableTargets,coarse,reducedMotion,onRespawn:id=>playground.rearm(id),onBreak:({kind,x,z})=>onImpact?.({kind:['tree','bridge','fence','sign','cart','stall','crate','bench','planter'].includes(kind)?'wood':['rock','stone'].includes(kind)?'stone':'metal',strength:6,distance:Math.hypot(driver.x-x,driver.z-z)})});
   const portalSystem = new PortalSystem(portals.map((p,i)=>({...p,active:()=>scenery.portalGroups[i].visible})));
   function syncProps() { syncPhysicsBodies(THREE,physics.bodies); }

@@ -1,7 +1,7 @@
 import { ISLAND_BOUNDS } from './world-layout.js';
 
 export const MIN_ZOOM = .88;
-export const MAX_ZOOM = 1.04;
+export const MAX_ZOOM = 1.55;
 export const clampZoom = value => Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value));
 
 // Cover the viewport with the island's projected footprint, including portrait screens.
