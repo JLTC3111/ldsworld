@@ -158,7 +158,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
     for (const side of [-1, 1]) {
       const panel = box(1.82, .13, 3.05, baseRoof, home, side * .72, 2.94, 0); panel.rotation.z = -side * .625;
       const snow = box(1.87, .035, 3.08, ownMat('#eff2e8', { transparent: true, opacity: 0, depthWrite: false }), home, side * .72, 3.035, 0);
-      snow.rotation.z = -side * .625; snowLayers.push(snow);
+      snow.rotation.z = -side * .625;snow.userData.atlasSnow=true; snowLayers.push(snow);
     }
     const rows = coarse ? 3 : 4, columns = coarse ? 4 : 7;
     const tiles = new THREE.InstancedMesh(roofTileGeometry, ownMat('#ffffff'), rows * columns * 2);

@@ -1,5 +1,5 @@
 // Expand the land, never the scale of a vehicle, building, tree or prop.
-export const WORLD_SCALE = 20;
+export const WORLD_SCALE = 5;
 export const DISTRICT_SCALE=WORLD_SCALE/5;
 export const ISLAND_BOUNDS = Object.freeze({ x:28*WORLD_SCALE, z:21*WORLD_SCALE });
 export const RIVER_REACH = 29*WORLD_SCALE;

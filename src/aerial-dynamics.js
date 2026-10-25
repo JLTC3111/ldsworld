@@ -5,24 +5,17 @@ export const CAR_PIVOT_HEIGHT=1.2;
 const up=new Vector3(0,1,0),delta=new Quaternion(),axis=new Vector3(),euler=new Euler(0,0,0,'YXZ');
 
 // The orientation is physical state: air steering applies angular velocity,
-// and a dodge imparts an impulse. It never changes horizontal travel directly.
+// and explosions impart angular impulses. Rotation keeps travel momentum.
 export class AerialDynamics {
   constructor(){this.rotation=new Quaternion();this.angularVelocity=new Vector3();this.forward=new Vector3();this.up=new Vector3();this.bodyTop=2.57;this.halfWidth=.94;this.halfLength=1.45;this.reset();}
-  reset(heading=0){this.rotation.setFromAxisAngle(up,heading);this.angularVelocity.set(0,0,0);this.flying=false;this.recovering=false;this.airTime=0;this.dodgeAvailable=false;this.dodgeTime=0;this.recoveryTime=0;this.supportLift=0;this.updateAxes();}
-  takeoff(heading,pitch=0,roll=0){this.reset(heading);this.rotation.setFromEuler(euler.set(pitch,heading,roll,'YXZ'));this.flying=true;this.dodgeAvailable=true;this.updateAxes();}
+  reset(heading=0){this.rotation.setFromAxisAngle(up,heading);this.angularVelocity.set(0,0,0);this.flying=false;this.recovering=false;this.airTime=0;this.impulseTime=0;this.recoveryTime=0;this.supportLift=0;this.updateAxes();}
+  takeoff(heading,pitch=0,roll=0){this.reset(heading);this.rotation.setFromEuler(euler.set(pitch,heading,roll,'YXZ'));this.flying=true;this.updateAxes();}
   updateAxes(){this.forward.set(0,0,1).applyQuaternion(this.rotation);this.up.set(0,1,0).applyQuaternion(this.rotation);}
-  dodge(input={}){
-    if(!this.flying||!this.dodgeAvailable||this.airTime>1.3)return null;
-    this.dodgeAvailable=false;
-    const forward=Number(Boolean(input.forward))-Number(Boolean(input.reverse)),side=Number(Boolean(input.left))-Number(Boolean(input.right));
-    if(forward||side){const length=Math.hypot(forward,side);this.angularVelocity.set(forward/length*12,0,side/length*12);this.dodgeTime=.48;return {forward:forward/length,side:side/length};}
-    return {forward:0,side:0};
-  }
   stepAir(dt,input={}){
-    this.airTime+=dt;this.dodgeTime=Math.max(0,this.dodgeTime-dt);
-    if(!this.dodgeTime){
+    this.airTime+=dt;this.impulseTime=Math.max(0,this.impulseTime-dt);
+    if(!this.impulseTime){
       const response=1-Math.exp(-5.5*dt);
-      const targets=[(Number(!!input.forward)-Number(!!input.reverse))*3.8,(Number(!!input.left)-Number(!!input.right))*2.8,(Number(!!input.rollLeft)-Number(!!input.rollRight))*4.9];
+      const targets=[(Number(!!input.forward)-Number(!!input.reverse))*3.8,(Number(!!input.left)-Number(!!input.right))*2.8,0];
       for(const [i,key] of ['x','y','z'].entries())this.angularVelocity[key]+=(targets[i]-this.angularVelocity[key])*response;
     }
     const speed=this.angularVelocity.length();
@@ -30,7 +23,7 @@ export class AerialDynamics {
     this.updateAxes();
   }
   land(heading){
-    this.flying=false;this.dodgeAvailable=false;this.dodgeTime=0;this.recoveryTime=0;
+    this.flying=false;this.impulseTime=0;this.recoveryTime=0;
     this.recovering=this.up.y<.96||this.angularVelocity.length()>.2;
     this.landingHeading=heading;this.angularVelocity.multiplyScalar(.3);
     if(!this.recovering)this.reset(heading);

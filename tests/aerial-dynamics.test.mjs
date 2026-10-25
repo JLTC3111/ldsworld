@@ -20,18 +20,17 @@ test('air steering rotates the chassis while retaining travel momentum',()=>{
   assert.ok(Math.abs(car.vx)<.01);assert.ok(car.vz>momentum*.97);assert.ok(Math.abs(car.heading)>.5);
 });
 
-test('a directional second jump produces a complete flip, is limited to one dodge, and recovers on landing',()=>{
-  const car=carAt();takeoff(car);assert.equal(car.jump({forward:true}),true);assert.equal(car.jump({forward:true}),false);
-  let inverted=false,rotation=0,previous=car.attitude.rotation.clone(),peak=0;
-  for(let i=0;i<210;i++){car.step(1/60);rotation+=previous.angleTo(car.attitude.rotation);previous.copy(car.attitude.rotation);inverted ||= car.attitude.up.y<-.8;peak=Math.max(peak,car.hop);assert.ok(Math.abs(car.attitude.rotation.length()-1)<1e-10);}
-  assert.ok(inverted&&rotation>Math.PI*2);assert.ok(peak>3);assert.equal(car.hop,0);assert.equal(car.attitude.recovering,false);assert.ok(car.attitude.up.y>.999);
+test('Space performs one ground jump and cannot trigger a second jump or flip while airborne',()=>{
+  const car=carAt();takeoff(car);const height=car.hop,velocity=car.hopVelocity,rotation=car.attitude.rotation.clone();
+  for(const input of [{},{forward:true},{left:true},{rollLeft:true}])assert.equal(car.jump(input),false);
+  assert.equal(car.hop,height);assert.equal(car.hopVelocity,velocity);assert.equal(car.attitude.rotation.angleTo(rotation),0);
+  advance(car,3);assert.equal(car.hop,0);assert.equal(car.attitude.recovering,false);assert.ok(car.attitude.up.y>.999);assert.equal(car.jump(),true);
 });
 
-test('Q/E barrel rolls and a neutral double jump are available without extra midair jumps',()=>{
-  const car=carAt();takeoff(car);const firstVelocity=car.hopVelocity;assert.equal(car.jump(),true);assert.ok(car.hopVelocity>=firstVelocity);assert.equal(car.jump(),false);
-  let inverted=false;for(let i=0;i<70;i++){car.step(1/60,{rollLeft:true});inverted ||= car.attitude.up.y<-.8;}
-  assert.ok(inverted);advance(car,3);assert.equal(car.hop,0);assert.equal(car.attitude.recovering,false);
-  const late=carAt();takeoff(late);late.attitude.airTime=1.31;assert.equal(late.jump({right:true}),false);
+test('removed air-roll inputs have no effect on the jump trajectory or chassis orientation',()=>{
+  const a=carAt(),b=carAt();takeoff(a);takeoff(b);
+  advance(a,.8);advance(b,.8,{rollLeft:true,rollRight:true});
+  assert.equal(a.hop,b.hop);assert.equal(a.hopVelocity,b.hopVelocity);assert.ok(a.attitude.rotation.angleTo(b.attitude.rotation)<1e-7);
 });
 
 test('air boost follows the nose, can lift the car, and remains within the playable flight ceiling',()=>{
@@ -42,7 +41,7 @@ test('air boost follows the nose, can lift the car, and remains within the playa
 
 test('substeps preserve aerial trajectories at 30 and 60 FPS and zero-duration updates stay finite',()=>{
   const a=carAt(),b=carAt();a.jump();b.jump();advance(a,.5,{forward:true},60);advance(b,.5,{forward:true},30);
-  a.jump({right:true});b.jump({right:true});advance(a,.5,{rollLeft:true,boost:true},60);advance(b,.5,{rollLeft:true,boost:true},30);
+  advance(a,.5,{right:true,boost:true},60);advance(b,.5,{right:true,boost:true},30);
   for(const key of ['x','z','hop','vx','vz','hopVelocity'])assert.ok(Math.abs(a[key]-b[key])<1e-8,key);
   assert.ok(a.attitude.rotation.angleTo(b.attitude.rotation)<1e-7);a.step(0);for(const key of ['x','z','hop','vx','vz'])assert.ok(Number.isFinite(a[key]));
 });

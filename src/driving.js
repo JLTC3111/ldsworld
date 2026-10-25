@@ -177,17 +177,12 @@ export class Driver {
     // from the crate, rather than letting it continue driving through the blast.
     this.vx=continuing?clamp(this.vx+nx*strength*.22,-48,48):nx*strength;this.vz=continuing?clamp(this.vz+nz*strength*.22,-48,48):nz*strength;this.speed=Math.hypot(this.vx,this.vz);
     if(!continuing)this.attitude.angularVelocity.set(-8.5,0,.35);
-    this.attitude.dodgeTime=Math.max(this.attitude.dodgeTime,1.2);this.attitude.dodgeAvailable=false;
+    this.attitude.impulseTime=Math.max(this.attitude.impulseTime,1.2);
     this.blastFlightTime=4;this.hydraulicPhase='airborne';return true;
   }
   toggleHydraulics(){this.hydraulicsRaised=!this.hydraulicsRaised;return this.hydraulicsRaised;}
-  jump(input={}) {
-    if(this.attitude.flying){
-      const dodge=this.attitude.dodge(input);if(!dodge)return false;
-      this.hopVelocity=Math.max(this.hopVelocity,6.6);
-      if(dodge.forward||dodge.side){const sin=Math.sin(this.heading),cos=Math.cos(this.heading);this.vx+=(sin*dodge.forward-cos*dodge.side)*6;this.vz+=(cos*dodge.forward+sin*dodge.side)*6;}
-      return true;
-    }
+  jump() {
+    if(this.attitude.flying)return false;
     if(this.hop>.015||this.jumpPending||this.jumpCooldown>0)return false;
     this.cancelRoute();this.jumpPending=true;this.jumpCharge=.14;this.hydraulicPhase='charging';return true;
   }
@@ -206,7 +201,7 @@ export class Driver {
     this.attitude.bodyTop=this.profile.bodyTop+this.rideHeight+this.hydraulicOffset;this.attitude.halfWidth=this.profile.halfWidth+.1;this.attitude.halfLength=this.profile.halfLength+.12;
     this.boosting=Boolean(input.boost)&&(!this.route.length||Boolean(input.forward));
     this.collisionImpact *= Math.exp(-5 * dt);
-    const manual = input.forward || input.reverse || input.left || input.right || input.brake || input.rollLeft || input.rollRight || input.boost;
+    const manual = input.forward || input.reverse || input.left || input.right || input.brake || input.boost;
     let cancelled = false;
     if (manual && this.route.length) { this.cancelRoute(); cancelled = true; }
     let forward = input.forward ? 1 : 0;

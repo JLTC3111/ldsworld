@@ -775,7 +775,7 @@ body.exploring .hero button {
   display: block;
   width: 100%;
   height: 103px;
-  overflow: visible;
+  overflow: hidden;
 }
 .map-caption {
   display: flex;
@@ -2445,3 +2445,13 @@ body.is-driving #world::after { opacity:0 !important; }
 .garage-card img{display:block;width:100%;height:118px;object-fit:contain;background:#f6f6eb;border-radius:7px;margin-bottom:13px;}
 @media(max-width:800px){.travel-map-layout{grid-template-columns:1fr;gap:22px;}.portfolio-panel[data-view="map"] .panel-reader{padding:22px 16px 36px;}.map-location-list{grid-template-columns:repeat(2,minmax(0,1fr));max-height:none;}.map-location-list button{font-size:10px;padding:9px;}.map-pin{width:25px;height:25px;}.map-pin::before{width:9px;height:9px;border-width:2px;}.garage-card{padding:11px;}}
 @media(max-width:560px){.minimap-wrap{width:112px;right:12px;bottom:82px;}.minimap{display:block;width:100%;padding:6px;background:var(--paper);border-radius:12px;box-shadow:0 4px 20px var(--shadow-color);}.minimap>svg{display:block;width:100%;height:76px;border-radius:7px;}.minimap .map-caption{display:flex;justify-content:center;gap:4px;margin-top:5px;font-size:7px;}.minimap .map-caption>span{display:inline;}.minimap .map-caption>svg{width:10px;height:10px;}.atlas-tabs>button{padding:10px 12px;font-size:11px;}.atlas-legend{font-size:8px;}}
+
+/* A clipped overview widget. Its SVG must never paint over the driving canvas. */
+.minimap-wrap{width:136px;max-width:136px;min-width:0;right:22px;bottom:22px;contain:paint;isolation:isolate;}
+#minimap{box-sizing:border-box;display:grid;grid-template-rows:74px 18px;width:100%;max-width:100%;height:106px;padding:6px;overflow:hidden;}
+#minimap-svg{display:block;box-sizing:border-box;width:100%;max-width:100%;height:74px;max-height:74px;overflow:hidden;border-radius:6px;}
+#minimap .map-caption{min-width:0;height:18px;padding:3px 1px 0;font-size:7px;line-height:12px;overflow:hidden;}
+#minimap .map-caption>svg{width:10px;height:10px;}#minimap .map-caption>span{display:inline;white-space:nowrap;}
+#minimap:focus-visible{outline-offset:-3px;outline-width:2px;}
+body.is-driving .minimap-wrap .map-heading{display:none;}
+@media(max-width:560px){.minimap-wrap{width:104px;max-width:104px;right:12px;bottom:78px;}#minimap{height:88px;grid-template-rows:58px 16px;padding:5px;}#minimap-svg{height:58px;max-height:58px;}#minimap .map-caption{height:16px;font-size:6px;gap:3px;}}

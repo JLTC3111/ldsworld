@@ -4,8 +4,8 @@ import { Driver, roadNodes } from '../src/driving.js';
 import { PhysicsWorld } from '../src/physics.js';
 import { WORLD_SCALE, ISLAND_BOUNDS, islandRadius } from '../src/world-layout.js';
 
-test('the expanded terrain accepts car and prop travel beyond the original town and retains a real shoreline',()=>{
-  assert.equal(WORLD_SCALE,20);assert.deepEqual(ISLAND_BOUNDS,{x:560,z:420});
+test('the island restores its previous dimensions, still accepts outer-road travel and retains a real shoreline',()=>{
+  assert.equal(WORLD_SCALE,5);assert.deepEqual(ISLAND_BOUNDS,{x:140,z:105});
   const car=new Driver();car.x=40;car.z=-30;car.driveTo(110,-30);
   for(let i=0;i<2400&&car.route.length;i++)assert.equal(car.step(1/60).cancelled,false);
   assert.ok(Math.hypot(car.x-110,car.z+30)<1.3);

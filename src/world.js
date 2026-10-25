@@ -8,6 +8,7 @@ import { createPlayground,reservesPlaygroundSpace,PLAYGROUND_APPROACHES } from '
 import { createBlastDamage, treeBlastTargets } from './blast-damage.js';
 import { collectBreakableTargets,breakProfile } from './breakables.js';
 import { createProjectLabels } from './project-labels.js';
+import { ASPHALT_COLOR,createAsphaltTexture,addRacingCurbs } from './road-style.js';
 import { createIslandBoundary } from './island-boundary.js';
 import { createWayfinding } from './wayfinding.js';
 import { createNightFires } from './night-fires.js';
@@ -22,7 +23,7 @@ import { createVehicle } from './vehicle.js';
 import { bridges, bridgeHeightAt, isRiver, houses, portals, ROAD_WIDTHS, WORLD_SCALE, ISLAND_BOUNDS, islandRadius, LANDMARKS, isWater, MAP_BOUNDS } from './world-layout.js';
 import { islandFrame, constrainIslandFocus, keepVehicleVisible, clampZoom } from './camera-framing.js';
 
-const colors = { grass: '#b7c49c', sand: '#e0d3b0', road: '#ebe7d3', sea: '#e2e8dc', cream: '#eae4cb', dark: '#3d5146', leaf: '#7a9365', pine: '#698264', trunk: '#94785a', glass: '#8da9a1', yellow: '#d8b45d' };
+const colors = { grass: '#b7c49c', sand: '#e0d3b0', road: ASPHALT_COLOR, sea: '#e2e8dc', cream: '#eae4cb', dark: '#3d5146', leaf: '#7a9365', pine: '#698264', trunk: '#94785a', glass: '#8da9a1', yellow: '#d8b45d' };
 const rand = (() => { let seed = 8137; return () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; })();
 
 export function createWorld({ container, onStart, onProject, onArrival, onCancelRoute, onNearby, onFrame, onPortal, onEnvironment, onExplosion, onImpact, carModel='8-ball', reducedMotion = false }) {
@@ -156,31 +157,31 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   const shoreLine = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(islandShape.getPoints(160).map(p => new THREE.Vector3(p.x * 1.025*WORLD_SCALE, -1.12, -p.y * 1.025*WORLD_SCALE))), new THREE.LineBasicMaterial({ color: '#eaf0e2', transparent: true, opacity: .8 }));
   scene.add(shoreLine);
 
+  const asphaltTexture=createAsphaltTexture(THREE,{coarse}),asphalt=new THREE.MeshStandardMaterial({color:ASPHALT_COLOR,map:asphaltTexture,roughness:.96,side:THREE.DoubleSide});materials.set('asphalt',asphalt);
+  const asphaltRoads=[];
   function road(points, width, closed = false, color = colors.road, height = .1) {
     const curve = new THREE.CatmullRomCurve3(points.map(p => new THREE.Vector3(p[0], height, p[1])), closed, 'catmullrom', .25);
     const count = Math.max(closed?360:100,Math.ceil(curve.getLength()/3));
-    const vertices=[],indices=[],across=8;
+    const vertices=[],indices=[],uvs=[],across=8,length=curve.getLength();
     for(let i=0;i<=count;i++){
       const t=i/count,p=curve.getPoint(t),tangent=curve.getTangent(t),normal=new THREE.Vector3(-tangent.z,0,tangent.x).normalize();
-      for(let j=0;j<=across;j++){const offset=(j/across-.5)*width,x=p.x+normal.x*offset,z=p.z+normal.z*offset;vertices.push(x,isWater(x,z)?-.04:p.y,z);}
+      for(let j=0;j<=across;j++){const offset=(j/across-.5)*width,x=p.x+normal.x*offset,z=p.z+normal.z*offset;vertices.push(x,isWater(x,z)?-.04:p.y,z);uvs.push(j/across,t*length/4);}
       if(i<count)for(let j=0;j<across;j++){const a=i*(across+1)+j,b=a+across+1;indices.push(a,b,a+1,a+1,b,b+1);}
     }
-    const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); geometry.setIndex(indices); geometry.computeVertexNormals();
-    const surface = mesh(geometry, mat(color, { side: THREE.DoubleSide }), land, 0, 0, 0, false);
+    const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2)); geometry.setIndex(indices); geometry.computeVertexNormals();
+    const surface = mesh(geometry,color===colors.road?asphalt:mat(color, { side: THREE.DoubleSide }), land, 0, 0, 0, false);surface.name=color===colors.road?'Textured asphalt road':'Sandy road verge';
+    if(color===colors.road)asphaltRoads.push({curve,width});
     surface.userData.roadWidth=width;
     return { curve, surface };
   }
-  road(roadLoop, ROAD_WIDTHS.shoulder, true, '#d4d2b6', .055);
-  const loopRoad = road(roadLoop, ROAD_WIDTHS.ring, true);
-  road(outerRoadLoop,ROAD_WIDTHS.shoulder,true,'#d4d2b6',.055);
+  road(roadLoop, ROAD_WIDTHS.shoulder, true, '#c9ae7f', .055);
+  road(roadLoop, ROAD_WIDTHS.ring, true);
+  road(outerRoadLoop,ROAD_WIDTHS.shoulder,true,'#c9ae7f',.055);
   road(outerRoadLoop,ROAD_WIDTHS.ring,true);
   for(const path of connectorPaths)road(path.map(key=>roadNodes[key]),ROAD_WIDTHS.spine);
   road([roadNodes.r2, [-.75, -9], [-.75, -6.8], [0, -3], roadNodes.c0, [0, 6], roadNodes.r8], ROAD_WIDTHS.spine, false);
   road([roadNodes.r11, [-10, 0], roadNodes.c0, [10, 0], roadNodes.r5], ROAD_WIDTHS.spine, false);
-  for (let i = 0; i < 68; i++) {
-    const t = i / 68, point = loopRoad.curve.getPointAt(t), tangent = loopRoad.curve.getTangentAt(t);
-    const dash = box(.055, .012, .48, '#c1c7ac', land, point.x, .113, point.z, false); dash.rotation.y = Math.atan2(tangent.x, tangent.z);
-  }
+  addRacingCurbs({THREE,parent:land,roads:asphaltRoads,geometry:boxGeometry,red:mat('#e44c3b',{emissive:'#e44c3b',emissiveIntensity:.018}),ivory:mat('#f1e4ce',{emissive:'#f1e4ce',emissiveIntensity:.012})});
   const welcome = board('TAKE THE\nSCENIC ROUTE', 5.2, 2.1, colors.grass, '#a1ad86', land, 4, .06, 17, 55, 'scenicSign'); welcome.rotation.x = -Math.PI / 2;
   const homeLine = box(3.2, .018, .15, '#ecebd4', land, 0, .13, 12.6, false);
   const startChecks = group(land, 0, 12.8);
@@ -542,16 +543,38 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   function captureMap({x=0,z=0,halfWidth=MAP_BOUNDS.x,halfHeight=MAP_BOUNDS.z}={}){
     const altitude=Math.max(halfWidth,halfHeight)*2+100;
     const mapCamera=new THREE.OrthographicCamera(-halfWidth,halfWidth,halfHeight,-halfHeight,.1,altitude+500);mapCamera.up.set(0,0,-1);mapCamera.position.set(x,altitude,z);mapCamera.lookAt(x,0,z);mapCamera.updateMatrixWorld();
-    const fog=scene.fog,sky=hemisphere.intensity,sunlight=sun.intensity,fillLight=fill.intensity,hidden=[];
-    for(const name of ['island-atmosphere','island-flyover','Project rooftop typography']){const object=scene.getObjectByName(name);if(object){hidden.push([object,object.visible]);object.visible=false;}}
-    try{scene.fog=null;hemisphere.intensity=2.1;sun.intensity=2;fill.intensity=.8;renderer.render(scene,mapCamera);const picture=renderer.domElement.toDataURL?.('image/png');return typeof picture==='string'&&picture.startsWith('data:image/png')?picture:'';}catch{return '';}finally{scene.fog=fog;hemisphere.intensity=sky;sun.intensity=sunlight;fill.intensity=fillLight;hidden.forEach(([o,visible])=>o.visible=visible);renderer.render(scene,camera);}
+    const fog=scene.fog,background=scene.background,sky=hemisphere.intensity,sunlight=sun.intensity,fillLight=fill.intensity,hidden=[],savedColors=[],savedUniforms=[];
+    const sunPosition=sun.position.clone(),sunTarget=sun.target.position.clone(),shadowCamera=sun.shadow.camera,shadow={left:shadowCamera.left,right:shadowCamera.right,top:shadowCamera.top,bottom:shadowCamera.bottom,near:shadowCamera.near,far:shadowCamera.far};
+    const oldSize=renderer.getSize?.(new THREE.Vector2()),oldRatio=renderer.getPixelRatio?.();
+    const tint=(color,value)=>{savedColors.push([color,color.clone()]);color.set(value);};
+    scene.traverse(object=>{
+      if(['island-atmosphere','island-flyover','Project rooftop typography','Frosted canopy tips'].includes(object.name)||object.material===winterMaterial||object.userData.atlasSnow){hidden.push([object,object.visible]);object.visible=false;}
+      const uniforms=object.material?.uniforms;
+      if(uniforms?.uDaylight){savedUniforms.push([uniforms.uDaylight,uniforms.uDaylight.value]);uniforms.uDaylight.value=1;}
+      if(uniforms?.uRain){savedUniforms.push([uniforms.uRain,uniforms.uRain.value]);uniforms.uRain.value=0;}
+      if(uniforms?.uSky){savedColors.push([uniforms.uSky.value,uniforms.uSky.value.clone()]);uniforms.uSky.value.set('#b9dedc');}
+    });
+    try{
+      scene.fog=null;scene.background=new THREE.Color('#243f4d');
+      tint(island.material[0].color,'#91a765');tint(island.material[1].color,'#dcb985');tint(sea.material.color,'#264957');tint(pond.material.color,'#63b7bb');tint(hemisphere.color,'#fff5df');tint(hemisphere.groundColor,'#788a61');tint(sun.color,'#fff1d2');
+      hemisphere.intensity=2;sun.intensity=2.7;fill.intensity=.9;sun.position.set(-90,140,100);sun.target.position.set(0,0,0);
+      Object.assign(shadowCamera,{left:-195,right:195,top:170,bottom:-170,near:1,far:400});shadowCamera.updateProjectionMatrix();sun.shadow.needsUpdate=true;
+      if(oldSize&&Number.isFinite(oldRatio)){renderer.setPixelRatio(1);renderer.setSize(1536,Math.round(1536*halfHeight/halfWidth),false);}
+      renderer.render(scene,mapCamera);const picture=renderer.domElement.toDataURL?.('image/png');return typeof picture==='string'&&picture.startsWith('data:image/png')?picture:'';
+    }catch{return '';}finally{
+      scene.fog=fog;scene.background=background;hemisphere.intensity=sky;sun.intensity=sunlight;fill.intensity=fillLight;
+      savedColors.forEach(([color,value])=>color.copy(value));savedUniforms.forEach(([uniform,value])=>uniform.value=value);hidden.forEach(([object,visible])=>object.visible=visible);
+      sun.position.copy(sunPosition);sun.target.position.copy(sunTarget);Object.assign(shadowCamera,shadow);shadowCamera.updateProjectionMatrix();sun.shadow.needsUpdate=true;
+      if(oldSize&&Number.isFinite(oldRatio)){renderer.setPixelRatio(oldRatio);renderer.setSize(oldSize.x,oldSize.y,false);}
+      renderer.render(scene,camera);
+    }
   }
   function resetView() { orbitYaw = defaultYaw; orbitPitch = defaultPitch; zoomScale = 1; panOffset.set(0, 0, 0); }
-  const readInput=()=>({forward:keys.has('ArrowUp')||keys.has('w'),reverse:keys.has('ArrowDown')||keys.has('s'),left:keys.has('ArrowLeft')||keys.has('a'),right:keys.has('ArrowRight')||keys.has('d'),rollLeft:keys.has('q'),rollRight:keys.has('e'),boost:keys.has('Shift'),brake:keys.has('b')});
+  const readInput=()=>({forward:keys.has('ArrowUp')||keys.has('w'),reverse:keys.has('ArrowDown')||keys.has('s'),left:keys.has('ArrowLeft')||keys.has('a'),right:keys.has('ArrowRight')||keys.has('d'),boost:keys.has('Shift'),brake:keys.has('b')});
   const navigation = bindNavigation({
     surface: renderer.domElement, wheelTarget: container, isPaused: () => paused,
     onKey(key, pressed) { if (pressed) { begin(); panOffset.set(0, 0, 0); keys.add(key); } else keys.delete(key); },
-    onClear: clearKeys, onJump:()=>{const airborne=driver.airborne;if(driver.jump(readInput())){onImpact?.({kind:airborne?'aerial':'hydraulic',strength:3,distance:0});onCancelRoute?.();}},onHydraulics:()=>driver.toggleHydraulics(), onClick: clickGround,
+    onClear: clearKeys, onJump:()=>{if(driver.jump()){onImpact?.({kind:'hydraulic',strength:3,distance:0});onCancelRoute?.();}},onHydraulics:()=>driver.toggleHydraulics(), onClick: clickGround,
     onOrbit(dx, dy) { begin(); orbitYaw -= dx * .006; orbitPitch = THREE.MathUtils.clamp(orbitPitch + dy * .004, .4, 1.12); },
     onPan(dx, dy) {
       begin(); const unit = viewHeight / innerHeight;
@@ -692,7 +715,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     driveToProject(id) { const p = projects.find(p => p.id === id); if (!p) return; begin(); driver.navigate(p.stop, id); updateRoute(); },
     stopRoute() { driver.cancelRoute(); updateRoute(); },
     hydraulics(){if(!paused)return driver.toggleHydraulics();},
-    jump() { if(!paused){begin();return driver.jump(readInput());}return false; },
+    jump() { if(!paused){begin();return driver.jump();}return false; },
     stopDriving,
     setNight(value) { environment = atmosphere.setTimeMode(value ? 'night' : 'day'); },
     setTimeMode(mode) { environment = atmosphere.setTimeMode(mode); return environment; },
@@ -711,7 +734,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
       physics.bodies.filter(body=>body.kind==='snowman'||body.kind==='trash-can').forEach(body=>body.object.removeFromParent());
       blastDamage.dispose();projectLabels.dispose();scenery.bridgeGroups.forEach(({bridge})=>delete bridge.active);boundary.dispose();wayfinding.dispose();playground.dispose();nightFires.dispose();scenery.dispose(); atmosphere.dispose(); flyover.dispose(); vehicle.dispose(); islandLife.dispose(); detailedTrees.dispose();
       const geometries = new Set(); scene.traverse(o => { if (o.geometry) geometries.add(o.geometry); }); geometries.forEach(g => g.dispose());
-      materials.forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove();
+      asphaltTexture?.dispose();materials.forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove();
     }
   };
 }

@@ -1,6 +1,6 @@
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-const physicalKeys = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd', KeyB: 'b', KeyQ:'q',KeyE:'e',KeyC:'c', Space: ' ', ShiftLeft: 'Shift', ShiftRight: 'Shift' };
-const drivingKeys = new Set(['w', 'a', 's', 'd', 'b', 'q', 'e', 'c', ' ', 'Shift', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+const physicalKeys = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd', KeyB: 'b',KeyC:'c', Space: ' ', ShiftLeft: 'Shift', ShiftRight: 'Shift' };
+const drivingKeys = new Set(['w', 'a', 's', 'd', 'b', 'c', ' ', 'Shift', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
 
 export function drivingKey(event) {
   const key = physicalKeys[event.code] || (event.key?.length === 1 ? event.key.toLowerCase() : event.key);
@@ -24,14 +24,14 @@ export function bindNavigation({ surface, wheelTarget = surface, keyboard = wind
   const keyDown = event => {
     if (isPaused() || event.ctrlKey || event.metaKey || event.altKey || typing(event.target)) return;
     const key = drivingKey(event);
-    if (!key || key === ' ' && event.target?.closest?.('button, a')) return;
+    if (!key) return;
     event.preventDefault();
     if(event.repeat)return;
     onKey?.(key, true);
-    if(key===' ')onJump?.();
+    if(key===' '){surface.focus?.({preventScroll:true});onJump?.();}
     if(key==='c')onHydraulics?.();
   };
-  const keyUp = event => { const key = drivingKey(event); if (key) onKey?.(key, false); };
+  const keyUp = event => { const key = drivingKey(event);if(key===' '&&!isPaused()&&!typing(event.target)&&!event.ctrlKey&&!event.metaKey&&!event.altKey)event.preventDefault();if (key) onKey?.(key, false); };
   function clear() { pointers.clear(); drag = null; multiTouch = false; surface.classList.remove('is-dragging'); onClear?.(); }
   const centroid = () => {
     const [a, b] = [...pointers.values()];

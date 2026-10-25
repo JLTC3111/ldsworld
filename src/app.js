@@ -1,4 +1,5 @@
 import { loadCarAssets } from './car-assets.js';
+import { roadSvgPath,ASPHALT_COLOR } from './road-style.js';
 import { VEHICLE_MODELS,vehicleModel } from './vehicle-models.js';
 import { mapLocations,mapFrame } from './locations.js';
 import { TOWN_CENTER,outerTownDirections } from './wayfinding.js';
@@ -99,7 +100,8 @@ function applyTheme() {
 }
 function startCurrentDemo() {
   const video = $('#panel-content video[data-project-demo]');
-  if (video && panel.open && !document.hidden && getProject(state.projectId)) bindDemoSource(video,mediaFor(state.projectId));
+  const id=state.panel==='projects'?state.spotlightId:state.projectId,project=getProject(id);
+  if(video&&project){const media=mediaFor(id);video.poster=media.poster;video.dataset.recordingLanguage=media.recordingLanguage;video.dataset.sourceLanguage=state.language;video.setAttribute('aria-label',`${t('demo')}: ${local(project).title}`);const title=$('#spotlight-demo-title');if(title)title.textContent=local(project).title;if(panel.open&&!document.hidden)bindDemoSource(video,media);}
 }
 
 function syncVisitedProjects() {
@@ -149,6 +151,7 @@ function setHash(view, id) {
 function showPanel(view, id = null) {
   if (!panel.open) previousFocus = document.activeElement;
   drivingHud.reveal();
+  if(view==='map')state.mapZoom=1;
   state.panel = view; state.projectId = id; renderPanel({ mount: false });
   if (!panel.open) panel.showModal();
   startCurrentDemo(); panelPreviews?.refresh(); mountShowcase();
@@ -202,6 +205,8 @@ function selectSpotlight(id) {
   stage.querySelectorAll('[data-spotlight]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.spotlight === id)));
   updateScreenReadout();
   panelShowcase?.setProject(project);
+  startCurrentDemo();
+  const caption=$('[data-demo-caption]');if(caption)caption.innerHTML=renderDemoCaption(project);
 }
 function renderScreenReadout(project = stageProject()) {
   const heading = `<h4 data-stage-project-label>${escapeText(project.title)}</h4>`;
@@ -281,13 +286,19 @@ function renderStage() {
 function renderIndex() {
   const items = projects.filter(project => state.filter === 'all' || (state.filter === 'web' ? isWebsite(project) : !isWebsite(project)));
   if (!items.some(project => project.id === state.spotlightId)) state.spotlightId = items[0]?.id || 'hr';
+  const spotlight=getProject(state.spotlightId);
   return `<div class="panel-intro"><p class="panel-eyebrow">${t('selectedWork')} / 2025</p><h2 id="panel-title">${t('index')}</h2><p>${t('studioIntro')}</p></div>
+    <section class="spotlight-demo"><h3 id="spotlight-demo-title">${local(spotlight).title}</h3><div class="project-video-wrap"><video data-project-demo controls autoplay muted loop playsinline preload="metadata" poster="${mediaFor(spotlight).poster}" aria-label="${t('demo')}: ${local(spotlight).title}"></video></div><div data-demo-caption>${renderDemoCaption(spotlight)}</div></section>
     <div class="work-summary"><span><strong>${projectCount}</strong>${t('projectCount')}</span><span><strong>${applicationCount}</strong>${t('applicationCount')}</span><span><strong>${websiteCount}</strong>${t('websiteCount')}</span></div>
     <div class="project-filters" role="group" aria-label="${t('filtersAria')}">${[['all','all'],['apps','apps'],['web','web']].map(([value,label]) => `<button data-filter="${value}" aria-pressed="${state.filter===value}">${t(label)}</button>`).join('')}</div>
     <div class="project-list cards-count-${items.length}">${items.map(project => {
       const p = local(project), story = getCaseStudy(p.id, state.language);
       return `<button class="project-card" data-open-project="${p.id}" style="--project-bg:${p.color}28" aria-label="${t('view')}: ${p.title}"><span class="card-number">${p.number}</span>${state.visited.has(p.id)?`<span class="card-found">${icon('check')}</span>`:''}<div class="card-art"><img src="${mediaFor(p).poster}" alt="" loading="lazy" width="480" height="300"></div><div class="card-content"><span class="card-category">${p.category} · ${p.year}</span><h3>${p.title}</h3><p class="card-excerpt">${story.teaser}</p><span class="card-tech">${p.tech.slice(0,3).join(' · ')}</span>${icon('up-right')}</div></button>`;
     }).join('')}</div><div class="reader-closing"><p>${t('studioIntro')}</p><button class="secondary-button" data-action="about">${t('navAbout')}${icon('arrow')}</button></div><p class="panel-footnote">${t('footer')}<br>longd.tech / ${String(items.length).padStart(2,'0')} ${t('navProjects').toLowerCase()}</p>`;
+}
+function renderDemoCaption(project) {
+  const media=mediaFor(project);
+  return `<p class="demo-caption">${icon('play')} ${t('demo')}<span class="demo-language">${t({en:'demoEnglish',vi:'demoVietnamese',mixed:'demoMultilingual'}[media.recordingLanguage]||'demoShared')}</span></p>${['en','vi'].includes(media.recordingLanguage)&&media.recordingLanguage!==state.language?`<p class="demo-source-note">${t(state.language==='en'?'demoMissingEnglish':'demoMissingVietnamese')}</p>`:''}`;
 }
 function renderProject() {
   const project = getProject(state.projectId); if (!project) return renderIndex();
@@ -298,8 +309,7 @@ function renderProject() {
     <p class="panel-eyebrow"><span class="project-dot"></span>${p.number} / ${p.category} <span style="margin-left:auto">${p.year}</span></p>
     <h2 id="panel-title">${p.title}</h2>
     <div class="project-video-wrap"><video data-project-demo controls autoplay muted loop playsinline preload="metadata" data-recording-language="${mediaFor(p).recordingLanguage}" data-source-language="${state.language}" poster="${mediaFor(p).poster}" aria-label="${t('demo')}: ${p.title}"><a href="${mediaFor(p).video}">${t('demo')}</a></video></div>
-    <p class="demo-caption">${icon('play')} ${t('demo')}<span class="demo-language">${t({en:'demoEnglish',vi:'demoVietnamese',mixed:'demoMultilingual'}[mediaFor(p).recordingLanguage]||'demoShared')}</span></p>
-    ${['en','vi'].includes(mediaFor(p).recordingLanguage)&&mediaFor(p).recordingLanguage!==state.language?`<p class="demo-source-note">${t(state.language==='en'?'demoMissingEnglish':'demoMissingVietnamese')}</p>`:''}
+    ${renderDemoCaption(p)}
     <p class="project-description">${p.description}</p>
     <dl class="case-meta"><div><dt>${t('projectType')}</dt><dd>${p.category}</dd></div><div><dt>${t('projectDate')}</dt><dd>${formatProjectDate(p.date,state.language)}</dd></div><div><dt>${t('technologiesAria')}</dt><dd>${p.tech.slice(0,2).join(' / ')}</dd></div></dl>
     <section class="case-section"><h3>${t('focusLabel')}</h3><p class="case-lead">${story.focus}</p></section>
@@ -334,7 +344,9 @@ function mapSvg(large = false, carId = large ? 'large-car' : 'mini-car') {
   const arrows=outerRoadLoop.map((a,i)=>{const b=outerRoadLoop[(i+1)%12],direction=outerTownDirections[i],heading=Math.atan2((b[0]-a[0])*direction,(b[1]-a[1])*direction)*180/Math.PI;return `<path d="m-.9,-1.2 .9,2  .9,-2" fill="none" stroke="#34484a" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" transform="translate(${(a[0]+b[0])/2},${(a[1]+b[1])/2}) rotate(${-heading})"/>`;}).join('');
   const town=`<circle cx="${TOWN_CENTER.x}" cy="${TOWN_CENTER.z}" r="2.1" fill="#f5dfac" stroke="#34484a" stroke-width=".55"/>${large?`<text x="0" y="22" text-anchor="middle" font-size="4" font-weight="700" fill="#34484a">${t('town')}</text>`:''}`;
   const features = `${arrows}${town}<path d="M38.7,38.8h.6l.5,1.9q1.2,2.8-.8,2.8t-.8-2.8Z" fill="#f8f3df" stroke="#9a4540" stroke-width=".4"/><rect x="-48" y="21" width="4" height="4" rx=".4" fill="#b6372f"/><path d="M${river}" fill="none" stroke="#80b9b3" stroke-width="${RIVER_HALF_WIDTH*2}"/>${bridges.map(b=>`<rect x="${-b.width/2}" y="${-b.length/2}" width="${b.width}" height="${b.length}" rx=".25" fill="#bda279" transform="translate(${b.x},${b.z}) rotate(${-b.heading*180/Math.PI})"/>`).join('')}${houses.map(h=>`<rect x="${h.x-1.4}" y="${h.z-1.2}" width="2.8" height="2.4" rx=".3" fill="${h.color}"/>`).join('')}${portals.map(p=>`<circle cx="${p.x}" cy="${p.z}" r="1.1" fill="none" stroke="${p.color}" stroke-width=".45"/>`).join('')}`;
-  return `<path d="M-28 0C-30 13-19 22-8 22C7 24 22 21 27 11C32 1 29-12 22-17C12-24-6-25-19-19C-27-15-30-7-28 0Z" fill="#c4cfae" transform="scale(${WORLD_SCALE})"/><path d="M${outerRoadLoop.map(point=>point.join(',')).join('L')}Z" fill="none" stroke="#eeeddc" stroke-width="${ROAD_WIDTHS.ring}"/><path d="M${roadLoop.map(point => point.join(',')).join('L')}Z M0,-13V13 M-20,0H20" fill="none" stroke="#eeeddc" stroke-width="${ROAD_WIDTHS.spine}" stroke-linecap="round" stroke-linejoin="round"/>${connectorPaths.map(path=>`<path d="M${path.map(key=>roadNodes[key].join(",")).join("L")}" fill="none" stroke="#eeeddc" stroke-width="${ROAD_WIDTHS.spine}"/>`).join("")}${features}${boundaryMarkup}${projects.map(p => `<rect x="${p.position[0] - p.footprint[0]/2}" y="${p.position[1] - p.footprint[1]/2}" width="${p.footprint[0]}" height="${p.footprint[1]}" rx=".4" fill="${p.color}" opacity=".7"/>`).join('')}${large ? '' : projects.map(p => `<circle cx="${p.position[0]}" cy="${p.position[1]}" r=".55" fill="#fffdf0"/>`).join('')}<g id="${carId}" transform="translate(0,13)"><circle r="1.9" fill="#f8efcd" opacity=".8"/><path d="m0 1.25-.9-1.8L0-.15l.9-.4Z" fill="#e94e31"/></g>`;
+  const track=(points,width,closed=false)=>{const d=roadSvgPath(points,closed);return `<path d="${d}" fill="none" stroke="#f1e4ce" stroke-width="${width+1.4}" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#e44c3b" stroke-width="${width+1.4}" stroke-dasharray="2 2" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="${ASPHALT_COLOR}" stroke-width="${width}" stroke-linejoin="round"/>`;};
+  const tracks=track(outerRoadLoop,ROAD_WIDTHS.ring,true)+track(roadLoop,ROAD_WIDTHS.ring,true)+connectorPaths.map(path=>track(path.map(key=>roadNodes[key]),ROAD_WIDTHS.spine)).join('')+track([roadNodes.r2,[0,0],roadNodes.r8],ROAD_WIDTHS.spine)+track([roadNodes.r11,[0,0],roadNodes.r5],ROAD_WIDTHS.spine);
+  return `<path d="M-28 0C-30 13-19 22-8 22C7 24 22 21 27 11C32 1 29-12 22-17C12-24-6-25-19-19C-27-15-30-7-28 0Z" fill="#91a765" stroke="#d5b581" stroke-width=".65" transform="scale(${WORLD_SCALE})"/>${tracks}${features}${boundaryMarkup}${projects.map(p => `<rect x="${p.position[0] - p.footprint[0]/2}" y="${p.position[1] - p.footprint[1]/2}" width="${p.footprint[0]}" height="${p.footprint[1]}" rx=".4" fill="${p.color}" opacity=".7"/>`).join('')}${large ? '' : projects.map(p => `<circle cx="${p.position[0]}" cy="${p.position[1]}" r=".55" fill="#fffdf0"/>`).join('')}<g id="${carId}" transform="translate(0,13)"><circle r="1.9" fill="#f8efcd" opacity=".8"/><path d="m0 1.25-.9-1.8L0-.15l.9-.4Z" fill="#e94e31"/></g>`;
 }
 function renderMap(){
   const all=mapLocations(state.language),locations=all.filter(l=>l.category===state.mapCategory),frame=mapFrame({zoom:state.mapZoom,centre:state.mapZoom>1?state.carPosition:{x:0,z:0}}),picture=world?.captureMap?.(frame)||'';
@@ -439,7 +451,7 @@ document.addEventListener('focusin', spotlightFromCard);
 document.addEventListener('click', event => {
   const button = event.target.closest('[data-map-category], [data-map-zoom], [data-teleport], [data-car-model], [data-screen-mode], [data-stack-tool], [data-spotlight], [data-demo-time], [data-time-mode], [data-weather], [data-headlights], [data-zoom], [data-go-portal], [data-go-playground], [data-language], [data-action], [data-open-project], [data-drive-project], [data-next-project], [data-filter]');
   if (!button) return;
-  if(button.dataset.mapCategory){state.mapCategory=button.dataset.mapCategory==='objects'?'objects':'buildings';state.mapZoom=state.mapCategory==='objects'?3:1;renderPanel();return;}
+  if(button.dataset.mapCategory){state.mapCategory=button.dataset.mapCategory==='objects'?'objects':'buildings';state.mapZoom=1;renderPanel();return;}
   if(button.dataset.mapZoom){state.mapZoom=button.dataset.mapZoom==='fit'?1:Math.max(1,Math.min(6,state.mapZoom*(button.dataset.mapZoom==='in'?1.5:1/1.5)));renderPanel();return;}
   if(button.dataset.teleport){const location=mapLocations(state.language).find(l=>l.id===button.dataset.teleport);if(world?.teleportTo(button.dataset.teleport)){closePanel();drivingHud.reveal();engineAudio.update({...engineAudio.motion,paused:false});engineAudio.impact?.('teleport',3);showToast(`${t('teleported')} ${location?.name||''}`);}return;}
   if(button.dataset.carModel){state.carModel=world?.setCarModel(button.dataset.carModel)||vehicleModel(button.dataset.carModel).id;storage.set('car',state.carModel);renderPanel();return;}
@@ -489,6 +501,7 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('keydown', event => {
   if (event.ctrlKey || event.metaKey || event.altKey || event.repeat || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
   if (panel.open) return;
+  if(!world&&drivingKey(event)===' ')event.preventDefault();
   if(drivingKey(event))drivingHud.engage();
   const key = event.key.toLowerCase();
   if (key === 'escape') { event.preventDefault();world?.stopDriving();drivingHud.reveal(); }
@@ -513,7 +526,7 @@ function readHash() {
   else if (['projects', 'about', 'contact', 'map', 'help', 'world'].includes(hash)) showPanel(hash);
 }
 window.addEventListener('hashchange', readHash);
-$('#minimap-svg').setAttribute('viewBox','-85 -52 170 130');$('#minimap-svg').innerHTML = mapSvg(); translatePage(); syncVisitedProjects(); updateClock(); setInterval(updateClock, 30000); readHash();
+$('#minimap-svg').setAttribute('viewBox',MAP_VIEWBOX);$('#minimap-svg').innerHTML = mapSvg(); translatePage(); syncVisitedProjects(); updateClock(); setInterval(updateClock, 30000); readHash();
 
 try {
   const { createWorld } = await import('./world.js');
@@ -531,7 +544,7 @@ try {
     onEnvironment: updateEnvironment,
     onFrame({ x, z, heading, speed, actualSpeed, rpm, gear, throttle,carModel, acceleration, paused, hop, elapsed,surface,airborne,boosting,landingImpact,steering,weather }) {
       drivingHud.update({speed:actualSpeed,hop,elapsed,paused,panelOpen:panel.open});
-      state.carPosition={x,z,heading};$('#minimap-svg').setAttribute('viewBox',`${x-85} ${z-65} 170 130`);
+      state.carPosition={x,z,heading};
       state.riverDistance = Math.abs(z-riverCenter(x));
       const transform = `translate(${x.toFixed(2)},${z.toFixed(2)}) rotate(${(-heading * 180 / Math.PI).toFixed(1)})`;
       $('#mini-car')?.setAttribute('transform',transform+' scale(3)');const mapCar=$('#large-car');mapCar?.setAttribute('transform',transform+` scale(${mapCar.dataset.mapScale||1})`); $('#stage-map-car')?.setAttribute('transform', transform);
