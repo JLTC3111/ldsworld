@@ -3,9 +3,9 @@ export const BREAK_PROFILES={
   snowman:{speed:5,respawn:35},planter:{speed:6,respawn:30},barrel:{speed:8,respawn:35},'trash-can':{speed:9,respawn:40},
   bench:{speed:8,respawn:50},cart:{speed:7,respawn:45},fence:{speed:5,respawn:35},sign:{speed:6,respawn:35},
   tree:{speed:11,respawn:100},rock:{speed:13,respawn:90},stone:{speed:12,respawn:75},sculpture:{speed:16,respawn:90},
-  portal:{speed:18,respawn:60},scenery:{speed:7,respawn:45}
+  scenery:{speed:7,respawn:45}
 };
-export const isProtectedKind=kind=>['building','bridge','stall'].includes(kind);
+export const isProtectedKind=kind=>['building','bridge','stall','portal'].includes(kind);
 const protectedProfile=Object.freeze({speed:Infinity,respawn:Infinity});
 export const breakProfile=kind=>isProtectedKind(kind)?protectedProfile:BREAK_PROFILES[kind]||BREAK_PROFILES.scenery;
 export function isProtectedObject(object){for(let p=object;p;p=p.parent)if(p.userData.projectId||p.userData.building||p.userData.blastProtected||isProtectedKind(p.userData.breakableKind))return true;return false;}

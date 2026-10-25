@@ -303,7 +303,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   portals.forEach((portal, index) => {
     const gate = group(root, portal.x, portal.z); gate.rotation.y = portal.heading;gate.scale.set(1.4,1.4,1);
     gate.userData.portalId = portal.id; gate.name = `Portal ${portal.id}`; portalGroups.push(gate);
-    gate.userData.breakableId=portal.id;gate.userData.breakableKind='portal';
+    gate.userData.blastProtected=true;gate.userData.breakableKind='portal';
     cylinder(1.9, 2.04, .16, '#acb39b', gate, 0, .12, 0, 16).userData.physicsIgnore=true;
     const floorRing = mesh(ownGeo(new THREE.TorusGeometry(1.72, .03, 4, 48)), basic(portal.color, { transparent: true, opacity: .7, toneMapped: false }), gate, 0, .22, 0, false); floorRing.rotation.x = -Math.PI / 2;
     const frame = mesh(portalRingGeometry, '#a4ac98', gate, 0, 1.65, 0); frame.scale.y = 1.07;

@@ -5,6 +5,9 @@ import { createScenery } from '../src/scenery.js';
 import { bridgeHeightAt, bridges, portals } from '../src/world-layout.js';
 import { roadLoop, roadNodes, Driver } from '../src/driving.js';
 import { collectWorldColliders } from '../src/world-physics.js';
+import { PhysicsWorld,PortalSystem,colliderActive } from '../src/physics.js';
+import { collectBreakableTargets,isProtectedObject } from '../src/breakables.js';
+import { createBlastDamage } from '../src/blast-damage.js';
 
 function build(coarse = false, reducedMotion = false) {
   const scene = new THREE.Scene(), land = new THREE.Group(); scene.add(land);
@@ -58,6 +61,19 @@ test('bridge plank centers share the physical arch surface without covering the 
     }
   }
   scenery.dispose();
+});
+
+test('actual portal frames and details survive hard impacts and blasts and still transport the car',()=>{
+  const {scenery,scene}=build(),colliders=collectWorldColliders({THREE,roots:[scene],exclude:scenery.bodies.map(b=>b.object)});
+  const targets=collectBreakableTargets({THREE,colliders,existing:scenery.breakableTargets}),physics=new PhysicsWorld({bodies:scenery.bodies,colliders}),damage=createBlastDamage({THREE,scene,physics,targets});
+  for(const portal of portals){
+    const gate=scenery.portalGroups.find(g=>g.userData.portalId===portal.id),belongs=object=>{for(let p=object;p;p=p.parent)if(p===gate)return true;return false;};
+    assert.equal(isProtectedObject(gate),true);const contacts=colliders.filter(c=>belongs(c.object));assert.ok(contacts.length>10);assert.ok(contacts.every(c=>!c.breakableId));
+    const visible=[];gate.traverse(o=>visible.push([o,o.visible]));for(const c of contacts)assert.equal(damage.impact(c,999),false);damage.blast({x:portal.x,z:portal.z,radius:8});
+    for(const [object,wasVisible]of visible)assert.equal(object.visible,wasVisible,object.name);assert.ok(contacts.every(c=>colliderActive(c)));assert.ok(!targets.some(t=>t.parts.some(p=>belongs(p.object))));
+    const system=new PortalSystem([{...portal,active:()=>gate.visible}]),driver=new Driver();driver.teleport(portal.x,portal.z);assert.equal(system.update(1/60,driver),portal.id);assert.equal(driver.x,portal.exitX);
+  }
+  damage.dispose();scenery.dispose();
 });
 
 test('new fixed objects keep the original ring-road centerline clear', () => {

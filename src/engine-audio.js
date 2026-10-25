@@ -23,7 +23,6 @@ export class EngineAudio {
     this.lastBlast=-Infinity;
     this.shiftStart = -Infinity;
     this.downshiftStart = -Infinity;
-    this.lastOverrun = -Infinity;
     this.voiceId = null;
     this.disposePromise = null;
   }
@@ -72,18 +71,12 @@ export class EngineAudio {
       this.masterGain.connect(limiter); limiter.connect(context.destination); this.nodes.push(limiter);
     } else this.masterGain.connect(context.destination);
 
-    // Exhaust body, low combustion pulses, and two raspier upper harmonics.
-    // The fundamental's wavetable rounds the sawtooth into an exhaust pulse.
-    for (const [type, multiple, amplitude] of [['sawtooth', 1, .5], ['sine', .5, .34], ['triangle', 2, .2], ['sine', 3, .11]]) {
+    // Rounded fundamentals and very quiet upper harmonics keep long drives calm.
+    for (const [type, multiple, amplitude] of [['sine', 1, .32], ['sine', .5, .18], ['triangle', 2, .025], ['sine', 3, .008]]) {
       const oscillator = context.createOscillator(), partialGain = gain(amplitude);
       oscillator.type = type; oscillator.frequency.value = 28 * multiple;
       oscillator.connect(partialGain); partialGain.connect(this.engineGain);
       this.oscillators.push({ oscillator, multiple, gain: partialGain }); oscillator.start();
-    }
-    if(context.createPeriodicWave&&this.oscillators[0].oscillator.setPeriodicWave){
-      const real=new Float32Array(24),imag=new Float32Array(24);
-      for(let i=1;i<imag.length;i++)imag[i]=(i%2?1:.72)*Math.exp(-i/15)/Math.pow(i,1.15);
-      this.oscillators[0].oscillator.setPeriodicWave(context.createPeriodicWave(real,imag));
     }
     const sampleRate = number(context.sampleRate, 44100);
     const buffer = context.createBuffer(1, Math.max(4096, Math.round(sampleRate)), sampleRate);
@@ -145,29 +138,28 @@ export class EngineAudio {
       return;
     }
     const now = this.context.currentTime, speedRatio = clamp(Math.abs(this.motion.speed) / 30, 0, 1);
-    const movingGate = boosting?1:clamp((Math.abs(this.motion.speed) - .12) / .65, 0, 1);
+    const movingGate = boosting?1:clamp((Math.abs(this.motion.speed) - .12) / 2.5, 0, 1);
     const torque = Math.max(load,boosting?1:0),voice=ENGINE_VOICES[this.motion.model];
     if(this.voiceId!==this.motion.model){
       this.voiceId=this.motion.model;this.lastGear=0;this.shiftStart=this.downshiftStart=-Infinity;
       [voice.body,voice.sub,voice.edge,voice.top].forEach((value,i)=>this.ramp(this.oscillators[i].gain.gain,value,.12));
     }
-    if(this.motion.gear>this.lastGear&&this.lastGear>0){this.shiftStart=now;this.impact('shift',2.5);}
+    if(this.motion.gear>this.lastGear&&this.lastGear>0)this.shiftStart=now;
     if(this.motion.gear>0&&this.motion.gear<this.lastGear)this.downshiftStart=now;
     this.lastGear=this.motion.gear;
-    const shiftProgress=clamp((now-this.shiftStart)/.16,0,1),shiftPitch=(.72+.28*shiftProgress)*(1+.12*(1-clamp((now-this.downshiftStart)/.14,0,1)));
+    const shiftProgress=clamp((now-this.shiftStart)/.3,0,1),shiftPitch=(.94+.06*shiftProgress)*(1+.025*(1-clamp((now-this.downshiftStart)/.3,0,1)));
     const revFraction=clamp((this.motion.rpm-950)/8050,0,1),voiceRpm=950+revFraction*(voice.redline-950);
     const firingFrequency=clamp(voiceRpm*voice.firing,24,480)*shiftPitch;
-    for (const { oscillator, multiple } of this.oscillators) oscillator.frequency.setTargetAtTime(firingFrequency * multiple, now, .035);
-    this.engineFilter.frequency.setTargetAtTime((650+revFraction*2700+torque*1000)*voice.filter,now,.055);
+    for (const { oscillator, multiple } of this.oscillators) oscillator.frequency.setTargetAtTime(firingFrequency * multiple, now, .22);
+    this.engineFilter.frequency.setTargetAtTime((260+revFraction*500+torque*160)*voice.filter,now,.18);
     this.roadFilter.frequency.setTargetAtTime((surface==='grass'?350:750)+speedRatio*1000+this.motion.slip*500,now,.1);
-    this.ramp(this.engineGain.gain,movingGate*(.33+Math.sqrt(speedRatio)*.23+torque*.17)*voice.gain*1.35*(.55+.45*shiftProgress),.04);
-    this.intakeFilter.frequency.setTargetAtTime(400+revFraction*1600+torque*500,now,.06);
-    this.ramp(this.intakeGain.gain,movingGate*(.012+torque*.09+revFraction*.025),.045);
+    this.ramp(this.engineGain.gain,movingGate*(.33+Math.sqrt(speedRatio)*.23+torque*.17)*voice.gain*.32*(.9+.1*shiftProgress),.22);
+    this.intakeFilter.frequency.setTargetAtTime(300+revFraction*600+torque*100,now,.18);
+    this.ramp(this.intakeGain.gain,movingGate*(.002+torque*.012+revFraction*.003),.2);
     this.ramp(this.roadGain.gain, movingGate * (.008 + speedRatio * .04 + this.motion.slip * .065)*(airborne||surface==='water'?0:surface==='grass'?.55:1.2), .07);
     this.waterFilter.frequency.setTargetAtTime(450+speedRatio*1250,now,.08);
     this.ramp(this.waterGain.gain,!airborne&&surface==='water'?movingGate*(.035+Math.sqrt(speedRatio)*.12):0,.06);
-    this.ramp(this.boostGain.gain,boosting?.055:0,.04);
-    if(previous.throttle>.6&&torque<.2&&this.motion.rpm>3300&&now-this.lastOverrun>.35&&!previous.paused){this.lastOverrun=now;this.impact('overrun',4);}
+    this.ramp(this.boostGain.gain,boosting?.012:0,.15);
     if(surface==='water'&&previousSurface!=='water'&&!airborne)this.impact('splash',Math.min(8,Math.abs(speed)/3));
     if(surface==='bridge'&&!airborne){this.bridgeDistance+=Math.abs(speed)*Math.min(.05,Math.max(0,elapsed));if(this.bridgeDistance>2.2){this.bridgeDistance=0;this.impact('wood',.8);}}else this.bridgeDistance=0;
   }

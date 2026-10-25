@@ -14,11 +14,11 @@ export function powertrainState(speed,{throttle=0,airborne=false,boosting=false}
   return {gear,rpm:clamp(rpm,950,9000)};
 }
 
-// The roadster takes its high-rev character from a naturally aspirated flat-six.
-// The larger toys use lower redlines, stronger subharmonics, and softer intakes.
+// Keep the cars distinct with a soft, low cruising hum. These audio redlines
+// do not change vehicle speed, acceleration or the physical transmission.
 export const ENGINE_VOICES={
-  '8-ball':{redline:9000,firing:1/20,sub:.34,body:.5,edge:.2,top:.11,filter:1.15,gain:1},
-  'monster-truck':{redline:6200,firing:1/30,sub:.62,body:.5,edge:.12,top:.04,filter:.66,gain:1.08},
-  'toy-story':{redline:6800,firing:1/30,sub:.5,body:.48,edge:.14,top:.07,filter:.83,gain:1.02},
-  explorer:{redline:7600,firing:1/24,sub:.4,body:.48,edge:.16,top:.08,filter:.96,gain:1}
+  '8-ball':{redline:5200,firing:1/30,sub:.18,body:.32,edge:.025,top:.008,filter:.9,gain:1},
+  'monster-truck':{redline:3800,firing:1/40,sub:.24,body:.3,edge:.018,top:.005,filter:.72,gain:1},
+  'toy-story':{redline:4300,firing:1/35,sub:.21,body:.31,edge:.02,top:.006,filter:.8,gain:1},
+  explorer:{redline:4700,firing:1/32,sub:.2,body:.31,edge:.022,top:.007,filter:.85,gain:1}
 };

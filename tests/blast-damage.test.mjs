@@ -51,9 +51,9 @@ test('small props respawn sooner than trees and fallen pins are reset without re
   for(let i=0;i<30;i++)f.damage.update(.1,{focus:{x:100,z:100}});syncPhysicsBodies(THREE,f.physics.bodies);assert.equal(f.prop.visible,true);assert.equal(f.physics.bodies[0].x,-2);assert.equal(f.physics.bodies[0].sleeping,true);assert.equal(f.damage.respawns.size,0);f.damage.dispose();
 });
 
-test('stalls, bridges and their details stay visible and collidable under impacts and explosions',()=>{
+test('stalls, bridges, portals and their details stay visible and collidable under impacts and explosions',()=>{
   const scene=new THREE.Scene(),protectedTargets=[];
-  for(const [i,kind]of ['bridge','stall'].entries()){
+  for(const [i,kind]of ['bridge','stall','portal'].entries()){
     const object=new THREE.Group();object.userData.blastProtected=true;object.userData.breakableKind=kind;object.position.set(i*3,0,0);scene.add(object);
     const part=new THREE.Mesh(new THREE.BoxGeometry(2,2,2),new THREE.MeshStandardMaterial());part.position.y=1;object.add(part);
     assert.equal(isProtectedObject(part),true);protectedTargets.push({id:kind,kind,x:i*3,z:0,parts:[{object}]});

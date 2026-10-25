@@ -82,7 +82,7 @@ test('RPM, acceleration and speed change harmonic pitch, engine load and filtere
   audio.context.currentTime = .4; audio.update({ speed: 10, rpm: 4200, acceleration: 12, slip: .7 });
   const shiftPitch = audio.oscillators[0].oscillator.frequency.value;
   assert.ok(shiftPitch > lowPitch); assert.ok(audio.engineFilter.frequency.value > lowFilter); assert.ok(audio.roadGain.gain.value > lowRoad);
-  assert.ok(audio.oscillators.every(({ oscillator }) => oscillator.frequency.events.some(event => event.type === 'target' && event.constant > 0)));
+  assert.ok(audio.oscillators.every(({ oscillator }) => oscillator.frequency.events.some(event => event.type === 'target' && event.constant >= .2)));
   audio.context.currentTime = .8; audio.update({ speed: 10, rpm: 4200, acceleration: 12, slip: .7 });
   assert.ok(audio.oscillators[0].oscillator.frequency.value > shiftPitch, 'An upshift briefly drops pitch and then recovers smoothly');
   await audio.dispose();
@@ -128,16 +128,26 @@ test('disposal is idempotent, closes the context, and cannot restart the engine'
   assert.ok(context.oscillators.every(source => source.stops.length > 0)); assert.ok(context.sources.every(source => source.stops.length > 0));
 });
 
-test('sports exhaust is substantially louder, changes voice with the car, and adds a gated overrun pop',async()=>{
+test('engines use a quiet low hum, distinct gentle voices and silent throttle release',async()=>{
   const audio=new EngineAudio(mockAudioContext());await audio.resume();
   audio.update({speed:25,rpm:8000,gear:4,throttle:1,model:'8-ball'});
   const sportsPitch=audio.oscillators[0].oscillator.frequency.value,level=audio.masterGain.gain.value*audio.engineGain.gain.value;
-  assert.ok(level>.17,'The cruising engine has a substantially stronger mix than the previous quiet layer');assert.ok(audio.intakeGain.gain.value>.1);
+  assert.ok(level>.01&&level<.075,'The engine stays audible at a much lower level');assert.ok(audio.intakeGain.gain.value<.02);assert.equal(audio.oscillators[0].oscillator.type,'sine');assert.ok(audio.oscillators[2].gain.gain.value<.03);assert.ok(audio.engineFilter.frequency.value<900);
   audio.context.currentTime=.5;audio.update({speed:25,rpm:8000,gear:4,throttle:1,model:'monster-truck'});
   assert.ok(audio.oscillators[0].oscillator.frequency.value<sportsPitch*.6,'The monster truck has a deeper firing note');
-  audio.context.currentTime=1;audio.update({speed:24,rpm:7600,gear:4,throttle:0,model:'monster-truck'});assert.equal(audio.soundTimes.get('overrun'),1);
-  const pops=audio.horns.size;audio.context.currentTime=1.02;audio.update({speed:24,rpm:7600,gear:4,throttle:0,model:'monster-truck'});assert.equal(audio.horns.size,pops,'Coasting cannot spam repeated exhaust pops');
+  audio.context.currentTime=1;audio.update({speed:24,rpm:7600,gear:4,throttle:0,model:'monster-truck'});assert.equal(audio.soundTimes.has('overrun'),false);
+  const pops=audio.horns.size;audio.context.currentTime=1.02;audio.update({speed:24,rpm:7600,gear:4,throttle:0,model:'monster-truck'});assert.equal(audio.horns.size,pops,'Coasting stays free of exhaust pops');
   audio.setEnabled(false);assert.equal(audio.intakeGain.gain.value,0);assert.equal(audio.boostGain.gain.value,0);assert.equal(audio.waterGain.gain.value,0);assert.equal(audio.impact('overrun',4),false);await audio.dispose();
+});
+
+test('every car stays within the gentle engine mix at high revs, shifts and boost without automatic transients',async()=>{
+  const audio=new EngineAudio(mockAudioContext());await audio.resume();
+  for(const model of ['8-ball','monster-truck','toy-story','explorer']){
+    audio.context.currentTime+=1;audio.update({speed:48,rpm:9000,gear:4,throttle:1,boosting:true,model});
+    assert.ok(audio.engineGain.gain.value*audio.masterGain.gain.value<.075,model);assert.ok(audio.oscillators[0].oscillator.frequency.value<180);assert.ok(audio.intakeGain.gain.value<.02);assert.ok(audio.boostGain.gain.value<.015);
+    audio.context.currentTime+=.5;audio.update({speed:48,rpm:6000,gear:5,throttle:0,model});assert.equal(audio.soundTimes.has('shift'),false);assert.equal(audio.soundTimes.has('overrun'),false);assert.equal(audio.horns.size,0);
+  }
+  await audio.dispose();
 });
 
 test('water crossings, bridge boards, tire surfaces, and impacts have distinct gated sounds',async()=>{
