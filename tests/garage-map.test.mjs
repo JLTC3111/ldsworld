@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from '../src/vendor/three.module.js';
 import { createVehicle } from '../src/vehicle.js';
 import { VEHICLE_MODELS,vehicleModel } from '../src/vehicle-models.js';
+import { VEHICLE_SCALE } from '../src/vehicle-scale.js';
 import { Driver,drivingSurfaceAt } from '../src/driving.js';
 import { mapLocations } from '../src/locations.js';
 import { ROAD_WIDTHS,RIVER_HALF_WIDTH,MAP_BOUNDS,bridges } from '../src/world-layout.js';
@@ -16,7 +17,7 @@ test('all four garage models have complete moving suspension, lamps, finite geom
     assert.equal(car.modelId,model.id);assert.equal(car.hydraulicRams.length,4);assert.equal(car.headLights.length,2);
     car.update(1/60,{driver,night:1,headlights:'on'});const lengths=car.hydraulicRams.map(r=>r.piston.scale.y);
     driver.attitude.takeoff(driver.heading);driver.attitude.rotation.setFromAxisAngle(new THREE.Vector3(1,0,0),Math.PI);driver.attitude.updateAxes();driver.hop=5;driver.hydraulicOffset=.48;
-    car.update(1/60,{driver,night:1,headlights:'on'});assert.ok(car.root.quaternion.angleTo(driver.attitude.rotation)<1e-8);assert.ok(car.hydraulicRams.every((r,i)=>r.piston.scale.y>lengths[i]+.4));
+    car.update(1/60,{driver,night:1,headlights:'on'});assert.ok(car.root.quaternion.angleTo(driver.attitude.rotation)<1e-8);assert.ok(car.hydraulicRams.every((r,i)=>(r.piston.scale.y-lengths[i])*VEHICLE_SCALE>.4));
     const owned=new Set();let meshes=0;
     car.root.traverse(o=>{if(o.isMesh){meshes++;for(const v of o.geometry.attributes.position.array)assert.ok(Number.isFinite(v));if(o.isInstancedMesh)for(const v of o.instanceMatrix.array)assert.ok(Number.isFinite(v));}if(o.geometry)owned.add(o.geometry);for(const m of o.material?Array.isArray(o.material)?o.material:[o.material]:[]){owned.add(m);if(m.map)owned.add(m.map);}});
     assert.ok(meshes>60&&meshes<350,model.id);assert.ok(car.headLights.every(l=>l.intensity>20));

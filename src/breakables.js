@@ -1,5 +1,5 @@
 export const BREAK_PROFILES={
-  'bowling-pin':{speed:7,respawn:18},tnt:{speed:3.2,respawn:25},crate:{speed:5,respawn:20},cone:{speed:4,respawn:12},
+  'bowling-pin':{speed:Infinity,respawn:18},tnt:{speed:3.2,respawn:25},crate:{speed:5,respawn:20},cone:{speed:4,respawn:12},
   snowman:{speed:5,respawn:35},planter:{speed:6,respawn:30},barrel:{speed:8,respawn:35},'trash-can':{speed:9,respawn:40},
   bench:{speed:8,respawn:50},cart:{speed:7,respawn:45},fence:{speed:5,respawn:35},sign:{speed:6,respawn:35},
   tree:{speed:11,respawn:100},rock:{speed:13,respawn:90},stone:{speed:12,respawn:75},sculpture:{speed:16,respawn:90},

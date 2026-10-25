@@ -8,7 +8,7 @@ import { createPlayground,reservesPlaygroundSpace,PLAYGROUND_APPROACHES } from '
 import { createBlastDamage, treeBlastTargets } from './blast-damage.js';
 import { collectBreakableTargets,breakProfile } from './breakables.js';
 import { createProjectLabels } from './project-labels.js';
-import { ASPHALT_COLOR,createAsphaltTexture,createRoadCurve,createRoadGeometry,addRacingCurbs } from './road-style.js';
+import { ROAD_COLOR,ROAD_SHOULDER_COLOR,createRoadCurve,createRoadGeometry } from './road-style.js';
 import { createIslandBoundary } from './island-boundary.js';
 import { createWayfinding } from './wayfinding.js';
 import { createNightFires } from './night-fires.js';
@@ -23,7 +23,7 @@ import { createVehicle } from './vehicle.js';
 import { bridges, bridgeHeightAt, isRiver, houses, portals, ROAD_WIDTHS, WORLD_SCALE, ISLAND_BOUNDS, islandRadius, LANDMARKS, isWater, MAP_BOUNDS } from './world-layout.js';
 import { islandFrame, constrainIslandFocus, keepVehicleVisible, clampZoom } from './camera-framing.js';
 
-const colors = { grass: '#b7c49c', sand: '#e0d3b0', road: ASPHALT_COLOR, sea: '#e2e8dc', cream: '#eae4cb', dark: '#3d5146', leaf: '#7a9365', pine: '#698264', trunk: '#94785a', glass: '#8da9a1', yellow: '#d8b45d' };
+const colors = { grass: '#b7c49c', sand: '#e0d3b0', road: ROAD_COLOR, sea: '#e2e8dc', cream: '#eae4cb', dark: '#3d5146', leaf: '#7a9365', pine: '#698264', trunk: '#94785a', glass: '#8da9a1', yellow: '#d8b45d' };
 const rand = (() => { let seed = 8137; return () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; })();
 
 export function createWorld({ container, onStart, onProject, onArrival, onCancelRoute, onNearby, onFrame, onPortal, onEnvironment, onExplosion, onImpact, carModel='8-ball', reducedMotion = false }) {
@@ -157,24 +157,27 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   const shoreLine = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(islandShape.getPoints(160).map(p => new THREE.Vector3(p.x * 1.025*WORLD_SCALE, -1.12, -p.y * 1.025*WORLD_SCALE))), new THREE.LineBasicMaterial({ color: '#eaf0e2', transparent: true, opacity: .8 }));
   scene.add(shoreLine);
 
-  const asphaltTexture=createAsphaltTexture(THREE,{coarse}),asphalt=new THREE.MeshStandardMaterial({color:ASPHALT_COLOR,map:asphaltTexture,roughness:.96,side:THREE.DoubleSide});materials.set('asphalt',asphalt);
-  const asphaltRoads=[];
+  const roadMaterial=mat(ROAD_COLOR,{roughness:.92,side:THREE.DoubleSide});
+  const roadSurfaces=[];
   function road(points, width, closed = false, color = colors.road, height = .1) {
     const curve=createRoadCurve(points,closed,height);
     const geometry=createRoadGeometry({THREE,curve,width,height});
-    const surface = mesh(geometry,color===colors.road?asphalt:mat(color, { side: THREE.DoubleSide }), land, 0, color===colors.road?asphaltRoads.length*.0007:0, 0, false);surface.name=color===colors.road?'Textured asphalt road':'Sandy road verge';
-    if(color===colors.road)asphaltRoads.push({curve,width});
+    const surface = mesh(geometry,color===colors.road?roadMaterial:mat(color, { side: THREE.DoubleSide }), land, 0, color===colors.road?roadSurfaces.length*.0007:0, 0, false);surface.name=color===colors.road?'Pale island road':'Soft road shoulder';
+    if(color===colors.road)roadSurfaces.push({curve,width});
     surface.userData.roadWidth=width;
     return { curve, surface };
   }
-  road(roadLoop, ROAD_WIDTHS.shoulder, true, '#c9ae7f', .055);
-  road(roadLoop, ROAD_WIDTHS.ring, true);
-  road(outerRoadLoop,ROAD_WIDTHS.shoulder,true,'#c9ae7f',.055);
+  road(roadLoop, ROAD_WIDTHS.shoulder, true, ROAD_SHOULDER_COLOR, .055);
+  const loopRoad=road(roadLoop, ROAD_WIDTHS.ring, true);
+  road(outerRoadLoop,ROAD_WIDTHS.shoulder,true,ROAD_SHOULDER_COLOR,.055);
   road(outerRoadLoop,ROAD_WIDTHS.ring,true);
   for(const path of connectorPaths)road(path.map(key=>roadNodes[key]),ROAD_WIDTHS.spine);
   road([roadNodes.r2, [-.75, -9], [-.75, -6.8], [0, -3], roadNodes.c0, [0, 6], roadNodes.r8], ROAD_WIDTHS.spine, false);
   road([roadNodes.r11, [-10, 0], roadNodes.c0, [10, 0], roadNodes.r5], ROAD_WIDTHS.spine, false);
-  addRacingCurbs({THREE,parent:land,roads:asphaltRoads,geometry:boxGeometry,red:mat('#e44c3b',{emissive:'#e44c3b',emissiveIntensity:.018}),ivory:mat('#f1e4ce',{emissive:'#f1e4ce',emissiveIntensity:.012})});
+  for(let i=0;i<68;i++){
+    const point=loopRoad.curve.getPointAt(i/68),tangent=loopRoad.curve.getTangentAt(i/68);if(isRiver(point.x,point.z,.5))continue;
+    const dash=box(.055,.012,.48,'#c1c7ac',land,point.x,.12,point.z,false);dash.name='Quiet road centre marking';dash.userData.physicsIgnore=true;dash.rotation.y=Math.atan2(tangent.x,tangent.z);
+  }
   const welcome = board('TAKE THE\nSCENIC ROUTE', 5.2, 2.1, colors.grass, '#a1ad86', land, 4, .06, 17, 55, 'scenicSign'); welcome.rotation.x = -Math.PI / 2;
   const homeLine = box(3.2, .018, .15, '#ecebd4', land, 0, .13, 12.6, false);
   const startChecks = group(land, 0, 12.8);
@@ -516,8 +519,10 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     const gate = portals.find(gate => gate.id === id); if (!gate) return;
     // Approach the open face of the arch so a routed car does not hit its solid rim.
     const nx=Math.sin(gate.heading), nz=Math.cos(gate.heading);
-    begin(); driver.navigate(gate.id==='west-gate'?'r0':'r6',null);
+    begin(); driver.navigate(gate.id==='west-gate'?'r0':'r7',null);
+    if(gate.id==='east-gate')driver.route.push([22,18],[28,17],[28,11]);
     driver.route.push([gate.x-nx*3.4,gate.z-nz*3.4],[gate.x-nx*2,gate.z-nz*2],[gate.x,gate.z]); driver.finalTolerance=.4;
+    driver.routeDurationLimit=driver.routeBudget();
     onCancelRoute?.(); updateRoute();
     targetRing.position.set(gate.x, .17, gate.z); targetRing.visible = true;
   }
@@ -613,7 +618,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     const constrained = constrainIslandFocus(desiredLook.x, desiredLook.z, liveFrame);
     desiredLook.set(constrained.x, 0, constrained.z); lookAt.lerp(desiredLook, damping);
     let safeFocus = constrainIslandFocus(lookAt.x, lookAt.z, liveFrame);
-    if (exploring) safeFocus = keepVehicleVisible(safeFocus, liveFrame, { x: driver.x, z: driver.z, y: (driver.groundHeight || 0) + driver.hop }, innerHeight);
+    if (exploring) safeFocus = keepVehicleVisible(safeFocus, liveFrame, { x: driver.x, z: driver.z, y: (driver.groundHeight || 0) + driver.hop,height:driver.profile.bodyTop+driver.rideHeight+.2 }, innerHeight);
     lookAt.set(safeFocus.x, 0, safeFocus.z);
     cameraOffset.set(Math.sin(orbitYaw) * Math.cos(orbitPitch), Math.sin(orbitPitch), Math.cos(orbitYaw) * Math.cos(orbitPitch)).multiplyScalar(cameraDistance);
     camera.left = -viewHeight * aspect / 2; camera.right = viewHeight * aspect / 2; camera.top = viewHeight / 2; camera.bottom = -viewHeight / 2;
@@ -726,7 +731,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
       physics.bodies.filter(body=>body.kind==='snowman'||body.kind==='trash-can').forEach(body=>body.object.removeFromParent());
       blastDamage.dispose();projectLabels.dispose();scenery.bridgeGroups.forEach(({bridge})=>delete bridge.active);boundary.dispose();wayfinding.dispose();playground.dispose();nightFires.dispose();scenery.dispose(); atmosphere.dispose(); flyover.dispose(); vehicle.dispose(); islandLife.dispose(); detailedTrees.dispose();
       const geometries = new Set(); scene.traverse(o => { if (o.geometry) geometries.add(o.geometry); }); geometries.forEach(g => g.dispose());
-      asphaltTexture?.dispose();materials.forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove();
+      materials.forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove();
     }
   };
 }

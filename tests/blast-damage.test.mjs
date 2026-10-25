@@ -79,3 +79,11 @@ test('a group waits safely when the car blocks one return position, then restore
   assert.equal(damage.respawns.size,2);assert.deepEqual(physics.bodies.map(b=>b.x),[3,0],'Neither object is restored into the car or a waiting prop');
   damage.update(.1,{focus:{x:100,z:100}});assert.equal(damage.respawns.size,0);assert.deepEqual(physics.bodies.map(b=>b.x),[0,3]);damage.dispose();
 });
+
+test('bowling pins topple and reset intact under hard hits and blasts, without destruction or fragments',()=>{
+  const scene=new THREE.Scene(),object=new THREE.Group();scene.add(object);const physics=new PhysicsWorld({bodies:[{id:'pin',kind:'bowling-pin',object,x:20,z:20,y:2.44,radius:.9,height:4.64}]});
+  const damage=createBlastDamage({THREE,scene,physics});const pin=physics.bodies[0];pin.impactSpeed=40;pin.tipAngle=1.5;damage.processImpacts();
+  assert.equal(pin.destroyed,undefined);assert.equal(object.visible,true);assert.equal(damage.destroyed.size,0);assert.equal(damage.respawns.size,1);
+  assert.equal(damage.blast({x:20,z:20,radius:8,sourceId:'pin'}),0);assert.equal(pin.destroyed,undefined);assert.equal(object.visible,true);assert.ok(damage.sites.every(s=>!s.used));
+  for(let i=0;i<200;i++)damage.update(.1,{focus:{x:100,z:100}});assert.equal(damage.respawns.size,0);assert.ok(!physics.bodies[0].tipAngle);assert.equal(object.visible,true);damage.dispose();
+});

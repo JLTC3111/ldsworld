@@ -54,6 +54,13 @@ test('engine audio never creates a context or sources before the explicit resume
   await audio.dispose();
 });
 
+test('a resolved but suspended context is not reported as audible and later resumes without duplicate sources',async()=>{
+  const Context=mockAudioContext();class Interrupted extends Context{allowed=false;async resume(){if(this.allowed)this.state='running';}}
+  const audio=new EngineAudio(Interrupted);assert.equal(await audio.resume(),false);assert.equal(audio.unlocked,false);assert.equal(audio.audible(),false);
+  audio.context.allowed=true;assert.equal(await audio.resume(),true);audio.update({speed:10,rpm:4200,throttle:1});assert.ok(audio.engineGain.gain.value>0);assert.equal(audio.context.oscillators.length,4);
+  audio.context.state='interrupted';audio.update(audio.motion);assert.equal(audio.masterGain.gain.value,0);assert.equal(await audio.resume(),true);assert.ok(audio.masterGain.gain.value>0);assert.equal(audio.context.oscillators.length,4);await audio.dispose();
+});
+
 test('engine and tire layers reach exact zero at rest and do not perpetually reschedule a decay', async () => {
   const audio = new EngineAudio(mockAudioContext()); await audio.resume();
   assert.equal(audio.engineGain.gain.value, 0); assert.equal(audio.roadGain.gain.value, 0);

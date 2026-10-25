@@ -244,7 +244,12 @@ export class PortalSystem {
   reset() { this.cooldown = 0; this.armed = true; }
   update(elapsed, driver) {
     this.cooldown = Math.max(0, this.cooldown - clamp(elapsed, 0, .1));
-    const near = this.portals.find(portal => (!portal.active||portal.active())&&Math.hypot(driver.x - portal.x, driver.z - portal.z) < (portal.radius || 1.25));
+    const near=this.portals.find(portal=>{
+      if(portal.active&&!portal.active())return false;
+      const dx=portal.x-driver.x,dz=portal.z-driver.z,cos=Math.cos(driver.heading||0),sin=Math.sin(driver.heading||0);
+      const side=Math.max(0,Math.abs(dx*cos-dz*sin)-(driver.profile?.halfWidth||0)),along=Math.max(0,Math.abs(dx*sin+dz*cos)-(driver.profile?.halfLength||0));
+      return Math.hypot(side,along)<(portal.radius||1.25);
+    });
     if (!near) { if (!this.cooldown) this.armed = true; return null; }
     if (!this.armed || this.cooldown || (driver.hop || 0) > 1) return null;
     driver.x = near.exitX; driver.z = near.exitZ; driver.heading = near.heading ?? driver.heading;

@@ -1,4 +1,5 @@
-export const BOWLING_AREA=Object.freeze({x:39,z:41,width:13,depth:25});
+export const PIN_SCALE=2.2;
+export const BOWLING_AREA=Object.freeze({x:39,z:44,width:18,depth:32});
 export const TNT_LOCATIONS=Object.freeze([[-44,22],[-47,23],[-50,22],[-48,27],[-44,27]]);
 export const PLAYGROUND_APPROACHES=Object.freeze({bowling:{stop:'r6',points:[[18,7],[21,16],[27,24],[39,32]]},tnt:{stop:'r9',points:[[-12,12.5],[-18,20],[-30,22],[-44,15]]}});
 export function reservesPlaygroundSpace(x,z,padding=3){
@@ -14,17 +15,17 @@ export function createPlayground({THREE:T,scene,coarse=false,reducedMotion=false
   const box=(w,h,d,material,parent,x=0,y=0,z=0)=>{const mesh=new T.Mesh(cube,material);mesh.position.set(x,y,z);mesh.scale.set(w,h,d);mesh.castShadow=mesh.receiveShadow=true;parent.add(mesh);return mesh;};
   const lane=paint('#baaa87',{roughness:.62}),line=paint('#e6ddc4'),dark=paint('#424944'),red=paint('#b6372f'),steel=paint('#717a75',{metalness:.6,roughness:.38});
   box(BOWLING_AREA.width,.025,BOWLING_AREA.depth,lane,root,BOWLING_AREA.x,.025,BOWLING_AREA.z).name='Drive-through bowling lane';
-  for(const side of [-1,1])box(.12,.012,BOWLING_AREA.depth,line,root,BOWLING_AREA.x+side*5.8,.045,BOWLING_AREA.z);
-  box(11.5,.012,.12,line,root,39,.047,32);
+  for(const side of [-1,1])box(.12,.012,BOWLING_AREA.depth,line,root,BOWLING_AREA.x+side*(BOWLING_AREA.width/2-.7),.045,BOWLING_AREA.z);
+  box(BOWLING_AREA.width-1.5,.012,.12,line,root,39,.047,32);
   for(let i=-2;i<=2;i++){const arrow=box(.15,.012,.65,dark,root,39+i*1.5,.047,36);arrow.rotation.y=.4;}
   const profile=[[0,-1.05],[.27,-1.05],[.34,-1.01],[.38,-.83],[.41,-.55],[.36,-.2],[.23,.1],[.15,.37],[.15,.61],[.22,.72],[.235,.86],[.19,1],[.06,1.05],[0,1.06]].map(([r,y])=>new T.Vector2(r,y));
   const pinGeometry=geo(new T.LatheGeometry(profile,24)),white=paint('#f2f0e4',{roughness:.24,metalness:.05});
   const stripeGeometry=geo(new T.CylinderGeometry(.158,.158,.065,24,1,true));let pinIndex=0;
   for(let row=0;row<4;row++)for(let column=0;column<=row;column++){
-    const id=`bowling-pin-${++pinIndex}`,x=39+(column-row/2)*1.3,z=45+row*1.22,object=new T.Group();object.name=`Bowling pin ${pinIndex}`;object.userData.propId=id;root.add(object);
+    const id=`bowling-pin-${++pinIndex}`,x=39+(column-row/2)*2.8,z=45+row*2.65,object=new T.Group();object.name=`Bowling pin ${pinIndex}`;object.userData.propId=id;root.add(object);
     const shape=new T.Mesh(pinGeometry,white);shape.castShadow=shape.receiveShadow=true;object.add(shape);
     for(const y of [.4,.51]){const stripe=new T.Mesh(stripeGeometry,red);stripe.position.y=y;object.add(stripe);}
-    object.position.set(x,1.175,z);bodies.push({id,object,x,z,y:1.175,height:2.11,uprightHeight:2.11,radius:.41,baseRadius:.41,mass:1.2,kind:'bowling-pin',initialSleeping:true});
+    object.scale.setScalar(PIN_SCALE);const height=2.11*PIN_SCALE,y=.12+height/2;object.position.set(x,y,z);bodies.push({id,object,x,z,y,height,uprightHeight:height,radius:.41*PIN_SCALE,baseRadius:.41*PIN_SCALE,mass:2.1,kind:'bowling-pin',initialSleeping:true});
   }
   const canvas=document.createElement('canvas');canvas.width=256;canvas.height=128;const ctx=canvas.getContext('2d');
   ctx.fillStyle='#24251f';ctx.fillRect(0,0,256,128);ctx.fillStyle='#ffe18a';ctx.fillRect(5,5,246,118);ctx.fillStyle='#22251f';ctx.font='900 88px monospace';ctx.textAlign='center';ctx.fillText('TNT',128,94);

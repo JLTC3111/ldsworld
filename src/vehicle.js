@@ -2,11 +2,12 @@ import { CAR_PIVOT_HEIGHT } from './aerial-dynamics.js';
 import { createReferenceVehicle } from './toy-vehicles.js';
 import { createAssetVehicle } from './asset-vehicle.js';
 import { vehicleModel } from './vehicle-models.js';
+import { scaleVehicle } from './vehicle-scale.js';
 export function createVehicle(options){
   const id=options.model||'explorer';
   const config=vehicleModel(id),vehicle=id==='explorer'?createExplorer(options):createAssetVehicle({...options,model:config})||createReferenceVehicle({...options,model:config});
   vehicle.modelId=id==='explorer'?'explorer':config.id;vehicle.profile||=vehicleModel(vehicle.modelId).profile;
-  return vehicle;
+  return scaleVehicle(vehicle,{THREE:options.THREE});
 }
 function createExplorer({ THREE, scene, reducedMotion = false }) {
   const root = new THREE.Group(); root.name = 'Long D. Explorer'; scene.add(root);
@@ -41,7 +42,7 @@ function createExplorer({ THREE, scene, reducedMotion = false }) {
   const glass = material('#344e5a', {roughness:.1,metalness:.2,transparent:true,opacity:.68});
   const upholstery = material('#303334', { roughness: .95 });
   const headMaterial = material('#fff2c7', { emissive: '#ffd795', emissiveIntensity: .25, roughness: .18 });
-  const tailMaterial = material('#b95742', { emissive: '#ff3423', emissiveIntensity: .12 });
+  const tailMaterial = material('#bf2430', { emissive: '#ff3423', emissiveIntensity: .12 });
 
   // Chassis, two-tone bodywork, hood creases, bumpers and a metal mesh grille.
   box(1.4, .2, 2.55, charcoal, body, 0, .39, 0);
@@ -163,11 +164,11 @@ function createExplorer({ THREE, scene, reducedMotion = false }) {
       else{root.rotation.set(0,driver.heading,0);root.position.set(driver.x,(driver.groundHeight||0)+driver.hop,driver.z);}
 
       const acceleration = Math.max(-24, Math.min(24, (driver.speed - lastSpeed) / Math.max(dt, .001))); lastSpeed = driver.speed;
-      const active = headlights === 'on' ? 1 : headlights === 'off' ? 0 : Math.max(.08, night);
+      const active = headlights === 'on' ? 1 : headlights === 'off' ? 0 : Math.max(.25, night);
       const darkness=Math.max(0,Math.min(1,night));paint.emissiveIntensity=.015+darkness*.12;highlight.emissiveIntensity=.015+darkness*.1;cream.emissiveIntensity=.01+darkness*.075;
       headLights.forEach(light => { light.intensity = 32 * active; });
       headMaterial.emissiveIntensity = .25 + active * 3;
-      tailMaterial.emissiveIntensity = braking || acceleration < -2 ? 3.5 : .18 + night * .7;
+      tailMaterial.emissiveIntensity = braking || acceleration < -2 ? 5.5 : .6 + night * 1.5;
       root.children.filter(object => object.name === 'headlight-beam').forEach(beam => { beam.material.opacity = active * night * .025; });
       const pitch = reducedMotion||aerial ? 0 : Math.max(-.2, Math.min(.2, (driver.pitch || 0) - acceleration * .004));
       const roll = reducedMotion||aerial ? 0 : Math.max(-.22, Math.min(.22, (driver.roll || 0) - driver.steering * driver.speed * .012));

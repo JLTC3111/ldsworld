@@ -1,7 +1,8 @@
 import { isRiver,bridgeAt,riverCenter,RIVER_HALF_WIDTH,RIVER_REACH } from './world-layout.js';
 import { CatmullRomCurve3,LineCurve3,Vector3 } from './vendor/three.module.js';
 
-export const ASPHALT_COLOR='#34343b';
+export const ROAD_COLOR='#ebe7d3';
+export const ROAD_SHOULDER_COLOR='#d4d2b6';
 export function createRoadCurve(points,closed=false,height=0){const vectors=points.map(([x,z])=>new Vector3(x,height,z));return points.length===2?new LineCurve3(...vectors):new CatmullRomCurve3(vectors,closed,'catmullrom',.25);}
 // Clip road triangles to the same river banks as the water surface. Lowering
 // isolated grid vertices used to leave diagonal asphalt/water patches here.
@@ -44,37 +45,3 @@ export function createRoadGeometry({THREE:T,curve,width,height=.1}){
   const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));geometry.setAttribute('uv',new T.Float32BufferAttribute(uvs,2));geometry.setIndex(indices);geometry.computeVertexNormals();return geometry;
 }
 export function roadSvgPath(points,closed=false){const curve=createRoadCurve(points,closed);return 'M'+curve.getPoints(Math.max(24,Math.min(240,Math.ceil(curve.getLength()/2)))).map(p=>`${p.x.toFixed(2)},${p.z.toFixed(2)}`).join('L')+(closed?'Z':'');}
-export function createAsphaltTexture(T,{coarse=false}={}){
-  const canvas=globalThis.document?.createElement('canvas'),ctx=canvas?.getContext('2d');
-  if(!ctx?.createImageData||!ctx?.putImageData)return null;
-  canvas.width=canvas.height=coarse?256:512;const image=ctx.createImageData(canvas.width,canvas.height);let seed=73019;
-  for(let i=0;i<image.data.length;i+=4){seed=(Math.imul(seed,1664525)+1013904223)>>>0;const noise=seed/4294967296,value=noise>.965?254:noise<.045?140:195+Math.round(noise*40);image.data[i]=value;image.data[i+1]=value;image.data[i+2]=Math.min(255,value+3);image.data[i+3]=255;}
-  ctx.putImageData(image,0,0);const texture=new T.CanvasTexture(canvas);texture.name='Fine asphalt aggregate';texture.colorSpace=T.SRGBColorSpace;texture.wrapS=texture.wrapT=T.RepeatWrapping;texture.anisotropy=4;return texture;
-}
-const distanceToSegment=(x,z,a,b)=>{const dx=b.x-a.x,dz=b.z-a.z,t=Math.max(0,Math.min(1,((x-a.x)*dx+(z-a.z)*dz)/(dx*dx+dz*dz)));return Math.hypot(x-a.x-t*dx,z-a.z-t*dz);};
-export function addRacingCurbs({THREE:T,parent,roads,geometry,red,ivory}){
-  const root=new T.Group();root.name='Red and ivory racing curbs';root.userData.physicsIgnore=true;parent.add(root);
-  const samples=roads.map(r=>r.curve.getSpacedPoints(Math.max(12,Math.ceil(r.curve.getLength()/3)))),entries=[[],[]];
-  const edge=(road,t,side)=>{const p=road.curve.getPointAt(t),tangent=road.curve.getTangentAt(t),offset=side*(road.width/2+.25);return {x:p.x-tangent.z*offset,z:p.z+tangent.x*offset};};
-  for(const [index,road] of roads.entries()){
-    const count=Math.ceil(road.curve.getLength()/2);
-    for(let i=0;i<count;i++){
-      for(const side of [-1,1]){
-        const a=edge(road,i/count,side),b=edge(road,(i+1)/count,side),x=(a.x+b.x)/2,z=(a.z+b.z)/2,dx=b.x-a.x,dz=b.z-a.z,span=Math.hypot(dx,dz),nx=-dz/span,nz=dx/span;
-        if(span<.05)continue;
-        const footprint=[{x,z},...[-1,1].flatMap(end=>[-1,1].map(side=>({x:x+end*dx/2+side*nx*.36,z:z+end*dz/2+side*nz*.36})))];
-        if(footprint.some(p=>isRiver(p.x,p.z,.18)||bridgeAt(p.x,p.z)))continue;
-        if(samples[index].slice(1).some((b,k)=>distanceToSegment(x,z,samples[index][k],b)<road.width/2+.05))continue;
-        const junction=roads.some((other,j)=>j!==index&&footprint.some(p=>samples[j].slice(1).some((b,k)=>distanceToSegment(p.x,p.z,samples[j][k],b)<other.width/2+.5)));
-        if(junction)continue;
-        entries[i%2].push({x,z,heading:Math.atan2(dx,dz),length:span-.025});
-      }
-    }
-  }
-  const dummy=new T.Object3D();
-  for(const [i,material] of [red,ivory].entries()){
-    const mesh=new T.InstancedMesh(geometry,material,entries[i].length);mesh.name=i?'Ivory track curb blocks':'Red track curb blocks';mesh.receiveShadow=true;
-    entries[i].forEach((p,j)=>{dummy.position.set(p.x,.133,p.z);dummy.rotation.set(0,p.heading,0);dummy.scale.set(.7,.045,p.length);dummy.updateMatrix();mesh.setMatrixAt(j,dummy.matrix);});root.add(mesh);
-  }
-  return root;
-}

@@ -1,5 +1,5 @@
 import { loadCarAssets } from './car-assets.js';
-import { roadSvgPath,ASPHALT_COLOR } from './road-style.js';
+import { roadSvgPath,ROAD_COLOR,ROAD_SHOULDER_COLOR } from './road-style.js';
 import { VEHICLE_MODELS,vehicleModel } from './vehicle-models.js';
 import { mapLocations,mapFrame } from './locations.js';
 import { TOWN_CENTER,outerTownDirections } from './wayfinding.js';
@@ -23,6 +23,7 @@ import { createPanelPreviews } from './panel-previews.js';
 import { createDrivingHud } from './driving-hud.js';
 import { drivingKey } from './controls.js';
 import { createDialogDrag } from './dialog-drag.js';
+import { bindEngineUnlock } from './engine-unlock.js';
 
 const $ = selector => document.querySelector(selector);
 const formatCount = value => String(value).padStart(2,'0');
@@ -53,6 +54,7 @@ const drivingHud=createDrivingHud();
 let world = null, previousFocus = null, toastTimer = null, speedValue = -1;
 const engineAudio = new EngineAudio();
 engineAudio.setEnabled(state.sound);
+const engineUnlock=bindEngineUnlock({audio:engineAudio,isDrivingGesture:event=>event.type==='keydown'?!panel.open&&!!drivingKey(event)&&!event.target.closest?.('input,textarea,select,[contenteditable]'):!!event.target.closest?.('#island-canvas,[data-drive],[data-action="explore"],[data-action="jump"],[data-action="tour"],[data-drive-project],[data-next-project],[data-teleport],[data-go-portal],[data-go-playground]')});
 const environmentAudio = createEnvironmentAudio({enabled:state.sound});
 environmentAudio.start();
 let backgroundMusic = null;
@@ -346,7 +348,7 @@ function mapSvg(large = false, carId = large ? 'large-car' : 'mini-car') {
   const arrows=outerRoadLoop.map((a,i)=>{const b=outerRoadLoop[(i+1)%12],direction=outerTownDirections[i],heading=Math.atan2((b[0]-a[0])*direction,(b[1]-a[1])*direction)*180/Math.PI;return `<path d="m-.9,-1.2 .9,2  .9,-2" fill="none" stroke="#34484a" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" transform="translate(${(a[0]+b[0])/2},${(a[1]+b[1])/2}) rotate(${-heading})"/>`;}).join('');
   const town=`<circle cx="${TOWN_CENTER.x}" cy="${TOWN_CENTER.z}" r="2.1" fill="#f5dfac" stroke="#34484a" stroke-width=".55"/>${large?`<text x="0" y="22" text-anchor="middle" font-size="4" font-weight="700" fill="#34484a">${t('town')}</text>`:''}`;
   const features = `${arrows}${town}<path d="M38.7,38.8h.6l.5,1.9q1.2,2.8-.8,2.8t-.8-2.8Z" fill="#f8f3df" stroke="#9a4540" stroke-width=".4"/><rect x="-48" y="21" width="4" height="4" rx=".4" fill="#b6372f"/><path d="M${river}" fill="none" stroke="#80b9b3" stroke-width="${RIVER_HALF_WIDTH*2}"/>${bridges.map(b=>`<rect x="${-b.width/2}" y="${-b.length/2}" width="${b.width}" height="${b.length}" rx=".25" fill="#bda279" transform="translate(${b.x},${b.z}) rotate(${-b.heading*180/Math.PI})"/>`).join('')}${houses.map(h=>`<rect x="${h.x-1.4}" y="${h.z-1.2}" width="2.8" height="2.4" rx=".3" fill="${h.color}"/>`).join('')}${portals.map(p=>`<circle cx="${p.x}" cy="${p.z}" r="1.1" fill="none" stroke="${p.color}" stroke-width=".45"/>`).join('')}`;
-  const track=(points,width,closed=false)=>{const d=roadSvgPath(points,closed);return `<path d="${d}" fill="none" stroke="#f1e4ce" stroke-width="${width+1.4}" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="#e44c3b" stroke-width="${width+1.4}" stroke-dasharray="2 2" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="${ASPHALT_COLOR}" stroke-width="${width}" stroke-linejoin="round"/>`;};
+  const track=(points,width,closed=false)=>{const d=roadSvgPath(points,closed);return `<path d="${d}" fill="none" stroke="${ROAD_SHOULDER_COLOR}" stroke-width="${width+1.5}" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="${ROAD_COLOR}" stroke-width="${width}" stroke-linejoin="round"/>`;};
   const tracks=track(outerRoadLoop,ROAD_WIDTHS.ring,true)+track(roadLoop,ROAD_WIDTHS.ring,true)+connectorPaths.map(path=>track(path.map(key=>roadNodes[key]),ROAD_WIDTHS.spine)).join('')+track([roadNodes.r2,[0,0],roadNodes.r8],ROAD_WIDTHS.spine)+track([roadNodes.r11,[0,0],roadNodes.r5],ROAD_WIDTHS.spine);
   return `<path d="M-28 0C-30 13-19 22-8 22C7 24 22 21 27 11C32 1 29-12 22-17C12-24-6-25-19-19C-27-15-30-7-28 0Z" fill="#91a765" stroke="#d5b581" stroke-width=".65" transform="scale(${WORLD_SCALE})"/>${tracks}${features}${boundaryMarkup}${projects.map(p => `<rect x="${p.position[0] - p.footprint[0]/2}" y="${p.position[1] - p.footprint[1]/2}" width="${p.footprint[0]}" height="${p.footprint[1]}" rx=".4" fill="${p.color}" opacity=".7"/>`).join('')}${large ? '' : projects.map(p => `<circle cx="${p.position[0]}" cy="${p.position[1]}" r=".55" fill="#fffdf0"/>`).join('')}<g id="${carId}" transform="translate(0,13)"><circle r="1.9" fill="#f8efcd" opacity=".8"/><path d="m0 1.25-.9-1.8L0-.15l.9-.4Z" fill="#e94e31"/></g>`;
 }
@@ -564,4 +566,4 @@ try {
   document.body.classList.add('loaded'); state.ready = true;
   $('#explore').innerHTML = `${icon('grid')}<span data-copy="browseProjects">${t('browseProjects')}</span>${icon('arrow')}`;
 }
-window.addEventListener('pagehide', event => { if (!event.persisted) { panelDrag.dispose();drivingHud.dispose();panelPreviews?.destroy(); disposeShowcase(); world?.dispose(); engineAudio.dispose(); backgroundMusic.dispose(); brandTechText.dispose(); environmentAudio.dispose(); } });
+window.addEventListener('pagehide', event => { if (!event.persisted) { engineUnlock.dispose();panelDrag.dispose();drivingHud.dispose();panelPreviews?.destroy(); disposeShowcase(); world?.dispose(); engineAudio.dispose(); backgroundMusic.dispose(); brandTechText.dispose(); environmentAudio.dispose(); } });

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from '../src/vendor/three.module.js';
-import { createPlayground,reservesPlaygroundSpace } from '../src/playground.js';
+import { createPlayground,reservesPlaygroundSpace,PIN_SCALE } from '../src/playground.js';
 import { PhysicsWorld } from '../src/physics.js';
 import { Driver } from '../src/driving.js';
 import { syncPhysicsBodies } from '../src/world-physics.js';
@@ -15,7 +15,7 @@ function step(f,count,input={}){for(let i=0;i<count;i++){f.driver.step(1/60,inpu
 
 test('the clearings contain ten large profiled pins, five labeled TNT crates, and an open drive-through lane',()=>{
   const f=fixture();assert.equal(f.play.bodies.filter(b=>b.kind==='bowling-pin').length,10);assert.equal(f.play.bodies.filter(b=>b.kind==='tnt').length,5);
-  assert.ok(f.play.bodies.filter(b=>b.kind==='bowling-pin').every(b=>b.height>2&&b.object.children.length===3));
+  assert.ok(f.play.bodies.filter(b=>b.kind==='bowling-pin').every(b=>b.height>4.5&&b.object.scale.x===PIN_SCALE&&b.object.children.length===3));
   assert.ok(reservesPlaygroundSpace(39,42));assert.ok(reservesPlaygroundSpace(-47,23));assert.equal(reservesPlaygroundSpace(0,-30),false);
   f.play.root.traverse(o=>{if(o.isMesh)for(const p of o.geometry.attributes.position.array)assert.ok(Number.isFinite(p));});f.play.dispose();
 });
@@ -23,7 +23,7 @@ test('the clearings contain ten large profiled pins, five labeled TNT crates, an
 test('the car knocks down pins, which retain their fallen orientation and settle at the correct lower height',()=>{
   const f=fixture();f.driver.x=39;f.driver.z=39;f.driver.heading=f.driver.velocityHeading=0;f.driver.speed=15;step(f,90,{forward:true});step(f,600);
   const fallen=f.physics.bodies.filter(b=>b.kind==='bowling-pin'&&b.tipAngle>1.4);assert.ok(fallen.length>=3,`Only ${fallen.length} pins fell`);
-  for(const pin of fallen){assert.ok(pin.height<1.2);assert.ok(pin.radius>.9);assert.ok(pin.y<1);assert.ok(new THREE.Vector3(0,1,0).applyQuaternion(pin.object.quaternion).y<.2);assert.ok(Math.abs(pin.object.quaternion.length()-1)<1e-8);}
+  for(const pin of fallen){assert.ok(pin.height<2);assert.ok(pin.radius>2);assert.ok(pin.y<1.2);assert.ok(new THREE.Vector3(0,1,0).applyQuaternion(pin.object.quaternion).y<.2);assert.ok(Math.abs(pin.object.quaternion.length()-1)<1e-8);}
   f.physics.reset();syncPhysicsBodies(THREE,f.physics.bodies);assert.ok(f.physics.bodies.filter(b=>b.kind==='bowling-pin').every(b=>b.height>2&&!b.tipAngle));f.play.dispose();
 });
 

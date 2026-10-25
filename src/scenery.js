@@ -124,12 +124,12 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
     for (const end of [-1, 1]) {
       const z=end*(bridge.length/2+.9);
       for (const x of [-bridge.width / 2, bridge.width / 2]) {
-        box(.16, 4.15, .16, '#8f7855', crossing, x, 2.14, z);
-        roof(.5, .5, .19, '#798767', crossing, x, 4.2, z);
+        box(.16, 5, .16, '#8f7855', crossing, x, 2.565, z);
+        roof(.5, .5, .19, '#798767', crossing, x, 5.05, z);
       }
-      curveLine([[-bridge.width / 2, 4.15, z], [0, 3.73, z], [bridge.width / 2, 4.15, z]], '#7f785c', crossing, .014);
+      curveLine([[-bridge.width / 2, 5, z], [0, 4.58, z], [bridge.width / 2, 5, z]], '#7f785c', crossing, .014);
       for (let i = 0; i < 5; i++) {
-        const x = -1.5 + i * .75, y = 3.72 + .42 * (x / (bridge.width / 2)) ** 2;
+        const x = -1.5 + i * .75, y = 4.57 + .42 * (x / (bridge.width / 2)) ** 2;
         lantern(crossing, x, y - .12, z, i + (end + 1) * 3);
       }
     }
@@ -301,10 +301,10 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   const portalRingGeometry = ownGeo(new THREE.TorusGeometry(1.48, .17, 7, 32));
   const glowRingGeometry = ownGeo(new THREE.TorusGeometry(1.24, .035, 5, 48));
   portals.forEach((portal, index) => {
-    const gate = group(root, portal.x, portal.z); gate.rotation.y = portal.heading;
+    const gate = group(root, portal.x, portal.z); gate.rotation.y = portal.heading;gate.scale.set(1.4,1.4,1);
     gate.userData.portalId = portal.id; gate.name = `Portal ${portal.id}`; portalGroups.push(gate);
     gate.userData.breakableId=portal.id;gate.userData.breakableKind='portal';
-    cylinder(1.9, 2.04, .16, '#acb39b', gate, 0, .12, 0, 16);
+    cylinder(1.9, 2.04, .16, '#acb39b', gate, 0, .12, 0, 16).userData.physicsIgnore=true;
     const floorRing = mesh(ownGeo(new THREE.TorusGeometry(1.72, .03, 4, 48)), basic(portal.color, { transparent: true, opacity: .7, toneMapped: false }), gate, 0, .22, 0, false); floorRing.rotation.x = -Math.PI / 2;
     const frame = mesh(portalRingGeometry, '#a4ac98', gate, 0, 1.65, 0); frame.scale.y = 1.07;
     for (let i = 0; i < 13; i++) {

@@ -108,3 +108,9 @@ test('portal travel resets motion, cancels a route, and cannot immediately loop'
   driver.x = portals[1].x; driver.z = portals[1].z; assert.equal(system.update(1 / 60, driver), portals[1].id);
   assert.equal(driver.x, portals[1].exitX); assert.equal(driver.heading, portals[1].heading);
 });
+
+test('portal contact uses the larger car footprint so its bumper can enter before the centre reaches the arch',()=>{
+  const portal={id:'gate',x:0,z:0,exitX:20,exitZ:20},driver=new Driver(),system=new PortalSystem([portal]);driver.x=0;driver.z=-3;driver.heading=0;driver.profile={...driver.profile,halfWidth:1.4,halfLength:2.2};
+  assert.equal(system.update(1/60,driver),'gate');assert.equal(driver.x,20);
+  const distant=new Driver();distant.x=0;distant.z=-5;distant.heading=0;system.reset();assert.equal(system.update(1/60,distant),null);
+});

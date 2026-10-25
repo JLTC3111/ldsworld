@@ -54,14 +54,14 @@ export function createBlastDamage({THREE:T,scene,physics,targets=[],coarse=false
     return site;
   }
   function destroyBody(body,{burn=false,force=false}={}){
-    if(!body||destroyed.has(body.id)||isProtectedKind(body.kind)||body.blastProtected||isProtectedObject(body.object)||!force&&(body.destroyed||body.active&&!body.active()))return false;
+    if(!body||destroyed.has(body.id)||(isProtectedKind(body.kind)||body.kind==='bowling-pin')||body.blastProtected||isProtectedObject(body.object)||!force&&(body.destroyed||body.active&&!body.active()))return false;
     body.destroyed=true;destroyed.add(body.id);if(body.object)body.object.visible=false;
     respawns.set(body.id,{id:body.id,kind:body.kind,body:true,at:clock+breakProfile(body.kind).respawn});
     ignite({x:body.x,z:body.z,scale:clamp(body.radius,.5,1.6),burn:burn&&!['rock','stone','snowman'].includes(body.kind),kind:body.kind,ownerId:body.id});
     onBreak?.({id:body.id,kind:body.kind,x:body.x,z:body.z});return true;
   }
   function destroyTarget(target,{burn=false}={}){
-    if(!target||target.protected||isProtectedKind(target.kind)||target.parts.some(part=>isProtectedObject(part.object))||destroyed.has(target.id))return false;
+    if(!target||target.protected||(isProtectedKind(target.kind)||target.kind==='bowling-pin')||target.parts.some(part=>isProtectedObject(part.object))||destroyed.has(target.id))return false;
     destroyed.add(target.id);target.parts.forEach(hidePart);
     respawns.set(target.id,{id:target.id,kind:target.kind,body:false,at:clock+breakProfile(target.kind).respawn});
     ignite({x:target.x,z:target.z,scale:target.kind==='tree'?1.5:1.15,burn:burn&&!['rock','stone','portal','sculpture'].includes(target.kind),kind:target.kind,ownerId:target.id});

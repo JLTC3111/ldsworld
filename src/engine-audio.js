@@ -30,13 +30,14 @@ export class EngineAudio {
 
   async resume() {
     if (this.disposed || !this.AudioContextClass) return false;
+    if(this.unlocked&&this.context?.state==='running')return true;
     try {
       if (!this.context) {
         this.context = new this.AudioContextClass();
         this.buildGraph();
       }
       await this.context.resume();
-      if (this.disposed || this.context.state === 'closed') return false;
+      if (this.disposed || this.context.state !== 'running') { this.unlocked=false;return false; }
       this.unlocked = true;
       this.update(this.motion);
       return true;
@@ -112,7 +113,7 @@ export class EngineAudio {
     this.targets.set(parameter, value);
   }
 
-  audible() { return this.unlocked && this.enabled && !this.hidden && !this.disposed && !this.motion.paused; }
+  audible() { return this.unlocked && this.context?.state==='running' && this.enabled && !this.hidden && !this.disposed && !this.motion.paused; }
 
   setEnabled(enabled) {
     this.enabled = !!enabled;
@@ -159,7 +160,7 @@ export class EngineAudio {
     for (const { oscillator, multiple } of this.oscillators) oscillator.frequency.setTargetAtTime(firingFrequency * multiple, now, .035);
     this.engineFilter.frequency.setTargetAtTime((650+revFraction*2700+torque*1000)*voice.filter,now,.055);
     this.roadFilter.frequency.setTargetAtTime((surface==='grass'?350:750)+speedRatio*1000+this.motion.slip*500,now,.1);
-    this.ramp(this.engineGain.gain,movingGate*(.33+Math.sqrt(speedRatio)*.23+torque*.17)*voice.gain*(.55+.45*shiftProgress),.04);
+    this.ramp(this.engineGain.gain,movingGate*(.33+Math.sqrt(speedRatio)*.23+torque*.17)*voice.gain*1.35*(.55+.45*shiftProgress),.04);
     this.intakeFilter.frequency.setTargetAtTime(400+revFraction*1600+torque*500,now,.06);
     this.ramp(this.intakeGain.gain,movingGate*(.012+torque*.09+revFraction*.025),.045);
     this.ramp(this.roadGain.gain, movingGate * (.008 + speedRatio * .04 + this.motion.slip * .065)*(airborne||surface==='water'?0:surface==='grass'?.55:1.2), .07);

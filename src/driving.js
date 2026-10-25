@@ -159,7 +159,7 @@ export class Driver {
   }
   cancelRoute() { this.route = []; this.destinationId = null; }
   routeBudget() { let previous=[this.x,this.z],length=0;for(const point of this.route){length+=distance(previous,point);previous=point;}return Math.max(35,length/3.5+15); }
-  setVehicleProfile(profile){this.profile=profile||vehicleModel('explorer').profile;this.rideHeight=this.hydraulicsRaised?this.profile.raised:this.profile.low;this.attitude.bodyTop=this.profile.bodyTop+this.rideHeight;this.attitude.halfWidth=this.profile.halfWidth+.1;this.attitude.halfLength=this.profile.halfLength+.12;}
+  setVehicleProfile(profile){this.profile=profile||vehicleModel('explorer').profile;this.rideHeight=this.hydraulicsRaised?this.profile.raised:this.profile.low;this.attitude.pivotHeight=this.profile.pivotHeight||1.2;this.attitude.bodyTop=this.profile.bodyTop+this.rideHeight;this.attitude.halfWidth=this.profile.halfWidth+.1;this.attitude.halfLength=this.profile.halfLength+.12;}
   canPark(x,z){if(islandRadius(x,z,2)>1||isWater(x,z))return false;const bottom=driveHeightAt(x,z)+.1;for(const c of this.colliderIndex.near(x,z,3))if(colliderActive(c,bottom,bottom+this.profile.bodyTop+this.profile.raised)&&fixedContact(x,z,this.heading,c,this.profile.halfWidth+.15,this.profile.halfLength+.15))return false;return true;}
   teleport(x,z,heading=this.heading){this.x=x;this.z=z;this.heading=this.velocityHeading=heading;this.cancelRoute();this.speed=0;this.vx=0;this.vz=0;this.groundHeight=driveHeightAt(x,z);this.groundVelocity=0;this.settle();this.inWater=isWater(x,z);}
   applyImpulse({x=0,y=0,z=0},spin=0){
@@ -252,7 +252,7 @@ export class Driver {
     let nextX = this.x + (flying?this.vx:Math.sin(this.velocityHeading)*this.speed)*dt;
     let nextZ = this.z + (flying?this.vz:Math.cos(this.velocityHeading)*this.speed)*dt;
     const airBounds=flying||this.attitude.recovering?this.attitude.bounds():null;
-    for (let pass = 0; pass < 2; pass++) for (const collider of this.colliderIndex.near(nextX+(airBounds?.offsetX||0),nextZ+(airBounds?.offsetZ||0),airBounds?2.5:1.6)) {
+    for (let pass = 0; pass < 2; pass++) for (const collider of this.colliderIndex.near(nextX+(airBounds?.offsetX||0),nextZ+(airBounds?.offsetZ||0),Math.hypot(airBounds?.halfX??this.profile.halfWidth,airBounds?.halfZ??this.profile.halfLength)+.2)) {
       const bottom = this.hop + this.groundHeight + (airBounds?airBounds.bottom+this.attitude.supportLift:.1);
       // Height ranges let the car travel under lanterns and through gateways,
       // while bridge rails and snow-only scenery remain genuinely solid.
