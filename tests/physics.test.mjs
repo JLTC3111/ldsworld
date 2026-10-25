@@ -14,9 +14,9 @@ test('shallow streams accept direct routes and a driver can ford them without a 
 
 test('manual driving crosses the stream with water drag instead of an invisible bank collision',()=>{
   const driver=new Driver();driver.x=8;driver.z=0;driver.heading=driver.velocityHeading=0;
-  let waded=false,impact=0,lowest=0;
-  for(let i=0;i<240;i++){driver.step(1/60,{forward:true});waded||=driver.inWater;impact=Math.max(impact,driver.collisionImpact);lowest=Math.min(lowest,driver.groundHeight);}
-  assert.ok(waded&&lowest<-.04);assert.ok(driver.z>riverCenter(8)+2);assert.equal(impact,0);assert.ok(Math.abs(driver.groundHeight)<.001);
+  let waded=false,impact=0,lowest=0,lowestWheel=0;
+  for(let i=0;i<120;i++){driver.step(1/60,{forward:true});waded||=driver.inWater;impact=Math.max(impact,driver.collisionImpact);lowest=Math.min(lowest,driver.groundHeight);lowestWheel=Math.min(lowestWheel,...Object.values(driver.wheelHeights));}
+  assert.ok(waded&&lowest<-.01&&lowestWheel<=-.089);assert.ok(driver.z>riverCenter(8)+2);assert.equal(impact,0);assert.ok(Math.abs(driver.groundHeight)<.001);
 });
 
 test('the full front bumper stops before a wall rather than letting the hood pass through', () => {

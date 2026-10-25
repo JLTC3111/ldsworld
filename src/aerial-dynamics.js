@@ -1,6 +1,6 @@
 import { Quaternion, Vector3, Euler } from './vendor/three.module.js';
 
-export const DRIVE_TUNING=Object.freeze({speed:15,boostSpeed:24,reverseSpeed:7,acceleration:20,jumpSpeed:9.4,gravity:13.5,airThrust:23,airSpeed:31,ceiling:18});
+export const DRIVE_TUNING=Object.freeze({speed:30,boostSpeed:48,reverseSpeed:7,acceleration:40,jumpSpeed:9.4,gravity:13.5,airThrust:23,airSpeed:62,ceiling:18});
 export const CAR_PIVOT_HEIGHT=1.2;
 const up=new Vector3(0,1,0),delta=new Quaternion(),axis=new Vector3(),euler=new Euler(0,0,0,'YXZ');
 

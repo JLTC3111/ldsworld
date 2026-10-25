@@ -9,9 +9,9 @@ const carAt=()=>{const car=new Driver();car.x=0;car.z=-32;car.heading=car.veloci
 const takeoff=car=>{assert.equal(car.jump(),true);advance(car,.25);assert.equal(car.attitude.flying,true);};
 
 test('ordinary driving is twice as fast, boost accelerates from rest, and braking remains effective',()=>{
-  const car=carAt();advance(car,1,{forward:true});assert.equal(car.speed,DRIVE_TUNING.speed);assert.equal(car.speed,15);
-  car.reset();car.z=-32;advance(car,2,{boost:true});assert.equal(car.speed,24);
-  advance(car,.5,{brake:true});assert.ok(car.speed<1);
+  const car=carAt();advance(car,1,{forward:true});assert.equal(car.speed,DRIVE_TUNING.speed);assert.equal(car.speed,30);
+  car.reset();car.z=-32;advance(car,2,{boost:true});assert.equal(car.speed,48);
+  advance(car,.6,{brake:true});assert.ok(car.speed<1);
 });
 
 test('air steering rotates the chassis while retaining travel momentum',()=>{

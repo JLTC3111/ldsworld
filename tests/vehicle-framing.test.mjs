@@ -84,6 +84,12 @@ test('the detailed car has finite geometry, four grounded wheels, and two forwar
   vehicle.dispose();
 });
 
+test('bright coral paint and an ivory roof retain their colour with a restrained night visibility lift',()=>{
+  const {vehicle}=fixture(),owned=resources(vehicle.root),paint=[...owned.material].find(m=>m.name==='Coral visibility paint'),roof=[...owned.material].find(m=>m.name==='Ivory contrast roof');assert.ok(paint&&roof);
+  assert.equal(paint.color.getHexString(),'fa5837');assert.equal(roof.color.getHexString(),'f0e5c9');const luminance=c=>c.r*.2126+c.g*.7152+c.b*.0722;assert.ok(luminance(paint.color)>.25&&luminance(roof.color)>.7);assert.ok(paint.metalness<.2);
+  const driver=driverState();vehicle.update(1/60,{driver,night:0});const day=paint.emissiveIntensity;vehicle.update(1/60,{driver,night:1});assert.ok(paint.emissiveIntensity>day&&paint.emissiveIntensity<.2);assert.equal(paint.color.getHexString(),'fa5837');vehicle.dispose();
+});
+
 test('headlight modes work by day and night and brake lamps react to explicit braking and deceleration', () => {
   const { vehicle } = fixture(); const driver = driverState({ speed: 2 });
   vehicle.update(.1, { driver, night: 0, headlights: 'auto' }); const daytime = vehicle.headLights[0].intensity;

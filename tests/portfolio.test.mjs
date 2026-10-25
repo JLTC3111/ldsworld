@@ -69,7 +69,7 @@ test('boost is bounded, reverse works, and the car stays inside the shoreline', 
   const driver = new Driver();
   let maxSpeed = 0;
   for (let i = 0; i < 600; i++) { driver.step(1 / 60, { forward: true, boost: true }); maxSpeed = Math.max(maxSpeed, driver.speed); }
-  assert.ok(maxSpeed > 15 && maxSpeed <= 24);
+  assert.ok(maxSpeed > 30 && maxSpeed <= 48);
   assert.ok(Math.hypot(driver.x / 140, driver.z / 105) <= 1);
   driver.reset();
   for (let i = 0; i < 60; i++) driver.step(1 / 60, { reverse: true });

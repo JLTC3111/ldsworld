@@ -3,6 +3,8 @@ import { projects, copy } from './data.js';
 import { Driver, roadLoop, outerRoadLoop, roadNodes, connectorPaths } from './driving.js';
 import { bindNavigation } from './controls.js';
 import { createPlayground,reservesPlaygroundSpace,PLAYGROUND_APPROACHES } from './playground.js';
+import { createIslandBoundary } from './island-boundary.js';
+import { createWayfinding } from './wayfinding.js';
 import { createNightFires } from './night-fires.js';
 import { createScenery } from './scenery.js';
 import { createAtmosphere } from './atmosphere.js';
@@ -323,17 +325,24 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     if(treePositions.some(t=>Math.hypot(x-t.x,z-t.z)<5.5))continue;
     treePositions.push({x,z,scale:1.4+rand()*.8,round:rand()>.72});
   }
+  // Retain the broadleaf trees and only one in four remaining pines.
+  // Consume the original rotation seeds before filtering so shoreline props
+  // keep their existing positions.
+  treePositions.forEach(tree=>tree.rotation=rand()*Math.PI);let pineSerial=0;
+  const sparseTrees=treePositions.filter(tree=>tree.round||pineSerial++%4===0);
+  treePositions.splice(0,treePositions.length,...sparseTrees);
   const pineCount = treePositions.filter(t => !t.round).length;
   const roundCount = treePositions.length - pineCount;
   const trunks = new THREE.InstancedMesh(new THREE.CylinderGeometry(.12, .16, 1.25, 5), mat(colors.trunk), treePositions.length);
   const pines = new THREE.InstancedMesh(new THREE.ConeGeometry(1, 2, 5), mat(colors.pine), pineCount * 3);
+  pines.name='Sparse island pines';
   const rounds = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(1, 0), mat(colors.leaf), roundCount * 2);
   for (const object of [trunks, pines, rounds]) { object.castShadow = true; object.receiveShadow = true; scene.add(object); }
   const dummy = new THREE.Object3D(), color = new THREE.Color();
   let pineIndex = 0, roundIndex = 0;
   treePositions.forEach((tree, i) => {
     const { x, z, scale, round } = tree;
-    dummy.position.set(x, .7 * scale, z); dummy.scale.set(scale, scale, scale); dummy.rotation.set(0, rand() * Math.PI, 0); dummy.updateMatrix(); trunks.setMatrixAt(i, dummy.matrix);
+    dummy.position.set(x, .7 * scale, z); dummy.scale.set(scale, scale, scale); dummy.rotation.set(0,tree.rotation,0); dummy.updateMatrix(); trunks.setMatrixAt(i, dummy.matrix);
     if (!round) {
       for (let j = 0; j < 3; j++) {
         const s = scale * (1 - j * .2); dummy.position.set(x, (1.45 + j * .7) * scale, z); dummy.scale.set(s, s * 1.04, s); dummy.updateMatrix(); pines.setMatrixAt(pineIndex, dummy.matrix);
@@ -408,6 +417,8 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     cones.push({ object: cone, vx: 0, vz: 0, tilt: 0 });
   });
 
+  const boundary=createIslandBoundary({THREE,scene,coarse});
+  const wayfinding=createWayfinding({THREE,scene,language});
   const scenery = createScenery({ THREE, scene, land, box, cylinder, sphere, group, mesh, mat, board, coarse, reducedMotion });
   const islandLife=createIslandLife({THREE,scene,reducedMotion,coarse});
   const playground=createPlayground({THREE,scene,coarse,reducedMotion,onExplosion});
@@ -430,7 +441,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   });
   const shoreBodies = createInstancedBodies({ THREE, object:rocks, idPrefix:'shore-rock', mass:3 });
   const bodyDefinitions = [...playground.bodies,...scenery.bodies, ...coneBodies, ...furnitureBodies, ...shoreBodies];
-  const colliders = collectWorldColliders({ THREE, roots:[land,trunks,rocks,islandLife.root,nightFires.root], exclude:[...bodyDefinitions.map(body=>body.object).filter(Boolean),rocks] });
+  const colliders = collectWorldColliders({ THREE, roots:[land,trunks,rocks,islandLife.root,nightFires.root,boundary.root,wayfinding.root], exclude:[...bodyDefinitions.map(body=>body.object).filter(Boolean),rocks] });
   const physics = new PhysicsWorld({ bodies:bodyDefinitions, colliders });
   const portalSystem = new PortalSystem();
   function syncProps() { syncPhysicsBodies(THREE,physics.bodies); }
@@ -571,6 +582,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     const elapsed = Math.min((now - lastTime) / 1000, .05); lastTime = now;
     const time = now / 1000;
     environment = atmosphere.update(elapsed, { paused, focus:driver });
+    boundary.update(environment);wayfinding.update(environment);
     flyover.update(elapsed, { night:environment.night, paused });
     driver.setWeather(environment.weather);
     winterAmount += ((environment.weather === 'snow' ? .72 : 0) - winterAmount) * Math.min(elapsed * .7, 1);
@@ -627,7 +639,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     reset() { driver.reset(); navigation.clear(); resetView();playground.reset(); physics.reset(); portalSystem.reset(); syncProps(); scenery.reset(); updateRoute(); onCancelRoute?.(); },
     overview() { exploring = false; driver.cancelRoute(); navigation.clear(); resetView(); driver.speed = 0; driver.hop = 0; driver.hopVelocity = 0; driver.jumpPending=false;driver.jumpCharge=0;driver.hydraulicOffset=0;driver.hydraulicVelocity=0;driver.hydraulicPhase='idle';driver.jumpCooldown=0;driver.landingTime=0;driver.groundHeight = Math.max(0, bridgeHeightAt(driver.x, driver.z) - .1); driver.groundVelocity = 0;driver.settle(); nearestId = null; onNearby?.(null); },
     setPaused(value) { paused = value; navigation.clear(); driver.speed = 0;driver.vx=0;driver.vz=0;driver.boosting=false; dust.forEach(p => { p.age = 1; p.object.position.y = -10; }); },
-    setLanguage(value) { language = value === 'vi' ? 'vi' : 'en'; renderer.domElement.setAttribute('aria-label', copy[language].canvasAria); translatedBoards.forEach(board => board.draw(copy[language][board.key])); },
+    setLanguage(value) { language = value === 'vi' ? 'vi' : 'en';wayfinding.setLanguage(language); renderer.domElement.setAttribute('aria-label', copy[language].canvasAria); translatedBoards.forEach(board => board.draw(copy[language][board.key])); },
     setKey(key, pressed) { if (paused) return; begin(); pressed ? keys.add(key) : keys.delete(key); },
     driveToProject(id) { const p = projects.find(p => p.id === id); if (!p) return; begin(); driver.navigate(p.stop, id); updateRoute(); },
     stopRoute() { driver.cancelRoute(); updateRoute(); },
@@ -649,7 +661,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
       for (const [event, listener] of Object.entries(hoverListeners)) surface.removeEventListener(event, listener);
       // Snowman geometry is owned by islandLife even after its bodies are reparented.
       physics.bodies.filter(body=>body.kind==='snowman'||body.kind==='trash-can').forEach(body=>body.object.removeFromParent());
-      playground.dispose();nightFires.dispose();scenery.dispose(); atmosphere.dispose(); flyover.dispose(); vehicle.dispose(); islandLife.dispose(); detailedTrees.dispose();
+      boundary.dispose();wayfinding.dispose();playground.dispose();nightFires.dispose();scenery.dispose(); atmosphere.dispose(); flyover.dispose(); vehicle.dispose(); islandLife.dispose(); detailedTrees.dispose();
       const geometries = new Set(); scene.traverse(o => { if (o.geometry) geometries.add(o.geometry); }); geometries.forEach(g => g.dispose());
       materials.forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove();
     }

@@ -23,9 +23,9 @@ export function createVehicle({ THREE, scene, reducedMotion = false }) {
   function box(w, h, d, mat, parent = body, x = 0, y = 0, z = 0) { const beveled=(mat===paint||mat===highlight||mat===cream)&&w>.2&&h>.1&&d>.08;const mesh=add(beveled?panelGeometry(w,h,d):cube,mat,parent,x,y,z);if(!beveled)mesh.scale.set(w,h,d);return mesh; }
   function cylinder(radius, length, mat, parent, x, y, z, segments = 16) { return add(new THREE.CylinderGeometry(radius, radius, length, segments), mat, parent, x, y, z); }
   function sphere(radius, mat, parent, x, y, z) { return add(new THREE.SphereGeometry(radius, 12, 8), mat, parent, x, y, z); }
-  const paint=new THREE.MeshPhysicalMaterial({color:'#455c61',roughness:.28,metalness:.38,clearcoat:.85,clearcoatRoughness:.22});allMaterials.add(paint);
-  const highlight = material('#5d7377', { roughness:.3,metalness:.4 });
-  const cream = material('#303a3e', { roughness:.32,metalness:.4 });
+  const paint=new THREE.MeshPhysicalMaterial({color:'#fa5837',emissive:'#fa5837',emissiveIntensity:.015,roughness:.28,metalness:.14,clearcoat:.85,clearcoatRoughness:.22});paint.name='Coral visibility paint';allMaterials.add(paint);
+  const highlight = material('#ff9857', {emissive:'#ff9857',emissiveIntensity:.015,roughness:.3,metalness:.12});
+  const cream = material('#f0e5c9', {emissive:'#f0e5c9',emissiveIntensity:.01,roughness:.32,metalness:.08});cream.name='Ivory contrast roof';
   const charcoal = material('#242a2d', { roughness: .85, metalness: .08 });
   const metal = material('#adb6bb', { roughness: .26, metalness: .75 });
   const rubber = material('#14191b', { roughness: .98, metalness: 0 });
@@ -38,6 +38,7 @@ export function createVehicle({ THREE, scene, reducedMotion = false }) {
   box(1.4, .2, 2.55, charcoal, body, 0, .39, 0);
   box(1.42, .46, 2.3, paint, body, 0, .72, 0);
   box(1.34, .2, .92, highlight, body, 0, 1.02, .77);
+  box(.3,.012,.8,charcoal,body,0,1.127,.77);
   for (const x of [-.46, .46]) box(.045, .025, .72, paint, body, x, 1.13, .8);
   box(1.14, .39, .055, charcoal, body, 0, .77, 1.18);
   for (let i = 0; i < 9; i++) box(.045, .27, .025, metal, body, -.44 + i * .11, .78, 1.22);
@@ -154,6 +155,7 @@ export function createVehicle({ THREE, scene, reducedMotion = false }) {
 
       const acceleration = Math.max(-24, Math.min(24, (driver.speed - lastSpeed) / Math.max(dt, .001))); lastSpeed = driver.speed;
       const active = headlights === 'on' ? 1 : headlights === 'off' ? 0 : Math.max(.08, night);
+      const darkness=Math.max(0,Math.min(1,night));paint.emissiveIntensity=.015+darkness*.12;highlight.emissiveIntensity=.015+darkness*.1;cream.emissiveIntensity=.01+darkness*.075;
       headLights.forEach(light => { light.intensity = 32 * active; });
       headMaterial.emissiveIntensity = .25 + active * 3;
       tailMaterial.emissiveIntensity = braking || acceleration < -2 ? 3.5 : .18 + night * .7;

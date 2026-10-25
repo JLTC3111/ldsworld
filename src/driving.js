@@ -222,7 +222,7 @@ export class Driver {
       else this.speed *= Math.exp(-(snowy ? .9 : wet ? 1.5 : 2.2) * dt);
       if (input.brake) this.speed *= Math.exp(-9 * dt);
       this.speed = clamp(this.speed, -DRIVE_TUNING.reverseSpeed, maxSpeed);
-      this.heading += steering * Math.sign(this.speed) * 2.6 * Math.min(Math.abs(this.speed) / 4, 1) * (1-.32*Math.min(1,Math.abs(this.speed)/24)) * traction * dt;
+      this.heading += steering * Math.sign(this.speed) * 3.2 * Math.min(Math.abs(this.speed) / 4, 1) * (1-.32*Math.min(1,Math.abs(this.speed)/DRIVE_TUNING.boostSpeed)) * traction * dt;
       if(this.attitude.recovering)this.speed*=Math.exp(-5*dt);
     }
     this.steering += (steering - this.steering) * Math.min(dt * 12, 1);
