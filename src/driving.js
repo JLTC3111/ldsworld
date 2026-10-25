@@ -1,5 +1,7 @@
+import { vehicleModel } from './vehicle-models.js';
+import { powertrainState } from './powertrain.js';
 import { AerialDynamics, DRIVE_TUNING } from './aerial-dynamics.js';
-import { bridges, bridgeHeightAt, driveHeightAt, isWater, WORLD_SCALE, ISLAND_BOUNDS, islandRadius } from './world-layout.js';
+import { bridges, bridgeHeightAt, driveHeightAt, isWater, WORLD_SCALE, ISLAND_BOUNDS, islandRadius, ROAD_WIDTHS, bridgeAt } from './world-layout.js';
 import { ColliderIndex, colliderActive } from './physics.js';
 
 export const roadNodes = {
@@ -121,6 +123,7 @@ export class Driver {
     this.colliders = colliders;
     this.routeColliders = routeColliders;
     this.colliderIndex = new ColliderIndex(colliders);
+    this.profile=vehicleModel('explorer').profile;
     this.attitude=new AerialDynamics();
     this.reset();
   }
@@ -133,9 +136,10 @@ export class Driver {
     this.finalTolerance = 1.05;
     this.vx = 0; this.vz = 0; this.velocityHeading = this.heading;
     this.groundHeight = 0; this.groundVelocity = 0; this.pitch = 0; this.roll = 0;
-    this.attitude.reset(this.heading);this.airborne=false;this.boosting=false;this.rideHeight=.42;this.hydraulicsRaised=true;
+    this.attitude.reset(this.heading);this.airborne=false;this.boosting=false;this.rideHeight=this.profile.raised;this.hydraulicsRaised=true;
     this.inWater=false;this.collisionImpact = 0; this.weather = 'clear';
-    this.acceleration = 0; this.rpm = 650; this.gear = 0;
+    this.blastFlightTime=0;
+    this.acceleration = 0; this.rpm = 950; this.gear = 0;this.throttle=0;
     this.wheelHeights = { frontLeft: 0, frontRight: 0, rearLeft: 0, rearRight: 0 };
   }
   setWeather(weather) { this.weather = ['rain', 'snow'].includes(weather) ? weather : 'clear'; }
@@ -155,9 +159,26 @@ export class Driver {
   }
   cancelRoute() { this.route = []; this.destinationId = null; }
   routeBudget() { let previous=[this.x,this.z],length=0;for(const point of this.route){length+=distance(previous,point);previous=point;}return Math.max(35,length/3.5+15); }
+  setVehicleProfile(profile){this.profile=profile||vehicleModel('explorer').profile;this.rideHeight=this.hydraulicsRaised?this.profile.raised:this.profile.low;this.attitude.bodyTop=this.profile.bodyTop+this.rideHeight;this.attitude.halfWidth=this.profile.halfWidth+.1;this.attitude.halfLength=this.profile.halfLength+.12;}
+  canPark(x,z){if(islandRadius(x,z,2)>1||isWater(x,z))return false;const bottom=driveHeightAt(x,z)+.1;for(const c of this.colliderIndex.near(x,z,3))if(colliderActive(c,bottom,bottom+this.profile.bodyTop+this.profile.raised)&&fixedContact(x,z,this.heading,c,this.profile.halfWidth+.15,this.profile.halfLength+.15))return false;return true;}
+  teleport(x,z,heading=this.heading){this.x=x;this.z=z;this.heading=this.velocityHeading=heading;this.cancelRoute();this.speed=0;this.vx=0;this.vz=0;this.groundHeight=driveHeightAt(x,z);this.groundVelocity=0;this.settle();this.inWater=isWater(x,z);}
   applyImpulse({x=0,y=0,z=0},spin=0){
     if(!this.attitude.flying){this.attitude.takeoff(this.heading,this.pitch,this.roll);this.vx=Math.sin(this.velocityHeading)*this.speed;this.vz=Math.cos(this.velocityHeading)*this.speed;}
     this.cancelRoute();this.jumpPending=false;this.jumpCharge=0;this.airborne=true;this.hop=Math.max(.03,this.hop);this.hopVelocity=Math.min(16,Math.max(0,this.hopVelocity)+y);this.vx+=x;this.vz+=z;this.attitude.angularVelocity.z+=spin;this.hydraulicPhase='airborne';
+  }
+  launchFromBlast({x,z,strength=34}){
+    const dx=this.x-x,dz=this.z-z,length=Math.hypot(dx,dz);
+    const nx=length>.05?dx/length:-Math.sin(this.heading),nz=length>.05?dz/length:-Math.cos(this.heading);
+    const continuing=this.blastFlightTime>0&&this.attitude.flying;
+    if(!this.attitude.flying)this.attitude.takeoff(this.heading,this.pitch,this.roll);
+    this.cancelRoute();this.jumpPending=false;this.jumpCharge=0;this.airborne=true;
+    this.hop=Math.max(.15,this.hop);this.hopVelocity=Math.min(23,Math.max(this.hopVelocity,15+strength*.19));
+    // Replace forward momentum so a frontal collision throws the car back away
+    // from the crate, rather than letting it continue driving through the blast.
+    this.vx=continuing?clamp(this.vx+nx*strength*.22,-48,48):nx*strength;this.vz=continuing?clamp(this.vz+nz*strength*.22,-48,48):nz*strength;this.speed=Math.hypot(this.vx,this.vz);
+    if(!continuing)this.attitude.angularVelocity.set(-8.5,0,.35);
+    this.attitude.dodgeTime=Math.max(this.attitude.dodgeTime,1.2);this.attitude.dodgeAvailable=false;
+    this.blastFlightTime=4;this.hydraulicPhase='airborne';return true;
   }
   toggleHydraulics(){this.hydraulicsRaised=!this.hydraulicsRaised;return this.hydraulicsRaised;}
   jump(input={}) {
@@ -170,7 +191,7 @@ export class Driver {
     if(this.hop>.015||this.jumpPending||this.jumpCooldown>0)return false;
     this.cancelRoute();this.jumpPending=true;this.jumpCharge=.14;this.hydraulicPhase='charging';return true;
   }
-  settle(){this.hop=0;this.hopVelocity=0;this.airborne=false;this.attitude.reset(this.heading);this.jumpPending=false;this.jumpCharge=0;this.hydraulicOffset=0;this.hydraulicVelocity=0;this.hydraulicPhase='idle';this.jumpCooldown=0;this.landingTime=0;this.boosting=false;}
+  settle(){this.hop=0;this.hopVelocity=0;this.airborne=false;this.attitude.reset(this.heading);this.jumpPending=false;this.jumpCharge=0;this.hydraulicOffset=0;this.hydraulicVelocity=0;this.hydraulicPhase='idle';this.jumpCooldown=0;this.landingTime=0;this.boosting=false;this.blastFlightTime=0;}
   step(elapsed,input={}){
     const duration=clamp(elapsed,0,.05),steps=Math.max(1,Math.ceil(duration*120));let arrived=null,cancelled=false;
     for(let i=0;i<steps;i++){const result=this._step(duration/steps,input);if(result.arrived)arrived=result.arrived;cancelled ||= result.cancelled;}
@@ -181,7 +202,8 @@ export class Driver {
     const wet = this.weather === 'rain', snowy = this.weather === 'snow';
     const traction = snowy ? .78 : wet ? .9 : 1;
     const previousSpeed = this.speed, flying=this.attitude.flying;
-    this.attitude.bodyTop=2.15+this.rideHeight+this.hydraulicOffset;
+    this.blastFlightTime=Math.max(0,this.blastFlightTime-dt);
+    this.attitude.bodyTop=this.profile.bodyTop+this.rideHeight+this.hydraulicOffset;this.attitude.halfWidth=this.profile.halfWidth+.1;this.attitude.halfLength=this.profile.halfLength+.12;
     this.boosting=Boolean(input.boost)&&(!this.route.length||Boolean(input.forward));
     this.collisionImpact *= Math.exp(-5 * dt);
     const manual = input.forward || input.reverse || input.left || input.right || input.brake || input.rollLeft || input.rollRight || input.boost;
@@ -196,7 +218,7 @@ export class Driver {
       const thrust=this.boosting?DRIVE_TUNING.airThrust:0, nose=this.attitude.forward;
       this.vx=(this.vx+nose.x*thrust*dt)*Math.exp(-.06*dt);this.vz=(this.vz+nose.z*thrust*dt)*Math.exp(-.06*dt);this.hopVelocity+=nose.y*thrust*dt;
       const speed=Math.hypot(this.vx,this.vz);if(speed>DRIVE_TUNING.airSpeed){this.vx*=DRIVE_TUNING.airSpeed/speed;this.vz*=DRIVE_TUNING.airSpeed/speed;}
-      this.hopVelocity=clamp(this.hopVelocity,-22,16);if(this.hop>DRIVE_TUNING.ceiling)this.hopVelocity=Math.min(0,this.hopVelocity);
+      this.hopVelocity=clamp(this.hopVelocity,-26,this.blastFlightTime>0?23:16);if(this.hop>(this.blastFlightTime>0?36:DRIVE_TUNING.ceiling))this.hopVelocity=Math.min(0,this.hopVelocity);
       if(Math.hypot(nose.x,nose.z)>.15)this.heading=Math.atan2(nose.x,nose.z);
       this.speed=Math.hypot(this.vx,this.vz);
     } else if (this.route.length) {
@@ -240,7 +262,7 @@ export class Driver {
       if (!colliderActive(collider, bottom, bottom + (airBounds?airBounds.top-airBounds.bottom:2.5))) continue;
       if (collider.minY === undefined && this.hop >= 1) continue;
       const roof=!airBounds&&(collider.minY??0)>this.groundHeight+this.hop+1.5;
-      const contact=fixedContact(nextX+(airBounds?.offsetX||0),nextZ+(airBounds?.offsetZ||0),airBounds?0:this.heading,collider,airBounds?.halfX??(roof?.62:CAR_HALF_WIDTH),airBounds?.halfZ??(roof?.79:CAR_HALF_LENGTH));
+      const contact=fixedContact(nextX+(airBounds?.offsetX||0),nextZ+(airBounds?.offsetZ||0),airBounds?0:this.heading,collider,airBounds?.halfX??(roof?this.profile.halfWidth*.74:this.profile.halfWidth),airBounds?.halfZ??(roof?this.profile.halfLength*.6:this.profile.halfLength));
       if (!contact) continue;
       nextX += contact.nx * (contact.depth + .003); nextZ += contact.nz * (contact.depth + .003);
       const inward = (flying?this.vx:Math.sin(this.velocityHeading)*this.speed)*contact.nx+(flying?this.vz:Math.cos(this.velocityHeading)*this.speed)*contact.nz;
@@ -277,7 +299,7 @@ export class Driver {
     const hydraulicTarget=this.jumpPending?-.25:this.airborne?.48:this.landingTime>0?-.2:0;
     this.hydraulicVelocity+=((hydraulicTarget-this.hydraulicOffset)*140-this.hydraulicVelocity*18)*dt;
     this.hydraulicOffset=clamp(this.hydraulicOffset+this.hydraulicVelocity*dt,-.29,.52);
-    const rideTarget=this.hydraulicsRaised?.42:.08;this.rideHeight+=(rideTarget-this.rideHeight)*(1-Math.exp(-5*dt));
+    const rideTarget=this.hydraulicsRaised?this.profile.raised:this.profile.low;this.rideHeight+=(rideTarget-this.rideHeight)*(1-Math.exp(-5*dt));
     if(!this.jumpPending&&!this.hop&&Math.abs(this.hydraulicOffset)<.002&&Math.abs(this.hydraulicVelocity)<.02){this.hydraulicOffset=0;this.hydraulicVelocity=0;this.hydraulicPhase='idle';}
     const targetGround = driveHeightAt(this.x,this.z);
     this.groundVelocity += ((targetGround - this.groundHeight) * 85 - this.groundVelocity * 16) * dt;
@@ -289,12 +311,21 @@ export class Driver {
     const targetRoll = clamp(-this.steering * this.speed * (snowy ? .022 : .013), -.22, .22);
     this.pitch += (targetPitch - this.pitch) * Math.min(dt * 10, 1); this.roll += (targetRoll - this.roll) * Math.min(dt * 8, 1);
     this.acceleration = dt ? clamp((this.speed - previousSpeed) / dt, -40, 30) : 0;
-    this.gear = this.speed < -.2 ? -1 : Math.abs(this.speed) < .2 ? 0 : Math.min(4, Math.floor(Math.abs(this.speed) / 3) + 1);
-    const targetRpm = clamp(650 + Math.abs(this.speed) * 280 + Math.max(0, this.acceleration) * 65, 650, 5600);
+    this.throttle=input.brake?0:this.boosting||forward||reverse?1:this.route.length ? .42 : 0;
+    const powertrain=powertrainState(this.speed,{throttle:this.throttle,airborne:this.airborne,boosting:this.boosting});
+    this.gear=powertrain.gear;
+    const targetRpm=powertrain.rpm;
     this.rpm += (targetRpm - this.rpm) * Math.min(dt * 7, 1);
     for (const [name, side, along] of [['frontLeft', -.72, .68], ['frontRight', .72, .68], ['rearLeft', -.72, -.66], ['rearRight', .72, -.66]]) {
       this.wheelHeights[name] = driveHeightAt(this.x + side * Math.cos(this.heading) + along * Math.sin(this.heading), this.z - side * Math.sin(this.heading) + along * Math.cos(this.heading));
     }
     return { arrived, cancelled };
   }
+}
+
+const distanceToSegment=(x,z,a,b)=>{const dx=b[0]-a[0],dz=b[1]-a[1],t=Math.max(0,Math.min(1,((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz)));return Math.hypot(x-a[0]-dx*t,z-a[1]-dz*t);};
+export function drivingSurfaceAt(x,z){
+  if(isWater(x,z))return 'water';if(bridgeAt(x,z))return 'bridge';
+  if([roadLoop,outerRoadLoop].some(loop=>loop.some((p,i)=>distanceToSegment(x,z,p,loop[(i+1)%loop.length])<ROAD_WIDTHS.ring/2)))return 'road';
+  if(connectorPaths.some(path=>path.slice(1).some((key,i)=>distanceToSegment(x,z,roadNodes[path[i]],roadNodes[key])<ROAD_WIDTHS.spine/2))||Math.abs(x)<ROAD_WIDTHS.spine/2&&Math.abs(z)<14||Math.abs(z)<ROAD_WIDTHS.spine/2&&Math.abs(x)<21)return 'road';return 'grass';
 }

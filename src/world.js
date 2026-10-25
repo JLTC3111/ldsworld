@@ -1,8 +1,11 @@
+import { vehicleModel } from './vehicle-models.js';
+import { mapLocations } from './locations.js';
 import * as THREE from './vendor/three.module.js';
 import { projects, copy } from './data.js';
-import { Driver, roadLoop, outerRoadLoop, roadNodes, connectorPaths } from './driving.js';
+import { Driver, roadLoop, outerRoadLoop, roadNodes, connectorPaths, drivingSurfaceAt } from './driving.js';
 import { bindNavigation } from './controls.js';
 import { createPlayground,reservesPlaygroundSpace,PLAYGROUND_APPROACHES } from './playground.js';
+import { createBlastDamage, treeBlastTargets } from './blast-damage.js';
 import { createIslandBoundary } from './island-boundary.js';
 import { createWayfinding } from './wayfinding.js';
 import { createNightFires } from './night-fires.js';
@@ -14,13 +17,13 @@ import { createTreeDetails } from './tree-details.js';
 import { PhysicsWorld, PortalSystem } from './physics.js';
 import { collectWorldColliders, createDynamicBody, createInstancedBodies, syncPhysicsBodies } from './world-physics.js';
 import { createVehicle } from './vehicle.js';
-import { bridges, bridgeHeightAt, isRiver, houses, portals, ROAD_WIDTHS, WORLD_SCALE, ISLAND_BOUNDS, islandRadius } from './world-layout.js';
+import { bridges, bridgeHeightAt, isRiver, houses, portals, ROAD_WIDTHS, WORLD_SCALE, ISLAND_BOUNDS, islandRadius, LANDMARKS, isWater, MAP_BOUNDS } from './world-layout.js';
 import { islandFrame, constrainIslandFocus, keepVehicleVisible, clampZoom } from './camera-framing.js';
 
 const colors = { grass: '#b7c49c', sand: '#e0d3b0', road: '#ebe7d3', sea: '#e2e8dc', cream: '#eae4cb', dark: '#3d5146', leaf: '#7a9365', pine: '#698264', trunk: '#94785a', glass: '#8da9a1', yellow: '#d8b45d' };
 const rand = (() => { let seed = 8137; return () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; })();
 
-export function createWorld({ container, onStart, onProject, onArrival, onCancelRoute, onNearby, onFrame, onPortal, onEnvironment, onExplosion, reducedMotion = false }) {
+export function createWorld({ container, onStart, onProject, onArrival, onCancelRoute, onNearby, onFrame, onPortal, onEnvironment, onExplosion, onImpact, carModel='8-ball', reducedMotion = false }) {
   const coarse = matchMedia('(pointer: coarse)').matches;
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, coarse ? 1.5 : 1.8));
@@ -154,12 +157,11 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   function road(points, width, closed = false, color = colors.road, height = .1) {
     const curve = new THREE.CatmullRomCurve3(points.map(p => new THREE.Vector3(p[0], height, p[1])), closed, 'catmullrom', .25);
     const count = closed ? 360 : 100;
-    const vertices = [], indices = [];
-    for (let i = 0; i <= count; i++) {
-      const t = i / count, p = curve.getPoint(t), tangent = curve.getTangent(t);
-      const normal = new THREE.Vector3(-tangent.z, 0, tangent.x).normalize().multiplyScalar(width / 2);
-      vertices.push(p.x + normal.x, p.y, p.z + normal.z, p.x - normal.x, p.y, p.z - normal.z);
-      if (i < count) { const a = i * 2; indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+    const vertices=[],indices=[],across=8;
+    for(let i=0;i<=count;i++){
+      const t=i/count,p=curve.getPoint(t),tangent=curve.getTangent(t),normal=new THREE.Vector3(-tangent.z,0,tangent.x).normalize();
+      for(let j=0;j<=across;j++){const offset=(j/across-.5)*width,x=p.x+normal.x*offset,z=p.z+normal.z*offset;vertices.push(x,isWater(x,z)?-.04:p.y,z);}
+      if(i<count)for(let j=0;j<across;j++){const a=i*(across+1)+j,b=a+across+1;indices.push(a,b,a+1,a+1,b,b+1);}
     }
     const geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); geometry.setIndex(indices); geometry.computeVertexNormals();
     const surface = mesh(geometry, mat(color, { side: THREE.DoubleSide }), land, 0, 0, 0, false);
@@ -300,7 +302,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz)));
     return Math.hypot(x - a[0] - dx * t, z - a[1] - dz * t);
   };
-  const onRoad = (x, z) => roadLoop.some((p, i) => segmentDistance(x, z, p, roadLoop[(i + 1) % roadLoop.length]) < 5.5) || (Math.abs(x)<5.5&&Math.abs(z)<20) || (Math.abs(z)<5.5&&Math.abs(x)<27) || outerRoadLoop.some((p,i)=>segmentDistance(x,z,p,outerRoadLoop[(i+1)%12])<5.5) || connectorPaths.some(path=>path.slice(1).some((key,i)=>segmentDistance(x,z,roadNodes[path[i]],roadNodes[key])<5.5));
+  const onRoad = (x, z) => roadLoop.some((p, i) => segmentDistance(x, z, p, roadLoop[(i + 1) % roadLoop.length]) < 10) || (Math.abs(x)<10&&Math.abs(z)<20) || (Math.abs(z)<10&&Math.abs(x)<27) || outerRoadLoop.some((p,i)=>segmentDistance(x,z,p,outerRoadLoop[(i+1)%12])<10) || connectorPaths.some(path=>path.slice(1).some((key,i)=>segmentDistance(x,z,roadNodes[path[i]],roadNodes[key])<10));
   const nearBridge=(x,z)=>bridges.some(b=>{const dx=x-b.x,dz=z-b.z;return Math.abs(dx*Math.cos(b.heading)-dz*Math.sin(b.heading))<b.width/2+3.5&&Math.abs(dx*Math.sin(b.heading)+dz*Math.cos(b.heading))<b.length/2+7;});
   for (let i = 0; i < 1600 && treePositions.length < (coarse ? 4 : 6); i++) {
     const x = (rand() - .5) * 54, z = (rand() - .5) * 40;
@@ -318,11 +320,11 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   for(let i=0;i<5000&&treePositions.length<forestTarget;i++){
     const x=(rand()-.5)*(ISLAND_BOUNDS.x-5)*2,z=(rand()-.5)*(ISLAND_BOUNDS.z-5)*2;
     if(Math.hypot(x/30,z/24)<1.15||islandRadius(x,z,5)>.97||nearBridge(x,z)||isRiver(x,z,2))continue;
-    if(outerRoadLoop.some((a,j)=>segmentDistance(x,z,a,outerRoadLoop[(j+1)%12])<5.5))continue;
-    if(connectorPaths.some(path=>path.slice(1).some((key,i)=>segmentDistance(x,z,roadNodes[path[i]],roadNodes[key])<5.5)))continue;
+    if(outerRoadLoop.some((a,j)=>segmentDistance(x,z,a,outerRoadLoop[(j+1)%12])<10))continue;
+    if(connectorPaths.some(path=>path.slice(1).some((key,i)=>segmentDistance(x,z,roadNodes[path[i]],roadNodes[key])<10)))continue;
     if(reservesPlaygroundSpace(x,z))continue;
     if(houses.some(h=>Math.hypot(x-h.x,z-h.z)<7)||projects.some(p=>Math.abs(x-p.position[0])<p.footprint[0]/2+4&&Math.abs(z-p.position[1])<p.footprint[1]/2+4))continue;
-    if(treePositions.some(t=>Math.hypot(x-t.x,z-t.z)<5.5))continue;
+    if(treePositions.some(t=>Math.hypot(x-t.x,z-t.z)<10))continue;
     treePositions.push({x,z,scale:1.4+rand()*.8,round:rand()>.72});
   }
   // Retain the broadleaf trees and only one in four remaining pines.
@@ -330,6 +332,8 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   // keep their existing positions.
   treePositions.forEach(tree=>tree.rotation=rand()*Math.PI);let pineSerial=0;
   const sparseTrees=treePositions.filter(tree=>tree.round||pineSerial++%4===0);
+  // Two broadleaf targets frame the TNT clearing without narrowing its approach.
+  sparseTrees.push({x:-57,z:23,scale:1.5,round:true,rotation:.3},{x:-51,z:35,scale:1.6,round:true,rotation:.8});
   treePositions.splice(0,treePositions.length,...sparseTrees);
   const pineCount = treePositions.filter(t => !t.round).length;
   const roundCount = treePositions.length - pineCount;
@@ -379,7 +383,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   scene.add(flowers);
 
   // Lighthouse, pond, jetty, sculptures and street furniture reward a little detour.
-  const lighthouse = group(land, 22, -12.5);
+  const lighthouse = group(land,LANDMARKS.lighthouse.x,LANDMARKS.lighthouse.z);
   cylinder(1.1, 1.45, .45, '#d8d1b6', lighthouse, 0, .4, 0);
   cylinder(.6, .95, 4, '#e3dfc3', lighthouse, 0, 2.5, 0, 8);
   cylinder(.71, .76, .8, '#a2b2a0', lighthouse, 0, 3.3, 0, 8);
@@ -388,27 +392,27 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   mesh(new THREE.ConeGeometry(.92, .65, 8), '#8ca185', lighthouse, 0, 5.85, 0);
   const beacon = sphere(.23, mat('#f7dda2', { emissive: '#ffbf58', emissiveIntensity: .12 }), lighthouse, 0, 5.1, 0);
   lamps.push(beacon.material);
-  const pond = mesh(new THREE.CircleGeometry(3.2, 32), mat('#9dbcb1'), land, -21, .04, 12); pond.rotation.x = -Math.PI / 2; pond.scale.set(1, .62, 1);
-  const pondRim = mesh(new THREE.RingGeometry(3.2, 3.45, 40), '#b5c3a0', land, -21, .045, 12, false); pondRim.rotation.x = -Math.PI / 2; pondRim.scale.set(1, .62, 1);
-  for (let i = 0; i < 3; i++) { const lily = mesh(new THREE.CircleGeometry(.24, 7), '#809d82', land, -22 + i * 1.2, .07, 12 + Math.sin(i) * .5, false); lily.rotation.x = -Math.PI / 2; }
-  const dock = group(land, -24, 13);
+  const pond = mesh(new THREE.CircleGeometry(3.2, 32), mat('#9dbcb1'), land,LANDMARKS.pond.x,.04,LANDMARKS.pond.z); pond.rotation.x = -Math.PI / 2; pond.scale.set(1, .62, 1);
+  const pondRim = mesh(new THREE.RingGeometry(3.2, 3.45, 40), '#b5c3a0', land,LANDMARKS.pond.x,.045,LANDMARKS.pond.z,false); pondRim.rotation.x = -Math.PI / 2; pondRim.scale.set(1, .62, 1);
+  for (let i = 0; i < 3; i++) { const lily = mesh(new THREE.CircleGeometry(.24, 7), '#809d82', land,LANDMARKS.pond.x-1+i*1.2,.07,LANDMARKS.pond.z+Math.sin(i)*.5,false); lily.rotation.x = -Math.PI / 2; }
+  const dock = group(land,LANDMARKS.pond.x-3,LANDMARKS.pond.z+1);
   for (let i = 0; i < 8; i++) box(.35, .12, 1.5, '#b9a077', dock, -1.3 + i * .36, .13, 0);
   [-1.2, 1.2].forEach(x => [-.65, .65].forEach(z => cylinder(.09, .09, .8, '#a98d67', dock, x, .15, z, 5)));
-  bench(land, -24, 8, -Math.PI / 2); bench(land, -8, 17, 0); bench(land, 9, -16, Math.PI);
-  const art = group(land, 8, -3.2);
+  bench(land,LANDMARKS.pond.x-3,LANDMARKS.pond.z-4, -Math.PI / 2); bench(land,-14,25,0); bench(land, 9, -16, Math.PI);
+  const art = group(land,LANDMARKS.sculpture.x,LANDMARKS.sculpture.z);
   cylinder(.65, .85, .32, '#d6d1b5', art, 0, .3, 0);
   const sculpture = group(art);
   for (let i = 0; i < 3; i++) { const bar = box(.23, 2.5, .23, '#ceae66', sculpture, 0, 1.8, 0); bar.rotation.z = i * Math.PI / 3; }
   animatedObjects.push({ object: sculpture, type: 'sculpture' });
-  const sign = group(land, -4, 15.6);
+  const sign = group(land,LANDMARKS.welcome.x,LANDMARKS.welcome.z);
   [-1.2, 1.2].forEach(x => box(.1, 1.4, .1, '#a88e64', sign, x, .8, 0));
   box(3.2, 1.1, .12, '#e7dcbb', sign, 0, 1.65, 0);
   board('HELLO, CURIOUS HUMAN.', 2.95, .7, '#e7dcbb', '#8b8d65', sign, 0, 1.65, .07, 36, 'welcomeSign');
   const fence = group(land);
   for(let i=0;i<15;i++){
     const x=-18+i*2;
-    if(Math.abs(x)>3)box(.09,.8,.09,'#a6a681',fence,x,.5,-18.4);
-    if(i<14&&Math.abs(x+1)>3.5){box(2,.08,.08,'#b8b08b',fence,x+1,.78,-18.4);box(2,.08,.08,'#b8b08b',fence,x+1,.4,-18.4);}
+    if(Math.abs(x)>8)box(.09,.8,.09,'#a6a681',fence,x,.5,-27);
+    if(i<14&&Math.abs(x+1)>8.5){box(2,.08,.08,'#b8b08b',fence,x+1,.78,-27);box(2,.08,.08,'#b8b08b',fence,x+1,.4,-27);}
   }
   const cones = [];
   [[-15, -11], [-14, -11.6], [15.5, 9], [16.2, 8.2], [5, 14.6], [6, 14.5]].forEach(([x, z]) => {
@@ -421,10 +425,11 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   const wayfinding=createWayfinding({THREE,scene,language});
   const scenery = createScenery({ THREE, scene, land, box, cylinder, sphere, group, mesh, mat, board, coarse, reducedMotion });
   const islandLife=createIslandLife({THREE,scene,reducedMotion,coarse});
-  const playground=createPlayground({THREE,scene,coarse,reducedMotion,onExplosion});
+  let blastDamage=null;
+  const playground=createPlayground({THREE,scene,coarse,reducedMotion,onExplosion:event=>{blastDamage?.blast(event);onExplosion?.(event);}});
   const nightFires=createNightFires({THREE,scene,reducedMotion});
-  const vehicle = createVehicle({ THREE, scene, reducedMotion });
-  const car = vehicle.root;car.userData.vehicleId='explorer';
+  let vehicle=createVehicle({THREE,scene,reducedMotion,model:vehicleModel(carModel).id});
+  let car=vehicle.root;car.userData.vehicleId=vehicle.modelId;
   const carShadow = mesh(new THREE.CircleGeometry(1, 24), new THREE.MeshBasicMaterial({ color: '#6d7d61', transparent: true, opacity: .13, depthWrite: false }), scene, 0, .14, 13, false); carShadow.rotation.x = -Math.PI / 2; carShadow.scale.set(.9, 1.35, 1);
   const routeColliders = [...projects.map(p => ({ x:p.position[0], z:p.position[1], width:p.footprint[0], depth:p.footprint[1] })), ...scenery.colliders, ...islandLife.colliders];
   const coneBodies = cones.map((cone, index) => {
@@ -443,10 +448,13 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   const bodyDefinitions = [...playground.bodies,...scenery.bodies, ...coneBodies, ...furnitureBodies, ...shoreBodies];
   const colliders = collectWorldColliders({ THREE, roots:[land,trunks,rocks,islandLife.root,nightFires.root,boundary.root,wayfinding.root], exclude:[...bodyDefinitions.map(body=>body.object).filter(Boolean),rocks] });
   const physics = new PhysicsWorld({ bodies:bodyDefinitions, colliders });
+  const treeTargets=treeBlastTargets({THREE,trees:treePositions,objects:[trunks,pines,rounds,winterPines,winterRounds,...detailedTrees.root.children]});
+  const stallTargets=islandLife.stalls.map((object,i)=>({id:`market-stall-${i+1}`,kind:'stall',x:object.position.x,z:object.position.z,parts:[{object}]}));
+  blastDamage=createBlastDamage({THREE,scene,physics,targets:[...treeTargets,...stallTargets],coarse,reducedMotion});
   const portalSystem = new PortalSystem();
   function syncProps() { syncPhysicsBodies(THREE,physics.bodies); }
   syncProps();
-  const driver = new Driver(colliders,{routeColliders});
+  const driver = new Driver(colliders,{routeColliders});driver.setVehicleProfile(vehicle.profile);
   const targetRing = mesh(new THREE.RingGeometry(.65, .76, 32), new THREE.MeshBasicMaterial({ color: '#f5ecc4', side: THREE.DoubleSide, transparent: true, opacity: .85, depthWrite: false }), scene, 0, .17, 0, false); targetRing.rotation.x = -Math.PI / 2; targetRing.visible = false;
   const routeGeometry = new THREE.BufferGeometry();
   const routeLine = new THREE.Line(routeGeometry, new THREE.LineDashedMaterial({ color: '#d5b45e', dashSize: .4, gapSize: .45, transparent: true, opacity: .9, depthWrite: false })); scene.add(routeLine);
@@ -455,6 +463,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   for (let i = 0; i < 14; i++) { const particle = mesh(new THREE.IcosahedronGeometry(.12, 0), dustMaterial, scene, 0, -10, 0, false); dust.push({ object: particle, age: 1, life: .6, dx: 0, dz: 0 }); }
   let dustIndex = 0, dustElapsed = 0;
 
+  const impactTimes=new Map();let lastLandingSound=-Infinity;
   const keys = new Set();
   const pointer = new THREE.Vector2();
   const raycaster = new THREE.Raycaster();
@@ -506,12 +515,29 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     onCancelRoute?.(); updateRoute();
     targetRing.position.set(gate.x, .17, gate.z); targetRing.visible = true;
   }
+  function safeArrival(x,z){
+    const free=(px,pz)=>driver.canPark(px,pz)&&!physics.bodies.some(b=>!b.destroyed&&(!b.active||b.active())&&Math.hypot(px-b.x,pz-b.z)<b.radius+Math.max(driver.profile.halfWidth,driver.profile.halfLength)+.25);
+    if(free(x,z))return [x,z];for(const radius of [2,4,6,8,11])for(let i=0;i<16;i++){const px=x+Math.cos(i/16*Math.PI*2)*radius,pz=z+Math.sin(i/16*Math.PI*2)*radius;if(free(px,pz))return[px,pz];}return null;
+  }
+  function setCarModel(id){
+    const config=vehicleModel(id);if(vehicle.modelId===config.id)return config.id;stopDriving();driver.settle();const index=interactiveGroups.indexOf(car);vehicle.dispose();vehicle=createVehicle({THREE,scene,reducedMotion,model:config.id});car=vehicle.root;car.userData.vehicleId=vehicle.modelId;interactiveGroups[index]=car;driver.setVehicleProfile(vehicle.profile);const spot=safeArrival(driver.x,driver.z);if(spot)driver.teleport(...spot);vehicle.update(0,{driver,night:environment.night,headlights:headlightsMode});return config.id;
+  }
+  function teleportTo(id){
+    const location=mapLocations(language).find(location=>location.id===id);if(!location)return false;const heading=driver.heading;driver.heading=location.heading??Math.PI/2;const spot=safeArrival(...location.spawn);if(!spot){driver.heading=heading;return false;}
+    begin();navigation.clear();driver.teleport(...spot,location.heading??Math.PI/2);portalSystem.cooldown=2;portalSystem.armed=false;panOffset.set(0,0,0);nearestId=null;onNearby?.(null);onCancelRoute?.();updateRoute();vehicle.update(0,{driver,night:environment.night,headlights:headlightsMode});updateCamera(1);return true;
+  }
+  function captureMap(){
+    const mapCamera=new THREE.OrthographicCamera(-MAP_BOUNDS.x,MAP_BOUNDS.x,MAP_BOUNDS.z,-MAP_BOUNDS.z,.1,500);mapCamera.up.set(0,0,-1);mapCamera.position.set(0,240,0);mapCamera.lookAt(0,0,0);mapCamera.updateMatrixWorld();
+    const fog=scene.fog,sky=hemisphere.intensity,sunlight=sun.intensity,fillLight=fill.intensity,hidden=[];
+    for(const name of ['island-atmosphere','island-flyover']){const object=scene.getObjectByName(name);if(object){hidden.push([object,object.visible]);object.visible=false;}}
+    try{scene.fog=null;hemisphere.intensity=2.1;sun.intensity=2;fill.intensity=.8;renderer.render(scene,mapCamera);const picture=renderer.domElement.toDataURL?.('image/png');return typeof picture==='string'&&picture.startsWith('data:image/png')?picture:'';}catch{return '';}finally{scene.fog=fog;hemisphere.intensity=sky;sun.intensity=sunlight;fill.intensity=fillLight;hidden.forEach(([o,visible])=>o.visible=visible);renderer.render(scene,camera);}
+  }
   function resetView() { orbitYaw = defaultYaw; orbitPitch = defaultPitch; zoomScale = 1; panOffset.set(0, 0, 0); }
   const readInput=()=>({forward:keys.has('ArrowUp')||keys.has('w'),reverse:keys.has('ArrowDown')||keys.has('s'),left:keys.has('ArrowLeft')||keys.has('a'),right:keys.has('ArrowRight')||keys.has('d'),rollLeft:keys.has('q'),rollRight:keys.has('e'),boost:keys.has('Shift'),brake:keys.has('b')});
   const navigation = bindNavigation({
     surface: renderer.domElement, wheelTarget: container, isPaused: () => paused,
     onKey(key, pressed) { if (pressed) { begin(); panOffset.set(0, 0, 0); keys.add(key); } else keys.delete(key); },
-    onClear: clearKeys, onJump:()=>{if(driver.jump(readInput()))onCancelRoute?.();},onHydraulics:()=>driver.toggleHydraulics(), onClick: clickGround,
+    onClear: clearKeys, onJump:()=>{const airborne=driver.airborne;if(driver.jump(readInput())){onImpact?.({kind:airborne?'aerial':'hydraulic',strength:3,distance:0});onCancelRoute?.();}},onHydraulics:()=>driver.toggleHydraulics(), onClick: clickGround,
     onOrbit(dx, dy) { begin(); orbitYaw -= dx * .006; orbitPitch = THREE.MathUtils.clamp(orbitPitch + dy * .004, .4, 1.12); },
     onPan(dx, dy) {
       begin(); const unit = viewHeight / innerHeight;
@@ -580,6 +606,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     animationId = requestAnimationFrame(animate);
     if (!wasVisible) { lastTime = now; return; }
     const elapsed = Math.min((now - lastTime) / 1000, .05); lastTime = now;
+    const simulationElapsed=elapsed*playground.timeScale();
     const time = now / 1000;
     environment = atmosphere.update(elapsed, { paused, focus:driver });
     boundary.update(environment);wayfinding.update(environment);
@@ -589,25 +616,29 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     island.material[0].color.lerpColors(summerGrass, snowGrass, winterAmount);
     winterMaterial.opacity = winterAmount / .72;
     winterPines.visible = winterAmount > .01; winterRounds.visible=false;detailedTrees.updateSnow(winterAmount);
-    islandLife.update(elapsed,{weather:environment.weather,night:environment.night,paused});
-    scenery.update(paused ? 0 : elapsed, reducedMotion ? 0 : time, {...environment,driver});
+    islandLife.update(simulationElapsed,{weather:environment.weather,night:environment.night,paused});
+    scenery.update(paused ? 0 : simulationElapsed, reducedMotion ? 0 : time, {...environment,driver});
     lamps.forEach(material => material.emissiveIntensity = .12 + environment.night * 2);
     if (!paused && exploring) {
-      const result=driver.step(elapsed,readInput());
+      const result=driver.step(simulationElapsed,readInput());
       if (result.cancelled) onCancelRoute?.();
       if (result.arrived) onArrival?.(result.arrived);
-      dustElapsed += elapsed;
+      dustElapsed += simulationElapsed;
       if (!reducedMotion && !driver.airborne && !driver.inWater && Math.abs(driver.speed) > 2 && dustElapsed > .07) {
         dustElapsed = 0; const particle = dust[dustIndex++ % dust.length]; particle.age = 0; particle.object.position.set(driver.x - Math.sin(driver.heading), .25, driver.z - Math.cos(driver.heading)); particle.dx = (rand() - .5) * .8; particle.dz = (rand() - .5) * .8;
       }
-      physics.update(elapsed, driver, { weather: environment.weather });
-      const portalId = portalSystem.update(elapsed, driver);
+      physics.update(simulationElapsed, driver, { weather: environment.weather });
+      const impacts=physics.bodies.filter(b=>!b.destroyed&&(!b.active||b.active())&&b.kind!=='tnt'&&(b.impactSpeed||0)>1.2&&time-(impactTimes.get(b.id)??-Infinity)>.18).sort((a,b)=>b.impactSpeed-a.impactSpeed).slice(0,3);
+      for(const body of impacts){impactTimes.set(body.id,time);onImpact?.({kind:body.kind==='bowling-pin'?'pin':['barrel','trash-can'].includes(body.kind)?'metal':['rock','stone'].includes(body.kind)?'stone':body.kind==='snowman'?'snow':'wood',strength:body.impactSpeed,distance:Math.hypot(driver.x-body.x,driver.z-body.z)});}
+      if(driver.landingImpact>1&&driver.landingTime>0&&time-lastLandingSound>.4){lastLandingSound=time;onImpact?.({kind:'landing',strength:driver.landingImpact,distance:0});}
+      const portalId = portalSystem.update(simulationElapsed, driver);
       if (portalId) { panOffset.set(0, 0, 0); onCancelRoute?.(); onPortal?.(portalId); }
     }
-    playground.update(elapsed,physics,driver,{paused:paused||!exploring});
+    playground.update(simulationElapsed,physics,driver,{paused:paused||!exploring,realElapsed:elapsed});
+    blastDamage.update(elapsed,{paused:paused||!exploring,focus:driver});
     syncProps();
     nightFires.update(elapsed,environment,driver,paused);
-    vehicle.update(elapsed, { driver, night: environment.night, headlights: headlightsMode, braking: keys.has('b') || keys.has('ArrowDown') || keys.has('s'), time });
+    vehicle.update(simulationElapsed, { driver, night: environment.night, headlights: headlightsMode, braking: keys.has('b') || keys.has('ArrowDown') || keys.has('s'), time });
     carShadow.position.set(driver.x, .14 + (driver.groundHeight || 0), driver.z); carShadow.rotation.z = -driver.heading; carShadow.material.opacity=.15*Math.max(.08,1-driver.hop*.17);
     if (!reducedMotion && !paused) {
       animatedObjects.forEach(({ object, type }) => { if (type === 'coin') object.rotation.y = time * .45; else object.rotation.y = Math.sin(time * .3) * .3; });
@@ -626,7 +657,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     }
     smoothedSpeed += (Math.abs(driver.speed) - smoothedSpeed) * Math.min(elapsed * 8, 1);
     onEnvironment?.(environment);
-    onFrame?.({ x: driver.x, z: driver.z, heading: driver.heading, speed: smoothedSpeed, actualSpeed: driver.speed, rpm: driver.rpm, gear: driver.gear, acceleration: driver.acceleration, hop:driver.hop, hydraulicPhase:driver.hydraulicPhase, elapsed, paused, weather: environment.weather });
+    onFrame?.({ x: driver.x, z: driver.z, heading: driver.heading, speed: smoothedSpeed, actualSpeed: driver.speed, rpm: driver.rpm, gear: driver.gear,throttle:driver.throttle, acceleration: driver.acceleration, hop:driver.hop, hydraulicPhase:driver.hydraulicPhase, elapsed, paused, weather: environment.weather,surface:drivingSurfaceAt(driver.x,driver.z),airborne:driver.airborne,boosting:driver.boosting,landingImpact:driver.landingImpact,carModel:vehicle.modelId,steering:driver.steering });
     renderer.render(scene, camera);
   }
   // Set the final overview before the first paint; avoid a camera fly-in at load.
@@ -635,8 +666,9 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   updateCamera(1); renderer.render(scene, camera); animationId = requestAnimationFrame(animate);
 
   return {
+    captureMap,teleportTo,setCarModel,getCarModel:()=>vehicle.modelId,
     start() { begin(); renderer.domElement.focus({ preventScroll: true }); },
-    reset() { driver.reset(); navigation.clear(); resetView();playground.reset(); physics.reset(); portalSystem.reset(); syncProps(); scenery.reset(); updateRoute(); onCancelRoute?.(); },
+    reset() { impactTimes.clear();driver.reset();driver.setVehicleProfile(vehicle.profile); navigation.clear(); resetView();blastDamage.reset();playground.reset(); physics.reset(); portalSystem.reset(); syncProps(); scenery.reset(); updateRoute(); onCancelRoute?.(); },
     overview() { exploring = false; driver.cancelRoute(); navigation.clear(); resetView(); driver.speed = 0; driver.hop = 0; driver.hopVelocity = 0; driver.jumpPending=false;driver.jumpCharge=0;driver.hydraulicOffset=0;driver.hydraulicVelocity=0;driver.hydraulicPhase='idle';driver.jumpCooldown=0;driver.landingTime=0;driver.groundHeight = Math.max(0, bridgeHeightAt(driver.x, driver.z) - .1); driver.groundVelocity = 0;driver.settle(); nearestId = null; onNearby?.(null); },
     setPaused(value) { paused = value; navigation.clear(); driver.speed = 0;driver.vx=0;driver.vz=0;driver.boosting=false; dust.forEach(p => { p.age = 1; p.object.position.y = -10; }); },
     setLanguage(value) { language = value === 'vi' ? 'vi' : 'en';wayfinding.setLanguage(language); renderer.domElement.setAttribute('aria-label', copy[language].canvasAria); translatedBoards.forEach(board => board.draw(copy[language][board.key])); },
@@ -661,7 +693,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
       for (const [event, listener] of Object.entries(hoverListeners)) surface.removeEventListener(event, listener);
       // Snowman geometry is owned by islandLife even after its bodies are reparented.
       physics.bodies.filter(body=>body.kind==='snowman'||body.kind==='trash-can').forEach(body=>body.object.removeFromParent());
-      boundary.dispose();wayfinding.dispose();playground.dispose();nightFires.dispose();scenery.dispose(); atmosphere.dispose(); flyover.dispose(); vehicle.dispose(); islandLife.dispose(); detailedTrees.dispose();
+      blastDamage.dispose();boundary.dispose();wayfinding.dispose();playground.dispose();nightFires.dispose();scenery.dispose(); atmosphere.dispose(); flyover.dispose(); vehicle.dispose(); islandLife.dispose(); detailedTrees.dispose();
       const geometries = new Set(); scene.traverse(o => { if (o.geometry) geometries.add(o.geometry); }); geometries.forEach(g => g.dispose());
       materials.forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove();
     }

@@ -7,7 +7,7 @@ const up=new Vector3(0,1,0),delta=new Quaternion(),axis=new Vector3(),euler=new 
 // The orientation is physical state: air steering applies angular velocity,
 // and a dodge imparts an impulse. It never changes horizontal travel directly.
 export class AerialDynamics {
-  constructor(){this.rotation=new Quaternion();this.angularVelocity=new Vector3();this.forward=new Vector3();this.up=new Vector3();this.bodyTop=2.57;this.reset();}
+  constructor(){this.rotation=new Quaternion();this.angularVelocity=new Vector3();this.forward=new Vector3();this.up=new Vector3();this.bodyTop=2.57;this.halfWidth=.94;this.halfLength=1.45;this.reset();}
   reset(heading=0){this.rotation.setFromAxisAngle(up,heading);this.angularVelocity.set(0,0,0);this.flying=false;this.recovering=false;this.airTime=0;this.dodgeAvailable=false;this.dodgeTime=0;this.recoveryTime=0;this.supportLift=0;this.updateAxes();}
   takeoff(heading,pitch=0,roll=0){this.reset(heading);this.rotation.setFromEuler(euler.set(pitch,heading,roll,'YXZ'));this.flying=true;this.dodgeAvailable=true;this.updateAxes();}
   updateAxes(){this.forward.set(0,0,1).applyQuaternion(this.rotation);this.up.set(0,1,0).applyQuaternion(this.rotation);}
@@ -46,7 +46,7 @@ export class AerialDynamics {
   bounds(){
     const q=this.rotation,rx=1-2*(q.y*q.y+q.z*q.z),ry=2*(q.x*q.y+q.z*q.w),rz=2*(q.x*q.z-q.y*q.w),ux=2*(q.x*q.y-q.z*q.w),uy=1-2*(q.x*q.x+q.z*q.z),uz=2*(q.y*q.z+q.x*q.w),fx=2*(q.x*q.z+q.y*q.w),fy=2*(q.y*q.z-q.x*q.w),fz=1-2*(q.x*q.x+q.y*q.y);
     const lower=.08-CAR_PIVOT_HEIGHT,upper=this.bodyTop-CAR_PIVOT_HEIGHT,centre=(lower+upper)/2,half=(upper-lower)/2;
-    const halfY=Math.abs(ry)*.94+Math.abs(uy)*half+Math.abs(fy)*1.45,y=CAR_PIVOT_HEIGHT+uy*centre;
-    return {halfX:Math.abs(rx)*.94+Math.abs(ux)*half+Math.abs(fx)*1.45,halfZ:Math.abs(rz)*.94+Math.abs(uz)*half+Math.abs(fz)*1.45,halfY,bottom:y-halfY,top:y+halfY,offsetX:ux*centre,offsetZ:uz*centre};
+    const halfY=Math.abs(ry)*this.halfWidth+Math.abs(uy)*half+Math.abs(fy)*this.halfLength,y=CAR_PIVOT_HEIGHT+uy*centre;
+    return {halfX:Math.abs(rx)*this.halfWidth+Math.abs(ux)*half+Math.abs(fx)*this.halfLength,halfZ:Math.abs(rz)*this.halfWidth+Math.abs(uz)*half+Math.abs(fz)*this.halfLength,halfY,bottom:y-halfY,top:y+halfY,offsetX:ux*centre,offsetZ:uz*centre};
   }
 }

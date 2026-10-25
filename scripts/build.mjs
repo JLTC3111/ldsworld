@@ -90,6 +90,8 @@ async function readSource(directory, prefix = '') {
   const result = [];
   for (const entry of (await readdir(directory, { withFileTypes: true })).sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) {
     const relative = prefix + entry.name, filename = path.join(directory, entry.name);
+    // Input reference photographs and design screenshots are not runtime assets.
+    if(relative==='assets/3D_CARS'||relative==='assets/aspects')continue;
     if (entry.isDirectory()) result.push(...await readSource(filename, `${relative}/`));
     else if (entry.isFile()) result.push({ relative, bytes: await readFile(filename) });
     else throw new Error(`Unsupported source entry: ${relative}`);

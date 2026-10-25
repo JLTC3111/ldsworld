@@ -48,7 +48,7 @@ test('engine audio never creates a context or sources before the explicit resume
   audio.update({ speed: 8, rpm: 3500 }); audio.setEnabled(true); audio.suspend(false);
   assert.equal(Context.constructions, 0); assert.equal(audio.honk(), false);
   assert.equal(await audio.resume(), true); assert.equal(Context.constructions, 1);
-  assert.equal(audio.context.oscillators.length, 4); assert.equal(audio.context.sources.length, 1);
+  assert.equal(audio.context.oscillators.length, 4); assert.equal(audio.context.sources.length, 4);
   assert.ok(audio.context.oscillators.every(source => source.starts.length === 1));
   await audio.resume(); assert.equal(Context.constructions, 1);
   await audio.dispose();
@@ -119,4 +119,24 @@ test('disposal is idempotent, closes the context, and cannot restart the engine'
   await first;
   assert.equal(context.closeCalls, 1); assert.equal(context.state, 'closed'); assert.equal(await audio.resume(), false); assert.equal(audio.honk(), false);
   assert.ok(context.oscillators.every(source => source.stops.length > 0)); assert.ok(context.sources.every(source => source.stops.length > 0));
+});
+
+test('sports exhaust is substantially louder, changes voice with the car, and adds a gated overrun pop',async()=>{
+  const audio=new EngineAudio(mockAudioContext());await audio.resume();
+  audio.update({speed:25,rpm:8000,gear:4,throttle:1,model:'8-ball'});
+  const sportsPitch=audio.oscillators[0].oscillator.frequency.value,level=audio.masterGain.gain.value*audio.engineGain.gain.value;
+  assert.ok(level>.17,'The cruising engine has a substantially stronger mix than the previous quiet layer');assert.ok(audio.intakeGain.gain.value>.1);
+  audio.context.currentTime=.5;audio.update({speed:25,rpm:8000,gear:4,throttle:1,model:'monster-truck'});
+  assert.ok(audio.oscillators[0].oscillator.frequency.value<sportsPitch*.6,'The monster truck has a deeper firing note');
+  audio.context.currentTime=1;audio.update({speed:24,rpm:7600,gear:4,throttle:0,model:'monster-truck'});assert.equal(audio.soundTimes.get('overrun'),1);
+  const pops=audio.horns.size;audio.context.currentTime=1.02;audio.update({speed:24,rpm:7600,gear:4,throttle:0,model:'monster-truck'});assert.equal(audio.horns.size,pops,'Coasting cannot spam repeated exhaust pops');
+  audio.setEnabled(false);assert.equal(audio.intakeGain.gain.value,0);assert.equal(audio.boostGain.gain.value,0);assert.equal(audio.waterGain.gain.value,0);assert.equal(audio.impact('overrun',4),false);await audio.dispose();
+});
+
+test('water crossings, bridge boards, tire surfaces, and impacts have distinct gated sounds',async()=>{
+  const audio=new EngineAudio(mockAudioContext());await audio.resume();audio.update({speed:15,surface:'road'});const road=audio.roadGain.gain.value;
+  audio.context.currentTime=1;audio.update({speed:15,surface:'water'});assert.equal(audio.roadGain.gain.value,0);assert.ok(audio.waterGain.gain.value>0);assert.equal(audio.soundTimes.get('splash'),1);
+  audio.context.currentTime=2;audio.update({speed:15,surface:'grass'});assert.ok(audio.roadGain.gain.value<road);assert.equal(audio.waterGain.gain.value,0);
+  audio.context.currentTime=3;audio.update({speed:15,surface:'bridge',elapsed:.05});for(let i=0;i<4;i++)audio.update({speed:15,surface:'bridge',elapsed:.05});assert.equal(audio.soundTimes.get('wood'),3);
+  assert.equal(audio.impact('pin',5,60),false);assert.equal(audio.impact('pin',5,2),true);audio.suspend(true);assert.equal(audio.masterGain.gain.value,0);assert.equal(audio.impact('splash',5),false);await audio.dispose();
 });

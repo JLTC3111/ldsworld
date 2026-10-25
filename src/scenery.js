@@ -1,5 +1,6 @@
+import { drivingSurfaceAt } from './driving.js';
 import { createStreamWater } from './stream-water.js';
-import { bridges, bridgeHeightAt, houses, portals, riverCenter, RIVER_HALF_WIDTH, bridgeAt, RIVER_REACH, WORLD_SCALE } from './world-layout.js';
+import { bridges, bridgeHeightAt, houses, portals, riverCenter, RIVER_HALF_WIDTH, bridgeAt, RIVER_REACH, WORLD_SCALE, LANDMARKS } from './world-layout.js';
 import { projects } from './data.js';
 
 // These are geometry-built objects rather than downloaded models, so the world
@@ -92,11 +93,13 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
     }
     // Leave the shallow ramp ends open where the bridge meets a crossroad;
     // long guardrails here cut across the horizontal road's turning envelope.
-    const railHalfLength = Math.min(1.4, bridge.length / 2 - .9);
+    const railHalfLength=Math.min(2.6,bridge.length/2-1.8);
     for (const side of [-1, 1]) {
       const x = side * (bridge.width / 2 - .14);
+      const railStart=bridge.id==='village'?-1.2:bridge.id==='west'&&side===1?-.8:bridge.id==='east'&&side===-1?.3:-railHalfLength;
+      const railSpan=railHalfLength-railStart;
       for (let i = 0; i <= 6; i++) {
-        const along = -railHalfLength + i / 6 * railHalfLength * 2;
+        const along = railStart+i/6*railSpan;
         const top = bridgeHeightAt(bridge.x + Math.sin(bridge.heading) * along, bridge.z + Math.cos(bridge.heading) * along);
         box(.14, .95, .14, '#8d7757', crossing, x, top + .39, along);
         box(.23, .08, .23, '#b8a178', crossing, x, top + .91, along);
@@ -104,21 +107,21 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
       }
       const railPoints = [];
       for (let i = 0; i <= 16; i++) {
-        const along = -railHalfLength + i / 16 * railHalfLength * 2;
+        const along = railStart+i/16*railSpan;
         const top = bridgeHeightAt(bridge.x + Math.sin(bridge.heading) * along, bridge.z + Math.cos(bridge.heading) * along);
         railPoints.push([x, top + .82, along]);
       }
       curveLine(railPoints, '#a18962', crossing, .065);
       curveLine(railPoints.map(([px, py, pz]) => [px, py - .4, pz]), '#9c835e', crossing, .035);
       for(let i=0;i<6;i++){
-        const a=-railHalfLength+i/6*railHalfLength*2,b=a+railHalfLength*2/6;
+        const a=railStart+i/6*railSpan,b=a+railSpan/6;
         const height=along=>bridgeHeightAt(bridge.x+Math.sin(bridge.heading)*along,bridge.z+Math.cos(bridge.heading)*along);
         curveLine([[x,height(a)+.72,a],[x,height((a+b)/2)+.24,(a+b)/2],[x,height(b)+.72,b]],'#b5a17a',crossing,.022);
       }
     }
     // Lantern gates sit above the travel lane, with a sagging cable and tassels.
     for (const end of [-1, 1]) {
-      const z = end * 1.2;
+      const z=end*(bridge.length/2+.9);
       for (const x of [-bridge.width / 2, bridge.width / 2]) {
         box(.16, 4.15, .16, '#8f7855', crossing, x, 2.14, z);
         roof(.5, .5, .19, '#798767', crossing, x, 4.2, z);
@@ -235,7 +238,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   for (let i = 0; i < 120; i++) {
     const x = -27 + random() * 54, bank = i % 2 ? -1 : 1;
     const z = riverCenter(x) + bank * (RIVER_HALF_WIDTH + .16 + random() * .24);
-    if (noBridge(x, z, 1) && noProject(x, z, .3)) pebbleLocations.push({ x, z, size: .18 + random() * .24 });
+    if(noBridge(x,z,1)&&noProject(x,z,.3)&&drivingSurfaceAt(x,z)==='grass') pebbleLocations.push({ x, z, size: .18 + random() * .24 });
   }
   const pebbles = new THREE.InstancedMesh(ownGeo(new THREE.IcosahedronGeometry(1, 0)), ownMat('#afb9a3'), pebbleLocations.length); pebbles.castShadow = true; pebbles.receiveShadow = true; root.add(pebbles);
   pebbleLocations.forEach((pebble, i) => { dummy.position.set(pebble.x, .14, pebble.z); dummy.rotation.set(random(), random() * 3, random()); dummy.scale.set(pebble.size * 1.4, pebble.size * .6, pebble.size); dummy.updateMatrix(); pebbles.setMatrixAt(i, dummy.matrix); scratch.set(i % 3 ? '#b0bba8' : '#c5c7ae'); pebbles.setColorAt(i, scratch); });
@@ -243,14 +246,14 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   const reedPositions = pebbleLocations.filter((_, i) => i % 3 === 0);
   const reeds = new THREE.InstancedMesh(reedsGeometry, ownMat('#9da579'), reedPositions.length * 3); root.add(reeds);
   reedPositions.forEach((position, i) => { for (let j = 0; j < 3; j++) { dummy.position.set(position.x + (j - 1) * .07, .35 + j * .04, position.z); dummy.rotation.set(.15 * Math.sin(i), 0, (j - 1) * .14); dummy.scale.set(1, .4 + j * .1, 1); dummy.updateMatrix(); reeds.setMatrixAt(i * 3 + j, dummy.matrix); } });
-  [[-24, -3, .88], [24, -3, 1], [-9, 15.6, .77], [15.3, 15, .93]].forEach(([x, z, size], index) => {
+  [[-35,-1,.88],[35,-4,1],[-18,29,.77],[25,35,.93]].forEach(([x, z, size], index) => {
     const stone = sphere(size, ['#a8ad97', '#b1b5a0', '#9fae9a', '#bcbda4'][index], root, x, size * .35, z, 1); stone.scale.set(1.2, .75, .92); stone.rotation.y = index * .7;
     const moss = sphere(size * .6, '#90a072', root, x - .12, size * .77, z + .03, 0); moss.scale.set(1.2, .17, .8);
     colliders.push({ x, z, width: size * 2.2, depth: size * 1.8, kind: 'rock' });
   });
 
   // A riverside handcart, sacks and tool racks give the props a place to belong.
-  const cart = group(root, -16.8, -2.8); cart.rotation.y = Math.PI - .2;
+  const cart = group(root,LANDMARKS.cart.x,LANDMARKS.cart.z); cart.rotation.y = Math.PI - .2;
   box(1.5, .13, .95, '#aa8b5f', cart, 0, .55, 0);
   for (const x of [-.7, .7]) {
     box(.1, .5, 1, '#b79b6c', cart, x, .85, 0);
@@ -260,7 +263,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   for (const z of [-.46, .46]) box(1.4, .5, .1, '#b79b6c', cart, 0, .85, z);
   for (const x of [-.45, .45]) box(.07, .07, 1.7, '#9a825c', cart, x, .5, 1.1);
   for (let i = 0; i < 3; i++) { const sack = sphere(.3, '#c7b88e', cart, -.4 + i * .38, .92, 0, 1); sack.scale.set(.7, 1.2, .8); }
-  colliders.push({ x: -16.8, z: -2.8, width: 1.8, depth: 1.2, kind: 'cart' });
+  colliders.push({ x:LANDMARKS.cart.x,z:LANDMARKS.cart.z, width: 1.8, depth: 1.2, kind: 'cart' });
 
   function crate(id, x, z, size = .85) {
     const object = group(root, x, z); object.position.y = .12 + size / 2; object.userData.propId = id; object.name = `Pushable ${id}`;

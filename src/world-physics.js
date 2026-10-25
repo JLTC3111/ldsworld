@@ -32,7 +32,7 @@ export function collectWorldColliders({ THREE, roots = [], exclude = [], existin
             const angle = (segment + .5) * step;
             torusPoint.set(radius * Math.cos(angle), radius * Math.sin(angle), 0).applyMatrix4(matrix);
             if (torusPoint.y < .9 || torusPoint.y - extent > 2.5) continue;
-            colliders.push({ x: torusPoint.x, z: torusPoint.z, width: extent * 2, depth: extent * 2, minY: torusPoint.y - extent, maxY: torusPoint.y + extent, kind: 'arch', object, active: () => visible(object) });
+            colliders.push({ x: torusPoint.x, z: torusPoint.z, width: extent * 2, depth: extent * 2, minY: torusPoint.y - extent, maxY: torusPoint.y + extent, kind: 'arch', object, active: () => visible(object)&&!object.userData.destroyedInstances?.has(i) });
           }
           continue;
         }
@@ -43,7 +43,7 @@ export function collectWorldColliders({ THREE, roots = [], exclude = [], existin
         if (bounds.max.y <= .25 || bounds.min.y > 2.5 || size.y < .075 || Math.max(size.x, size.z) < .075) continue;
         if (size.y < .15 && Math.min(size.x, size.z) > .8) continue;
         if (![size.x, size.y, size.z, centre.x, centre.z].every(Number.isFinite)) continue;
-        colliders.push({ x: centre.x, z: centre.z, width: Math.max(.035, size.x), depth: Math.max(.035, size.z), minY: bounds.min.y, maxY: bounds.max.y, kind: 'scenery', object, instance: object.isInstancedMesh ? i : undefined, active: () => visible(object) });
+        colliders.push({ x: centre.x, z: centre.z, width: Math.max(.035, size.x), depth: Math.max(.035, size.z), minY: bounds.min.y, maxY: bounds.max.y, kind: 'scenery', object, instance: object.isInstancedMesh ? i : undefined, active: () => visible(object)&&!object.userData.destroyedInstances?.has(i) });
       }
     });
   }
@@ -90,11 +90,11 @@ export function createInstancedBodies({ THREE, object, idPrefix = 'rock', mass =
 const syncCaches = new WeakMap();
 export function syncPhysicsBodies(THREE, bodies) {
   let cache = syncCaches.get(THREE);
-  if (!cache) { cache = { matrix: new THREE.Matrix4(), rotation: new THREE.Quaternion(), euler: new THREE.Euler(), position: new THREE.Vector3(), dirty: new Set() }; syncCaches.set(THREE, cache); }
+  if (!cache) { cache = { matrix: new THREE.Matrix4(), rotation: new THREE.Quaternion(), euler: new THREE.Euler(), position: new THREE.Vector3(), zeroScale:new THREE.Vector3(),dirty: new Set() }; syncCaches.set(THREE, cache); }
   cache.dirty.clear();
   for (const body of bodies) {
     if (body.object) {
-      if (body.active) body.object.visible = Boolean(body.active());
+      if (body.active||body.destroyed) body.object.visible = !body.destroyed&&(!body.active||Boolean(body.active()));
       body.object.position.set(body.x, body.y, body.z);
       if(body.quaternion)body.object.quaternion.fromArray(body.quaternion);
       else body.object.rotation.set(body.tiltX || 0, body.rotation || 0, body.tiltZ || 0);
@@ -102,7 +102,7 @@ export function syncPhysicsBodies(THREE, bodies) {
     if (!body.instance) continue;
     const { object, index, quaternion, scale } = body.instance;
     cache.rotation.setFromEuler(cache.euler.set(body.tiltX || 0, body.rotation || 0, body.tiltZ || 0)).multiply(quaternion);
-    cache.matrix.compose(cache.position.set(body.x, body.y, body.z), cache.rotation, scale);
+    cache.matrix.compose(cache.position.set(body.x, body.y, body.z), cache.rotation,body.destroyed?cache.zeroScale:scale);
     cache.matrix.premultiply(object.matrixWorld.clone().invert()); object.setMatrixAt(index, cache.matrix); cache.dirty.add(object);
   }
   for (const object of cache.dirty) { object.instanceMatrix.needsUpdate = true; object.computeBoundingSphere(); }

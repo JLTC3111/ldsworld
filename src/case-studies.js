@@ -2,28 +2,28 @@
 // Gallery images are genuine frames from src/assets/demos, not illustrative UI.
 const media = {
   hr: [
-    { src: './assets/gallery/hr-dashboard.jpg', time: 5.67, width: 900, height: 506 },
-    { src: './assets/gallery/hr-performance.jpg', time: 22.68, width: 900, height: 506 }
+    { src: './assets/gallery/en/hr-dashboard.jpg', time: 5.67, width: 900, height: 506 },
+    { src: './assets/gallery/en/hr-performance.jpg', time: 22.68, width: 900, height: 506 }
   ],
   crypto: [
-    { src: './assets/gallery/crypto-comparison.jpg', time: 10.03, width: 900, height: 506 },
-    { src: './assets/gallery/crypto-risk.jpg', time: 15.05, width: 900, height: 506 }
+    { src: './assets/gallery/en/crypto-comparison.jpg', time: 10.03, width: 900, height: 506 },
+    { src: './assets/gallery/en/crypto-risk.jpg', time: 15.05, width: 900, height: 506 }
   ],
   contracts: [
-    { src: './assets/gallery/contracts-record.jpg', time: 26.24, width: 900, height: 538 },
-    { src: './assets/gallery/contracts-dashboard.jpg', time: 104.95, width: 900, height: 538 }
+    { src: './assets/gallery/en/contracts-record.jpg', time: 26.24, width: 900, height: 538 },
+    { src: './assets/gallery/en/contracts-dashboard.jpg', time: 104.95, width: 900, height: 538 }
   ],
   compressor: [
-    { src: './assets/gallery/compressor-main.jpg', time: 9.03, width: 900, height: 844 },
-    { src: './assets/gallery/compressor-settings.jpg', time: 27.09, width: 900, height: 844 }
+    { src: './assets/gallery/en/compressor-main.jpg', time: 9.03, width: 900, height: 844 },
+    { src: './assets/gallery/en/compressor-settings.jpg', time: 27.09, width: 900, height: 844 }
   ],
   ceremony: [
-    { src: './assets/gallery/ceremony-gallery.jpg', time: 2.59, width: 900, height: 838 },
-    { src: './assets/gallery/ceremony-project.jpg', time: 7.78, width: 900, height: 838 }
+    { src: './assets/gallery/en/ceremony-gallery.jpg', time: 2.59, width: 900, height: 838 },
+    { src: './assets/gallery/en/ceremony-project.jpg', time: 7.78, width: 900, height: 838 }
   ],
   icue: [
-    { src: './assets/gallery/icue-projects.jpg', time: 4.93, width: 900, height: 506 },
-    { src: './assets/gallery/icue-home.jpg', time: 19.73, width: 900, height: 506 }
+    { src: './assets/gallery/en/icue-projects.jpg', time: 4.93, width: 900, height: 506 },
+    { src: './assets/gallery/en/icue-home.jpg', time: 19.73, width: 900, height: 506 }
   ]
 };
 

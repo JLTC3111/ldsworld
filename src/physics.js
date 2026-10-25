@@ -2,7 +2,7 @@ import { bridgeHeightAt, isWater, portals as islandPortals, ISLAND_BOUNDS } from
 
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const floorAt = body => Math.max(.12,bridgeHeightAt(body.x,body.z)) + (isWater(body.x,body.z)?-.09:0) + body.height/2 + (body.floorOffset||0);
-const activeBody = body => !body.active || body.active();
+const activeBody = body => !body.destroyed && (!body.active || body.active());
 export function tipPin(body,speed,nx,nz){
   if(body.kind!=='bowling-pin'||speed<.3)return;
   if((body.tipAngle||0)<.15){body.tipAxisX=nz;body.tipAxisZ=-nx;}
@@ -50,7 +50,7 @@ export class PhysicsWorld {
     // Keep the array identity so a renderer can retain a reference to it.
     this.bodies.splice(0, this.bodies.length, ...this.initial.map(body => ({ ...body, vx: 0, vz: 0, vy: 0, rotation: body.rotation || 0, angularVelocity: 0, tiltX: 0, tiltZ: 0, sleepTime: 0, sleeping: Boolean(body.initialSleeping), displaced: false })));
   }
-  explode({x,y=.6,z,radius=8,strength=15},driver){
+  explode({x,y=.6,z,radius=8,strength=15,carStrength=0},driver){
     for(const body of this.bodies){
       if(!activeBody(body))continue;
       const dx=body.x-x,dz=body.z-z,dy=body.y-y,distance=Math.hypot(dx,dy,dz);
@@ -59,7 +59,11 @@ export class PhysicsWorld {
       body.vx+=nx*force;body.vz+=nz*force;body.vy+=force*.55;body.angularVelocity+=force*.5;body.sleeping=false;body.sleepTime=0;body.displaced=true;
       body.impactSpeed=Math.max(body.impactSpeed||0,force);tipPin(body,force,nx,nz);
     }
-    if(driver){const dx=driver.x-x,dz=driver.z-z,distance=Math.hypot(dx,dz,(driver.groundHeight||0)+(driver.hop||0)+1-y);if(distance<radius){const length=Math.hypot(dx,dz)||1,force=strength*(1-distance/radius)*.75;driver.applyImpulse?.({x:(dx/length||.4)*force,y:force*.7,z:(dz/length||.6)*force},force*.15);}}
+    if(driver){const dx=driver.x-x,dz=driver.z-z,distance=Math.hypot(dx,dz,(driver.groundHeight||0)+(driver.hop||0)+1-y);if(distance<radius){
+      if(carStrength&&driver.launchFromBlast)driver.launchFromBlast({x,z,strength:carStrength*(.45+.55*(1-distance/radius))});
+      else{const length=Math.hypot(dx,dz)||1,force=strength*(1-distance/radius)*.75;driver.applyImpulse?.({x:(dx/length||.4)*force,y:force*.7,z:(dz/length||.6)*force},force*.15);}
+      return true;
+    }}return false;
   }
   kick(id, { x = 0, z = 0, strength = 4 } = {}) {
     const body = this.bodies.find(item => item.id === id);
@@ -168,7 +172,7 @@ export class PhysicsWorld {
   }
   resolveCar(body, driver) {
     const aerial=driver.attitude&&(driver.attitude.flying||driver.attitude.recovering),bounds=aerial?driver.attitude.bounds():null;
-    const halfWidth=bounds?.halfX??.84,halfLength=bounds?.halfZ??1.33;
+    const halfWidth=bounds?.halfX??driver.profile?.halfWidth??.84,halfLength=bounds?.halfZ??driver.profile?.halfLength??1.33;
     const bottom=(driver.groundHeight||0)+(driver.hop||0)+(bounds?bounds.bottom+(driver.attitude.supportLift||0):.1);
     if(body.y+body.height/2<bottom||body.y-body.height/2>bottom+(bounds?bounds.top-bounds.bottom:2.5))return;
     const rightX = Math.cos(driver.heading || 0), rightZ = -Math.sin(driver.heading || 0), forwardX = Math.sin(driver.heading || 0), forwardZ = Math.cos(driver.heading || 0);

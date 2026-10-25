@@ -103,7 +103,7 @@ export function isShowcaseScreenTap(gesture, event) {
 
 // Geometry and resource ownership are separate from WebGL, so models can be
 // verified without a browser and every panel can release its own resources.
-export function buildShowcaseModel({ project = {}, mode = 'device', texture = null, screen = 'preview', language = project.language || 'en', namespace = THREE } = {}) {
+export function buildShowcaseModel({ project = {}, mode = 'device', carModel='explorer', texture = null, screen = 'preview', language = project.language || 'en', namespace = THREE } = {}) {
   const T = namespace;
   const root = new T.Group(); root.name = `Portfolio artifact: ${mode}/${project.id || 'longd'}`;
   const content = new T.Group(); root.add(content);
@@ -224,7 +224,7 @@ export function buildShowcaseModel({ project = {}, mode = 'device', texture = nu
   const pedestalMaterial=mat('#d8ddcb',{roughness:.82});
   const pedestal=cylinder(mode==='car'?2.15:3.0,.12,pedestalMaterial,root,0,.03,0,64);pedestal.scale.z=mode==='car'?1:.76;
   if(mode==='car') {
-    vehicle=createVehicle({THREE:T,scene:content,reducedMotion:true});vehicle.root.rotation.y=-.28;
+    vehicle=createVehicle({THREE:T,scene:content,reducedMotion:true,model:carModel});vehicle.root.rotation.y=-.28;
   } else if(mode==='mail') mail();
   else if(mode==='workbench') workbench();
   else {
@@ -234,7 +234,7 @@ export function buildShowcaseModel({ project = {}, mode = 'device', texture = nu
   }
   root.updateMatrixWorld(true);
   const focusBounds=new T.Box3();
-  if(vehicle){focusBounds.setFromObject(vehicle.body);focusBounds.expandByScalar(.22);}
+  if(vehicle){vehicle.body.position.y=vehicle.profile.raised;focusBounds.setFromObject(vehicle.body);focusBounds.expandByScalar(.22);}
   else focusBounds.setFromObject(content);
   const driver={x:0,z:0,heading:-.28,speed:0,distance:0,steering:0,groundHeight:0,hop:0,pitch:0,roll:0};
   function updateScreen() {
@@ -260,7 +260,7 @@ export function buildShowcaseModel({ project = {}, mode = 'device', texture = nu
   };
 }
 
-export function createShowcase({ container, project = {}, mode = 'device', screen = 'project', screenModes = screens, language = project.language || 'en', onScreenChange, night = false, reducedMotion = false } = {}) {
+export function createShowcase({ container, project = {}, mode = 'device', carModel='explorer', screen = 'project', screenModes = screens, language = project.language || 'en', onScreenChange, night = false, reducedMotion = false } = {}) {
   const allowedScreens=[...new Set((Array.isArray(screenModes)?screenModes:screens).filter(value=>screens.includes(value)))];
   if(!allowedScreens.length)allowedScreens.push('project');
   const initialScreen=allowedScreens.includes(screen)?screen:allowedScreens[0];
@@ -287,7 +287,7 @@ export function createShowcase({ container, project = {}, mode = 'device', scree
     } catch { if(!model?.screenReady)removeReady(); }
   }
   function rebuild(){
-    if(!scene||disposed)return;removeReady();model?.dispose();model=buildShowcaseModel({project:currentProject,mode:currentMode,screen:currentScreen,language:currentLanguage});
+    if(!scene||disposed)return;removeReady();model?.dispose();model=buildShowcaseModel({project:currentProject,carModel,mode:currentMode,screen:currentScreen,language:currentLanguage});
     model.setTheme(dark);model.setHeadlights(headlights);model.update(0,clock);scene.add(model.root);yaw=pitch=targetYaw=targetPitch=0;loadPoster();resize();draw();
   }
   function fit(){

@@ -5,19 +5,19 @@ export const RIVER_REACH = 29*WORLD_SCALE;
 export const MAP_BOUNDS = Object.freeze({ x:33*WORLD_SCALE, z:25*WORLD_SCALE });
 export const MAP_VIEWBOX = `${-MAP_BOUNDS.x} ${-MAP_BOUNDS.z} ${MAP_BOUNDS.x*2} ${MAP_BOUNDS.z*2}`;
 export const islandRadius = (x,z,margin=0) => Math.hypot(x/(ISLAND_BOUNDS.x-margin),z/(ISLAND_BOUNDS.z-margin));
-export const ROAD_WIDTHS = Object.freeze({ring:4.9,shoulder:5.5,spine:4.2});
-export const RIVER_HALF_WIDTH = 1.05;
+export const ROAD_WIDTHS = Object.freeze({ring:12.25,shoulder:13.75,spine:10.5});
+export const RIVER_HALF_WIDTH = 3.15;
 export const riverCenter = x => 3.4 + Math.sin(x * .25) * .45;
 export const bridges = [
-  { id: 'west', x: -19.4, z: riverCenter(-19.4), heading: .165, width: 8.4, length: 6.2 },
-  { id: 'village', x: 0, z: riverCenter(0), heading: 0, width: 8.4, length: 6.2 },
-  { id: 'east', x: 19.15, z: riverCenter(19.15), heading: -.278, width: 8.4, length: 6.2 },
-  { id: 'outer-west', x:-99.4, z:riverCenter(-99.4), heading:.165, width:8.4, length:6.2 },
-  { id: 'outer-east', x:99, z:riverCenter(99), heading:-.25, width:8.4, length:6.2 }
+  { id: 'west', x: -19.4, z: riverCenter(-19.4), heading: .165, width: 14.25, length: 10.5 },
+  { id: 'village', x: 0, z: riverCenter(0), heading: 0, width: 14.25, length: 10.5 },
+  { id: 'east', x: 19.15, z: riverCenter(19.15), heading: -.278, width: 14.25, length: 10.5 },
+  { id: 'outer-west', x:-99.4, z:riverCenter(-99.4), heading:.165, width:14.25, length:10.5 },
+  { id: 'outer-east', x:99, z:riverCenter(99), heading:-.25, width:14.25, length:10.5 }
 ];
 export const portals = [
-  { id: 'west-gate', x: -23, z: -8, exitX: 21, exitZ: 10.5, heading: -Math.PI / 2, color: '#78dfd1' },
-  { id: 'east-gate', x: 23, z: 8.7, exitX: -21, exitZ: -10, heading: Math.PI / 2, color: '#c1a2f3' }
+  { id: 'west-gate', x: -32, z: -11, exitX: 27, exitZ: 16, heading: -Math.PI / 2, color: '#78dfd1' },
+  { id: 'east-gate', x: 32, z: 11, exitX: -27, exitZ: -16, heading: Math.PI / 2, color: '#c1a2f3' }
 ];
 export const houses = [
   {x:-36,z:-42,scale:1.5,color:'#d6a178'}, {x:28,z:-48,scale:1.5,color:'#d2bc87'},
@@ -47,3 +47,5 @@ export function crossesWater(a, b) {
   }
   return false;
 }
+
+export const LANDMARKS=Object.freeze({lighthouse:{x:32,z:-20},pond:{x:-46,z:-10},welcome:{x:-10,z:30},sculpture:{x:12,z:-28},cart:{x:-37,z:10}});

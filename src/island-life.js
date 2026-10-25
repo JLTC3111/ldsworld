@@ -1,11 +1,11 @@
 export const islandLifeLayout=[
-  {x:-5,z:17.5,width:3.6,depth:2.8,kind:'stall'}, {x:5,z:17.5,width:3.6,depth:2.8,kind:'stall'},
-  {x:-14.5,z:-4.6,width:2.1,depth:1.4,kind:'snowman'}, {x:-3,z:-16.8,width:2.1,depth:1.4,kind:'snowman'}, {x:10.5,z:16.7,width:2.1,depth:1.4,kind:'snowman'}
+  {x:-10.5,z:22.5,width:3.6,depth:2.8,kind:'stall'}, {x:10.5,z:22.5,width:3.6,depth:2.8,kind:'stall'},
+  {x:-38,z:-14,width:2.1,depth:1.4,kind:'snowman'}, {x:12,z:-24,width:2.1,depth:1.4,kind:'snowman'}, {x:17,z:24,width:2.1,depth:1.4,kind:'snowman'}
 ];
 export const reservesIslandLifeSpace=(x,z,padding=.8)=>islandLifeLayout.some(p=>Math.abs(x-p.x)<p.width/2+padding&&Math.abs(z-p.z)<p.depth/2+padding);
 export function createIslandLife({THREE:T,scene,reducedMotion=false}={}) {
   const root=new T.Group();root.name='Island market and snowmen';scene.add(root);
-  const geo=new Set(),mats=new Map(),bulbs=[],vendors=[];let disposed=false,time=0;
+  const geo=new Set(),mats=new Map(),bulbs=[],vendors=[],stalls=[];let disposed=false,time=0;
   const cube=new T.BoxGeometry(1,1,1),orb=new T.IcosahedronGeometry(1,2);geo.add(cube);geo.add(orb);
   const material=(color,glow=false)=>{const key=color+glow;if(!mats.has(key))mats.set(key,new T.MeshStandardMaterial({color,roughness:.8,...(glow?{emissive:color,emissiveIntensity:.2}:{})}));return mats.get(key);};
   const mesh=(g,c,p,x,y,z)=>{geo.add(g);const o=new T.Mesh(g,typeof c==='string'?material(c):c);o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;p.add(o);return o;};
@@ -27,7 +27,7 @@ export function createIslandLife({THREE:T,scene,reducedMotion=false}={}) {
   });
   const caps=[];
   islandLifeLayout.filter(p=>p.kind==='stall').forEach((p,i)=>{
-    const stall=new T.Group();stall.name=i?'Garden produce stall':'Lantern coffee stall';stall.position.set(p.x,.12,p.z);root.add(stall);
+    const stall=new T.Group();stall.name=i?'Garden produce stall':'Lantern coffee stall';stall.position.set(p.x,.12,p.z);root.add(stall);stalls.push(stall);
     const paint=i?'#9eae78':'#be8f6e';box(3.35,.14,2.5,'#b49b76',stall,0,.08,0);
     box(3.1,.9,.65,paint,stall,0,.65,.61);box(3.35,.14,.9,'#d1b58a',stall,0,1.15,.61);
     for(let j=0;j<10;j++)box(.025,.79,.018,'#8a785c',stall,-1.4+j*.31,.65,.95);
@@ -46,7 +46,7 @@ export function createIslandLife({THREE:T,scene,reducedMotion=false}={}) {
     const glow=material('#efc87c',true);bulbs.push(glow);for(const x of [-.9,0,.9]){cyl(.008,.3,'#6d7054',stall,x,2.5,.9);ball(.1,glow,stall,x,2.31,.9);}
     const light=new T.PointLight('#f5d399',0,5,2);light.position.set(0,2.4,.8);stall.add(light);bulbs.push(light);
   });
-  return {root,snowmen,vendors,colliders:islandLifeLayout.filter(p=>p.kind==='stall').map(p=>({...p,kind:'market'})),
+  return {root,snowmen,vendors,stalls,colliders:islandLifeLayout.filter(p=>p.kind==='stall').map((p,i)=>({...p,kind:'market',active:()=>stalls[i].visible})),
     update(dt,{weather='clear',night=0,paused=false}={}){if(disposed)return;snowmen.visible=weather==='snow';caps.forEach(c=>c.visible=weather==='snow');if(!paused&&!reducedMotion)time+=Math.max(0,Number(dt)||0);vendors.forEach((v,i)=>v.rotation.y=Math.sin(time*.5+i)*.035);bulbs.forEach(b=>{if(b.isLight)b.intensity=night*3;else b.emissiveIntensity=.2+night*2;});},
     dispose(){if(disposed)return;disposed=true;root.removeFromParent();geo.forEach(g=>g.dispose());mats.forEach(m=>m.dispose());}
   };

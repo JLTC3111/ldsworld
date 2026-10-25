@@ -1,5 +1,13 @@
 import { CAR_PIVOT_HEIGHT } from './aerial-dynamics.js';
-export function createVehicle({ THREE, scene, reducedMotion = false }) {
+import { createReferenceVehicle } from './toy-vehicles.js';
+import { vehicleModel } from './vehicle-models.js';
+export function createVehicle(options){
+  const id=options.model||'explorer';
+  const vehicle=id==='explorer'?createExplorer(options):createReferenceVehicle({...options,model:vehicleModel(id)});
+  vehicle.modelId=id==='explorer'?'explorer':vehicleModel(id).id;vehicle.profile=vehicleModel(vehicle.modelId).profile;
+  return vehicle;
+}
+function createExplorer({ THREE, scene, reducedMotion = false }) {
   const root = new THREE.Group(); root.name = 'Long D. Explorer'; scene.add(root);
   const body = new THREE.Group(); root.add(body);
   const materials = new Map(), allMaterials = new Set(), geometries = new Set(), textures = [];

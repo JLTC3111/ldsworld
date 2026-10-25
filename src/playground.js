@@ -8,7 +8,7 @@ export function reservesPlaygroundSpace(x,z,padding=3){
 
 export function createPlayground({THREE:T,scene,coarse=false,reducedMotion=false,onExplosion}){
   const root=new T.Group();root.name='Bowling and TNT playground';root.userData.physicsIgnore=true;scene.add(root);
-  const geometries=new Set(),materials=new Set(),textures=new Set(),bodies=[],detonated=new Set(),fuses=new Map();let disposed=false;
+  const geometries=new Set(),materials=new Set(),textures=new Set(),bodies=[],detonated=new Set(),fuses=new Map();let disposed=false,slowMotion=0;
   const geo=g=>{geometries.add(g);return g;},paint=(color,options={})=>{const m=new T.MeshStandardMaterial({color,roughness:.6,...options});materials.add(m);return m;};
   const cube=geo(new T.BoxGeometry(1,1,1)),plane=geo(new T.PlaneGeometry(1,1));
   const box=(w,h,d,material,parent,x=0,y=0,z=0)=>{const mesh=new T.Mesh(cube,material);mesh.position.set(x,y,z);mesh.scale.set(w,h,d);mesh.castShadow=mesh.receiveShadow=true;parent.add(mesh);return mesh;};
@@ -27,14 +27,22 @@ export function createPlayground({THREE:T,scene,coarse=false,reducedMotion=false
     object.position.set(x,1.175,z);bodies.push({id,object,x,z,y:1.175,height:2.11,uprightHeight:2.11,radius:.41,baseRadius:.41,mass:1.2,kind:'bowling-pin',initialSleeping:true});
   }
   const canvas=document.createElement('canvas');canvas.width=256;canvas.height=128;const ctx=canvas.getContext('2d');
-  ctx.fillStyle='#edcf78';ctx.fillRect(0,0,256,128);ctx.fillStyle='#262b28';ctx.font='900 74px monospace';ctx.textAlign='center';ctx.fillText('TNT',128,87);
+  ctx.fillStyle='#24251f';ctx.fillRect(0,0,256,128);ctx.fillStyle='#ffe18a';ctx.fillRect(5,5,246,118);ctx.fillStyle='#22251f';ctx.font='900 88px monospace';ctx.textAlign='center';ctx.fillText('TNT',128,94);
+  for(let x=8;x<256;x+=32){ctx.fillRect(x,8,16,7);ctx.fillRect(x,113,16,7);}
   const texture=new T.CanvasTexture(canvas);texture.colorSpace=T.SRGBColorSpace;textures.add(texture);const labelMaterial=new T.MeshBasicMaterial({map:texture,toneMapped:false});materials.add(labelMaterial);
   for(const [index,[x,z]] of TNT_LOCATIONS.entries()){
     const id=`tnt-${index+1}`,object=new T.Group();object.name=`Impact TNT crate ${index+1}`;object.userData.propId=id;root.add(object);object.position.set(x,.72,z);
     box(1.2,1.2,1.2,red,object);
-    for(const side of [-1,1]){box(1.23,.09,1.23,steel,object,0,side*.45,0);for(const axis of [0,1]){const label=new T.Mesh(plane,labelMaterial);label.scale.set(.79,.41,1);label.position.set(axis?side*.607:0,0,axis?0:side*.607);label.rotation.y=axis?side*Math.PI/2:side<0?Math.PI:0;object.add(label);}}
+    for(const side of [-1,1]){box(1.23,.09,1.23,steel,object,0,side*.45,0);for(const axis of [0,1]){const label=new T.Mesh(plane,labelMaterial);label.name='TNT warning label';label.scale.set(1.08,.56,1);label.position.set(axis?side*.607:0,0,axis?0:side*.607);label.rotation.y=axis?side*Math.PI/2:side<0?Math.PI:0;object.add(label);}}
+    const topLabel=new T.Mesh(plane,labelMaterial);topLabel.name='TNT roof label';topLabel.rotation.x=-Math.PI/2;topLabel.scale.set(1.06,.55,1);topLabel.position.set(0,.606,0);object.add(topLabel);
     box(.09,.2,.09,dark,object,0,.69,0);
     bodies.push({id,object,x,z,y:.72,height:1.2,radius:.72,mass:2,kind:'tnt',initialSleeping:true,active:()=>!detonated.has(id)});
+  }
+  const timber=paint('#ad8055'),brace=paint('#6f5137');
+  for(const [index,[x,z]] of [[-54,30],[-39,27]].entries()){
+    const object=new T.Group(),id=`blast-crate-${index+1}`;object.name='Burnable practice crate';object.userData.propId=id;object.position.set(x,.72,z);root.add(object);
+    box(1.2,1.2,1.2,timber,object);for(const side of [-1,1]){for(const y of [-.43,.43])box(1.24,.12,.07,brace,object,0,y,side*.62);for(const along of [-.45,.45])box(.1,1.22,1.24,brace,object,along,0,0);}
+    bodies.push({id,object,x,z,y:.72,height:1.2,radius:.75,mass:1.4,kind:'crate',initialSleeping:true});
   }
   const sparkGeometry=geo(new T.BoxGeometry(.07,.07,.15)),ballGeometry=geo(new T.SphereGeometry(1,12,8)),dummy=new T.Object3D();
   const bursts=Array.from({length:4},()=>{
@@ -53,12 +61,14 @@ export function createPlayground({THREE:T,scene,coarse=false,reducedMotion=false
     const body=physics.bodies.find(b=>b.id===id);if(!body||detonated.has(id))return false;
     detonated.add(id);body.object.visible=false;fuses.delete(id);
     const burst=bursts[burstIndex++%bursts.length];burst.age=0;burst.group.visible=true;burst.group.position.set(body.x,body.y,body.z);
-    flash.position.copy(burst.group.position);physics.explode({x:body.x,y:body.y,z:body.z,radius:8,strength:15},driver);
+    flash.position.copy(burst.group.position);const launched=physics.explode({x:body.x,y:body.y,z:body.z,radius:12,strength:22,carStrength:36},driver);
+    if(launched&&!reducedMotion)slowMotion=Math.max(slowMotion,2.8);
     for(const other of physics.bodies){if(other.kind==='tnt'&&!detonated.has(other.id)&&Math.hypot(other.x-body.x,other.z-body.z)<6&&!fuses.has(other.id))fuses.set(other.id,.1+Math.hypot(other.x-body.x,other.z-body.z)*.035);}
-    onExplosion?.({x:body.x,z:body.z,distance:Math.hypot(body.x-driver.x,body.z-driver.z)});return true;
+    onExplosion?.({x:body.x,y:body.y,z:body.z,radius:11,distance:Math.hypot(body.x-driver.x,body.z-driver.z),launched});return true;
   }
-  function update(dt,physics,driver,{paused=false}={}){
+  function update(dt,physics,driver,{paused=false,realElapsed=dt}={}){
     if(disposed||paused)return;
+    slowMotion=Math.max(0,slowMotion-Math.max(0,Math.min(.1,realElapsed)));
     dt=Math.max(0,Math.min(.05,dt));flash.intensity=0;
     for(const [id,remaining] of [...fuses]){if(remaining<=dt)detonate(id,physics,driver);else fuses.set(id,remaining-dt);}
     for(const body of physics.bodies)if(body.kind==='tnt'&&!detonated.has(body.id)&&!fuses.has(body.id)&&body.impactSpeed>=3.2)detonate(body.id,physics,driver);
@@ -71,6 +81,6 @@ export function createPlayground({THREE:T,scene,coarse=false,reducedMotion=false
       if(!reducedMotion)flash.intensity=Math.max(flash.intensity,Math.max(0,1-age/.22)*65);
     }
   }
-  function reset(){detonated.clear();fuses.clear();flash.intensity=0;bursts.forEach(b=>{b.age=10;b.group.visible=false;});bodies.forEach(b=>b.object.visible=true);}
-  return {root,bodies,update,reset,detonate,detonated,dispose(){if(disposed)return;disposed=true;root.removeFromParent();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());}};
+  function reset(){detonated.clear();fuses.clear();slowMotion=0;flash.intensity=0;bursts.forEach(b=>{b.age=10;b.group.visible=false;});bodies.forEach(b=>b.object.visible=true);}
+  return {root,bodies,update,reset,detonate,detonated,timeScale:()=>slowMotion>.6?.25:1-.75*slowMotion/.6,dispose(){if(disposed)return;disposed=true;root.removeFromParent();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());textures.forEach(t=>t.dispose());}};
 }

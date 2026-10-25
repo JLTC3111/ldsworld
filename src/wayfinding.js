@@ -1,3 +1,4 @@
+import { ROAD_WIDTHS } from './world-layout.js';
 import { roadNodes,outerRoadLoop,connectorPaths,planRoute } from './driving.js';
 
 export const TOWN_CENTER=Object.freeze({x:0,z:13});
@@ -26,7 +27,7 @@ export function createWayfinding({THREE:T,scene,language='en'}){
     const count=Math.max(2,Math.floor(length/14));
     for(let i=0;i<count;i++){const t=(i+.6)/count;arrow(curve.getPointAt(t),curve.getTangentAt(t).negate(),'town-connector');}
     const position=curve.getPointAt(.7),tangent=curve.getTangentAt(.7),right=new T.Vector3(tangent.z,0,-tangent.x);
-    const sign=new T.Group();sign.name='Town wayfinding sign';sign.position.copy(position).addScaledVector(right,5.5);sign.rotation.y=Math.atan2(tangent.x,tangent.z);root.add(sign);
+    const sign=new T.Group();sign.name='Town wayfinding sign';sign.position.copy(position).addScaledVector(right,ROAD_WIDTHS.spine/2+3.2);sign.rotation.y=Math.atan2(tangent.x,tangent.z);root.add(sign);
     box(3.24,.92,.12,dark,sign,0,2,0);for(const x of [-.95,.95])box(.09,1.65,.09,dark,sign,x,.95,0);
     const canvas=document.createElement('canvas');canvas.width=512;canvas.height=128;const texture=new T.CanvasTexture(canvas);texture.colorSpace=T.SRGBColorSpace;textures.push(texture);
     const material=ownMat(new T.MeshBasicMaterial({map:texture,toneMapped:false}));
