@@ -89,6 +89,7 @@ export function versionHtmlResources(html, revision) {
 async function readSource(directory, prefix = '') {
   const result = [];
   for (const entry of (await readdir(directory, { withFileTypes: true })).sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) {
+    if(entry.name==='.DS_Store')continue;
     const relative = prefix + entry.name, filename = path.join(directory, entry.name);
     // Input reference photographs and design screenshots are not runtime assets.
     if(relative==='assets/3D_CARS'||relative==='assets/aspects')continue;
