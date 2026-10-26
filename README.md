@@ -130,7 +130,7 @@ There is a project browser fallback if WebGL is unavailable. The 3D world requir
 
 ## Hosting
 
-GitHub `main` publishes to Vercel. `vercel.json` sets `npm run build` and the `dist/` output directory. `.openai/hosting.json` retains the older private Sites project identity; it is not used by the GitHub/Vercel build. The existing longd.tech domain and source project are unchanged.
+GitHub `main` publishes to Vercel. `vercel.json` sets a clean `npm ci --include=dev` install, `npm run build`, and the `dist/` output directory. The lockfile includes complete versions and platform constraints for every optional esbuild binary; a regression check rejects incomplete platform entries before publishing. `.openai/hosting.json` retains the older private Sites project identity; it is not used by the GitHub/Vercel build. The existing longd.tech domain and source project are unchanged.
 
 ## Verification
 
