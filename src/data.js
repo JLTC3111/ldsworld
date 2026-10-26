@@ -85,6 +85,7 @@ export const localizeProject = (project, language = 'en') => language === 'vi' ?
 
 export const copy = {
   en: {
+    menuLabel:'Menu',closeMenuLabel:'Close',openMenuAria:'Open menu',closeMenuAria:'Close menu',socialLinks:'Find me',
     videoPlay:'Play video', videoPause:'Pause video', switchLanguage:'Switch language: English / Tiếng Việt',
     tiltTitle:'Drive by tilting', tiltEnable:'Enable tilt controls', tiltCalibrate:'Recenter tilt',
     tiltIdle:'Choose Let’s explore to enable motion controls. Hold your phone comfortably, then tilt left or right to steer and forward or back to drive.',
@@ -142,6 +143,7 @@ export const copy = {
     screenControls: 'Computer display', screenProject: 'Project', screenStack: 'Stack', screenPreview: 'Preview', screenHint: 'Click the screen to switch · Drag to turn', screenStackHint: 'Select a tool to learn what it does.', screenPreviewHint: 'A real frame from this project’s demo.', watchDemo: 'Watch the demo', demoEnglish: 'English recording', demoVietnamese: 'Vietnamese recording', demoShared: 'Shared original recording', demoMultilingual:'Multilingual recording',
   },
   vi: {
+    menuLabel:'Menu',closeMenuLabel:'Đóng',openMenuAria:'Mở menu',closeMenuAria:'Đóng menu',socialLinks:'Kết nối',
     videoPlay:'Phát video', videoPause:'Tạm dừng video', switchLanguage:'Đổi ngôn ngữ: English / Tiếng Việt',
     tiltTitle:'Lái xe bằng cách nghiêng máy', tiltEnable:'Bật điều khiển nghiêng', tiltCalibrate:'Căn lại vị trí trung tâm',
     tiltIdle:'Chọn Cùng khám phá để bật cảm biến. Giữ điện thoại thoải mái, nghiêng trái hoặc phải để lái và nghiêng trước hoặc sau để tiến hoặc lùi.',

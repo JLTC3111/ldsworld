@@ -1,30 +1,74 @@
 /* Portfolio integration for the locally bundled React Bits components. */
 #header-navigation.navigation {
-  display:block;
-  left:50%;
-  right:auto;
-  transform:translateX(-50%);
-  padding:0;
-  border:0;
-  background:none;
-  box-shadow:none;
-  backdrop-filter:none;
-  max-width:calc(100vw - 32px);
+  position:static; display:block; width:0; height:0; padding:0; border:0;
+  left:auto; right:auto; top:auto; transform:none; border-radius:0;
+  background:none; box-shadow:none; backdrop-filter:none;
 }
-#header-navigation .gooey-nav__link {
-  display:inline-flex;
-  gap:8px;
-  padding:var(--gn-y) var(--gn-x);
-  border-radius:999px;
-  background:none;
-  font-size:var(--gn-font);
-  line-height:1.2;
+#header-navigation .portfolio-menu { height:100dvh; pointer-events:none; }
+#header-navigation .staggered-menu-header { justify-content:flex-end; padding:29px 40px; }
+#header-navigation .sm-toggle {
+  display:inline-flex; align-items:center; gap:12px; padding:14px 18px;
+  min-height:46px; border:1px solid #858c91; border-radius:999px;
+  background:#3e4850; color:#f2eee6; font-size:13px; line-height:1;
+  box-shadow:var(--shadow); transition:background .2s;
 }
-#header-navigation .gooey-nav__link:hover,
-#header-navigation .gooey-nav__link[aria-current="page"] { background:none; }
-#header-navigation .gooey-nav__list { flex-wrap:nowrap; }
-#header-navigation .gooey-nav__list--active .gooey-nav__link { color:var(--gn-active-ink); }
-#header-navigation .gooey-nav--framed { box-shadow:var(--shadow); }
+#header-navigation .sm-toggle:hover { background:#4a5660; }
+#header-navigation .sm-toggle:focus-visible { outline:3px solid var(--focus); outline-offset:4px; }
+#header-navigation .staggered-menu-panel,
+#header-navigation .sm-prelayers { width:min(380px,100vw); left:auto; right:0; }
+#header-navigation .staggered-menu-panel {
+  padding:100px 30px 30px; background:var(--paper); color:var(--ink);
+  border-left:1px solid var(--line); overscroll-behavior:contain;
+  scrollbar-width:thin; scrollbar-color:var(--line) transparent;
+}
+#header-navigation .staggered-menu-panel[aria-hidden="true"] { pointer-events:none; }
+#header-navigation .sm-panel-inner { flex:1 0 auto; gap:26px; }
+#header-navigation .sm-panel-list { gap:12px; }
+#header-navigation .sm-panel-item {
+  display:block; width:100%; padding:4px 28px 6px 0;
+  font-size:clamp(26px,3vw,34px); line-height:1.15; letter-spacing:-1px;
+  font-weight:550; text-transform:none; color:var(--ink);
+}
+#header-navigation .sm-panel-item:hover { color:var(--ink); background:var(--hover-bg); }
+#header-navigation .sm-panel-item[aria-current="page"] .sm-panel-itemLabel { text-decoration:underline; text-decoration-color:var(--sm-accent); text-underline-offset:7px; }
+#header-navigation .sm-panel-item::after { top:8px; right:0; font:11px var(--mono); color:var(--muted); }
+#header-navigation .sm-socials { margin-top:auto; padding-top:22px; border-top:1px solid var(--line); }
+#header-navigation .sm-socials-title { font:11px var(--mono); color:var(--muted); }
+#header-navigation .sm-socials-link { font-size:14px; color:var(--ink); }
+#header-navigation .sm-socials-link:hover { text-decoration:underline; }
+#header-navigation .sm-socials-list .sm-socials-link { opacity:1; }
+.header-tools { position:fixed; top:35px; right:168px; }
+@media(max-width:900px) { #header-navigation .staggered-menu-header { padding:24px; } .header-tools { top:30px; right:150px; } }
+@media(max-width:560px) {
+  #header-navigation .staggered-menu-header { padding:12px; }
+  #header-navigation .sm-toggle { min-height:44px; padding:12px 16px; }
+  #header-navigation .staggered-menu-panel { padding:80px 24px 24px; }
+  #header-navigation .sm-panel-item { font-size:30px; }
+}
+body.mobile-layout #header-navigation .staggered-menu-header { padding:12px; }
+@media(max-height:620px) {
+  #header-navigation .staggered-menu-panel { padding-top:80px; }
+  #header-navigation .sm-panel-list { gap:5px; }
+  #header-navigation .sm-panel-item { font-size:26px; }
+}
+/* A four-row chooser stays close to the dock and remembers the selected car. */
+dialog.car-picker {
+  position:fixed; inset:auto 0 max(110px,calc(env(safe-area-inset-bottom) + 110px));
+  margin:0 auto; width:min(270px,calc(100vw - 32px)); max-height:calc(100dvh - 130px);
+  padding:14px; border:1px solid var(--chrome-border); border-radius:16px;
+  background:var(--paper); color:var(--ink); box-shadow:var(--shadow); overflow-y:auto;
+}
+dialog.car-picker::backdrop { background:#24292e24; }
+.car-picker-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+.car-picker-heading h2 { margin:0; font-size:14px; font-weight:600; }
+.car-picker-heading .icon-button { width:30px; height:30px; padding:5px; }
+.car-picker-heading .icon { width:16px; height:16px; }
+.car-picker-list { display:grid; gap:5px; }
+.car-choice { display:flex; align-items:center; gap:12px; width:100%; min-height:48px; padding:5px 10px; border:1px solid transparent; border-radius:9px; background:var(--surface-soft); font-size:13px; text-align:left; }
+.car-choice:hover { background:var(--hover-bg); border-color:var(--line); }
+.car-choice[aria-pressed="true"] { border-color:var(--ink); background:var(--hover-bg); }
+.car-choice>img,.car-choice>svg:not(.icon) { width:48px; height:34px; flex:none; object-fit:contain; }
+.car-choice>.icon,.car-choice-empty { margin-left:auto; width:16px; height:16px; }
 
 #control-dock.control-dock {
   position:fixed;
@@ -91,46 +135,21 @@ dialog#panel[data-view="project"] #panel-close { border-radius:50% !important; }
 .project-detail { --project-color:var(--ink) !important; --project-bg:var(--surface-soft) !important; }
 .project-card { --project-bg:var(--surface-soft) !important; }
 
-@media(max-width:1080px) and (min-width:901px) {
-  #header-navigation .gooey-nav { --gn-x:12px; --gn-font:13px; }
-  .header-tools { gap:10px; }
-  .location { padding:9px; font-size:8px; }
-}
-@media(max-width:900px) {
-  #header-navigation.navigation { top:88px; left:50%; right:auto; }
-  #header-navigation .gooey-nav { --gn-x:14px; --gn-font:12px; }
-  .hero { top:max(154px, 22vh); }
-  .world-toolbar { top:139px; }
-}
 @media(max-width:720px) {
   dialog#panel.portfolio-panel[data-view="map"] {
-    --map-top:18px;
-    --map-bottom:18px;
-    inset:8px 12px auto;
-    width:calc(100vw - 24px);
-    max-width:calc(100vw - 24px);
-    height:calc(100dvh - 36px);
+    --map-top:18px; --map-bottom:18px; inset:8px 12px auto;
+    width:calc(100vw - 24px); max-width:calc(100vw - 24px); height:calc(100dvh - 36px);
   }
   dialog#panel[data-view="map"] .travel-map-layout { grid-template-columns:minmax(0, 1fr); }
 }
 @media(max-height:620px) and (min-width:721px) {
   dialog#panel.portfolio-panel[data-view="map"] { --map-top:28px; --map-bottom:20px; }
-  #header-navigation.navigation { top:24px; }
 }
-@media(max-width:560px) {
-  #header-navigation.navigation { top:79px; }
-  #header-navigation .gooey-nav { --gn-x:12px; --gn-y:9px; --gn-font:12px; }
-  .hero { top:max(148px, 20vh); }
-  .world-toolbar { top:130px; }
-  .world-settings-button { min-height:34px; padding:7px 9px; }
-  .world-settings-button small { display:none; }
-  .minimap-wrap { bottom:118px; }
-}
+@media(max-width:560px) { .minimap-wrap { bottom:118px; } }
 @media(prefers-reduced-motion:reduce) {
   .hero.hero-driving { transition:none; }
 }
 
-#header-navigation .gooey-nav { --gn-x:12px; --gn-font:12px; }
 #header-language { font-family:var(--mono); font-weight:700; }
 .panel-tools .panel-theme { color:var(--ink); }
 .project-detail .case-meta { grid-template-columns:repeat(2,minmax(0,1fr)); }
@@ -138,12 +157,12 @@ dialog#panel[data-view="project"] #panel-close { border-radius:50% !important; }
 .video-toggle {
   position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
   display:grid; place-items:center; width:58px; height:58px; padding:0;
-  background:#111111d9; color:#fff; border:1px solid #ffffff80;
+  background:#343d45e6; color:#f4f0e8; border:1px solid #ece7dc80;
   backdrop-filter:blur(8px); z-index:2; transition:opacity .2s,background .2s;
 }
 .video-toggle .icon { width:25px; height:25px; }
 .video-playing .video-toggle { opacity:.18; }
-.project-video-wrap:hover .video-toggle,.video-toggle:focus-visible { opacity:1; background:#111; }
+.project-video-wrap:hover .video-toggle,.video-toggle:focus-visible { opacity:1; background:#3e4851; }
 .topography-scene { position:relative; width:100%; height:600px; min-height:280px; flex-shrink:0; overflow:hidden; background:#080b12; border:1px solid var(--line); }
 [data-topography] { position:absolute; inset:0; }
 .topography-fallback { position:absolute; inset:0; width:100%; height:100%; fill:none; stroke:#4f7cff; stroke-width:1.2; opacity:.75; }
@@ -157,18 +176,10 @@ dialog#panel[data-view="project"] #panel-close { border-radius:50% !important; }
 .tilt-settings .secondary-button { margin:4px 6px 4px 0; }
 body.mobile-layout #home-link,body.mobile-layout .header-tools { display:none !important; }
 body.mobile-layout .site-header { min-height:65px; padding:12px; }
-body.mobile-layout #header-navigation.navigation { top:12px; left:50%; width:min(520px,calc(100vw - 24px)); }
-body.mobile-layout #header-navigation .gooey-nav,body.mobile-layout #header-navigation .gooey-nav__stage { width:100%; }
-body.mobile-layout #header-navigation .gooey-nav__list { justify-content:space-between; }
 @media(max-width:560px) {
   #home-link,.header-tools { display:none !important; }
-  .site-header { min-height:100px; padding:12px; }
-  #header-navigation.navigation,body.mobile-layout #header-navigation.navigation { top:12px; width:calc(100vw - 24px); }
-  #header-navigation .gooey-nav,#header-navigation .gooey-nav__stage { width:100%; }
-  #header-navigation .gooey-nav__list { flex-wrap:wrap; }
-  #header-navigation .gooey-nav__item { width:calc((100% - 8px) / 3); }
-  #header-navigation .gooey-nav__link { justify-content:center; width:100%; --gn-font:11px; --gn-x:6px; --gn-y:9px; }
-  .hero { top:max(132px,18vh); }
+  .site-header { min-height:65px; padding:12px; }
+  .hero { top:max(104px,18vh); }
   .video-toggle { width:48px; height:48px; }
   .video-playing .video-toggle { opacity:.8; }
   .topography-scene { height:380px; }

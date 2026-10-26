@@ -1,3 +1,4 @@
+import { createCarEnvironment } from './car-lighting.js';
 import { vehicleModel } from './vehicle-models.js';
 import { mapLocations } from './locations.js';
 import * as THREE from './vendor/three.module.js';
@@ -41,6 +42,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   renderer.domElement.setAttribute('aria-label', 'Drive with WASD or arrow keys. Click the ground to move, a building to open a project, or a loose object to nudge it.');
   renderer.domElement.setAttribute('aria-describedby', 'drive-instructions');
   container.prepend(renderer.domElement);
+  const carEnvironment=createCarEnvironment({THREE,renderer});
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(colors.sea);
   scene.fog = new THREE.Fog(colors.sea, 130, 260);
@@ -434,7 +436,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   let blastDamage=null;
   const playground=createPlayground({THREE,scene,coarse,reducedMotion,onExplosion:event=>{blastDamage?.blast(event);onExplosion?.(event);}});
   const nightFires=createNightFires({THREE,scene,reducedMotion});
-  let vehicle=createVehicle({THREE,scene,reducedMotion,model:vehicleModel(carModel).id});
+  let vehicle=createVehicle({THREE,scene,reducedMotion,model:vehicleModel(carModel).id,environmentMap:carEnvironment.texture});
   let car=vehicle.root;car.userData.vehicleId=vehicle.modelId;
   const carShadow = mesh(new THREE.CircleGeometry(1, 24), new THREE.MeshBasicMaterial({ color: '#6d7d61', transparent: true, opacity: .13, depthWrite: false }), scene, 0, .14, 13, false); carShadow.rotation.x = -Math.PI / 2; carShadow.scale.set(.9, 1.35, 1);
   const routeColliders = [...projects.map(p => ({ x:p.position[0], z:p.position[1], width:p.footprint[0], depth:p.footprint[1] })), ...scenery.colliders, ...islandLife.colliders];
@@ -531,7 +533,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     if(free(x,z))return [x,z];for(const radius of [2,4,6,8,11])for(let i=0;i<16;i++){const px=x+Math.cos(i/16*Math.PI*2)*radius,pz=z+Math.sin(i/16*Math.PI*2)*radius;if(free(px,pz))return[px,pz];}return null;
   }
   function setCarModel(id){
-    const config=vehicleModel(id);if(vehicle.modelId===config.id)return config.id;stopDriving();driver.settle();const index=interactiveGroups.indexOf(car);vehicle.dispose();vehicle=createVehicle({THREE,scene,reducedMotion,model:config.id});car=vehicle.root;car.userData.vehicleId=vehicle.modelId;interactiveGroups[index]=car;driver.setVehicleProfile(vehicle.profile);const spot=safeArrival(driver.x,driver.z);if(spot)driver.teleport(...spot);vehicle.update(0,{driver,night:environment.night,headlights:headlightsMode});return config.id;
+    const config=vehicleModel(id);if(vehicle.modelId===config.id)return config.id;stopDriving();driver.settle();const index=interactiveGroups.indexOf(car);vehicle.dispose();vehicle=createVehicle({THREE,scene,reducedMotion,model:config.id,environmentMap:carEnvironment.texture});car=vehicle.root;car.userData.vehicleId=vehicle.modelId;interactiveGroups[index]=car;driver.setVehicleProfile(vehicle.profile);const spot=safeArrival(driver.x,driver.z);if(spot)driver.teleport(...spot);vehicle.update(0,{driver,night:environment.night,headlights:headlightsMode});return config.id;
   }
   function teleportTo(id){
     const location=mapLocations(language).find(location=>location.id===id);if(!location)return false;const heading=driver.heading;driver.heading=location.heading??Math.PI/2;const spot=safeArrival(...location.spawn);if(!spot){driver.heading=heading;return false;}
@@ -546,7 +548,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     const clearAlpha=renderer.getClearAlpha(),clearColor=renderer.getClearColor(new THREE.Color()).clone();
     const tint=(color,value)=>{savedColors.push([color,color.clone()]);color.set(value);};
     scene.traverse(object=>{
-      if(['island-atmosphere','island-flyover','Project rooftop typography','Frosted canopy tips'].includes(object.name)||object.material===winterMaterial||object.userData.atlasSnow){hidden.push([object,object.visible]);object.visible=false;}
+      if(['island-atmosphere','island-flyover','Project rooftop typography','Frosted canopy tips','Vehicle studio lights'].includes(object.name)||object.material===winterMaterial||object.userData.atlasSnow){hidden.push([object,object.visible]);object.visible=false;}
       const uniforms=object.material?.uniforms;
       if(uniforms?.uDaylight){savedUniforms.push([uniforms.uDaylight,uniforms.uDaylight.value]);uniforms.uDaylight.value=1;}
       if(uniforms?.uRain){savedUniforms.push([uniforms.uRain,uniforms.uRain.value]);uniforms.uRain.value=0;}
@@ -733,7 +735,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
       for (const [event, listener] of Object.entries(hoverListeners)) surface.removeEventListener(event, listener);
       // Snowman geometry is owned by islandLife even after its bodies are reparented.
       physics.bodies.filter(body=>body.kind==='snowman'||body.kind==='trash-can').forEach(body=>body.object.removeFromParent());
-      blastDamage.dispose();projectLabels.dispose();scenery.bridgeGroups.forEach(({bridge})=>delete bridge.active);boundary.dispose();wayfinding.dispose();playground.dispose();nightFires.dispose();scenery.dispose(); atmosphere.dispose(); flyover.dispose(); vehicle.dispose(); islandLife.dispose(); detailedTrees.dispose();
+      blastDamage.dispose();projectLabels.dispose();scenery.bridgeGroups.forEach(({bridge})=>delete bridge.active);boundary.dispose();wayfinding.dispose();playground.dispose();nightFires.dispose();scenery.dispose(); atmosphere.dispose(); flyover.dispose(); vehicle.dispose();carEnvironment.dispose(); islandLife.dispose(); detailedTrees.dispose();
       const geometries = new Set(); scene.traverse(o => { if (o.geometry) geometries.add(o.geometry); }); geometries.forEach(g => g.dispose());
       materials.forEach(m => m.dispose()); renderer.dispose(); renderer.domElement.remove();
     }

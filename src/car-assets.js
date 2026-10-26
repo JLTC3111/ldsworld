@@ -1,6 +1,7 @@
 import * as T from './vendor/three.module.js';
 import { GLTFLoader } from './vendor/GLTFLoader.js';
 import { vehicleModel } from './vehicle-models.js';
+import { suppliedCarFinish } from './car-finishes.js';
 const assets=new Map(),loading=new Map();
 export const CAR_ASSET_IDS=['8-ball','monster-truck','toy-story'];
 export async function registerCarAsset(id,bytes){
@@ -30,8 +31,8 @@ export function cloneCarAsset(id){
   clone.traverse(o=>{if(o.isMesh){if(o.name.startsWith('display_base')){o.visible=false;return;}meshes.push(o);
     if(!geometries.has(o.geometry))geometries.set(o.geometry,o.geometry.clone());o.geometry=geometries.get(o.geometry);
     if(!materials.has(o.material)){
-      const old=o.material,paint=/body__(?:red|green|yellow|blue|brown|domed)/.test(o.name),rubber=/tire|rubber|tread/.test(o.name);
-      const material=new T.MeshPhysicalMaterial({color:old.color,roughness:rubber?.94:paint?.3:old.roughness,metalness:rubber?0:old.metalness,clearcoat:paint?.8:0,clearcoatRoughness:.18,emissive:paint?old.color:0,emissiveIntensity:paint?.025:0,side:old.side});material.name=old.name||o.name;material.userData.visibilityPaint=paint;materials.set(o.material,material);
+      const old=o.material,finish=suppliedCarFinish(id,o.name,old),{visibilityPaint,...properties}=finish;
+      const material=new T.MeshPhysicalMaterial({...properties,emissive:visibilityPaint?properties.color:0,side:old.side});material.name=old.name||o.name;material.userData.visibilityPaint=visibilityPaint;materials.set(o.material,material);
     }o.material=materials.get(o.material);o.castShadow=o.receiveShadow=true;
   }});
   const orient=new T.Group();orient.name=`Supplied ${config.name} GLB`;orient.add(clone);

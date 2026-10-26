@@ -34,7 +34,7 @@ export function createAssetVehicle({THREE:T,scene,model,reducedMotion=false}){
       for(const wheel of wheelPivots){const key=`${wheel.front?'front':'rear'}${wheel.side<0?'Left':'Right'}`,terrain=driver.attitude?.flying?0:Math.max(-.22,Math.min(.35,(driver.wheelHeights?.[key]??driver.groundHeight??0)-(driver.groundHeight||0)));wheel.pivot.position.y=wheel.baseY+terrain;wheel.pivot.rotation.y=wheel.front?(driver.steering||0)*.38:0;wheel.roller.rotation.x=travel;}
       for(const {barrel,piston,wheel} of hydraulicRams){const y=wheel.pivot.position.y,top=y+.36+lift;barrel.position.set(wheel.x*.75,y+.14,wheel.z);piston.position.set(wheel.x*.75,(y+top)/2,wheel.z);piston.scale.y=Math.max(.08,top-y);}
       for(const {rod,wheel,dz} of links){a.set(wheel.x*.35,wheel.baseY+.3+lift,wheel.z+dz);b.set(wheel.x,wheel.pivot.position.y,wheel.z);rod.position.copy(a).add(b).multiplyScalar(.5);rod.scale.y=a.distanceTo(b);rod.quaternion.setFromUnitVectors(up,b.sub(a).normalize());}
-      details.update({driver,night,headlights,braking,time});for(const material of asset.materials)if(material.userData.visibilityPaint)material.emissiveIntensity=.025+night*.09;
+      details.update({driver,night,headlights,braking,time});for(const material of asset.materials)if(material.userData.visibilityPaint)material.emissiveIntensity=.035+night*.14;
       flames.forEach(f=>{f.visible=Boolean(driver.boosting);f.position.y=.6+lift;f.scale.y=reducedMotion?1:.9+Math.sin(time*45)*.12;});
     },dispose(){if(disposed)return;disposed=true;root.removeFromParent();details.dispose();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());}
   };

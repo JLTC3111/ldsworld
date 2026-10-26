@@ -3,9 +3,9 @@ export function getScenePresentation(environment = {}) {
   const phase = ['day','sunrise','sunset','night'].includes(environment.cycleLabel) ? environment.cycleLabel : 'day';
   const dark = Number(environment.night) > .5;
   const wet = environment.weather === 'rain';
-  const wash = dark ? '#202020' : wet ? '#dedede' : phase === 'sunrise' ? '#f0f0f0' : phase === 'sunset' ? '#e6e6e6' : '#f5f5f5';
+  const wash = dark ? '#24282d' : wet ? '#dfdedc' : phase === 'sunrise' ? '#eee8dd' : phase === 'sunset' ? '#e7dfd3' : '#ece9e1';
   return {
     key:`${phase}-${dark?'dark':'light'}-${wet?'rain':'clear'}`, phase,
-    ink:dark?'#fafafa':'#171717', muted:dark?'#d5d5d5':'#4b4b4b', wash
+    ink:dark?'#e4e0d7':'#41474b', muted:dark?'#c2c4c4':'#575e62', wash
   };
 }

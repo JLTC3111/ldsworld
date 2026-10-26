@@ -3,11 +3,17 @@ import { createReferenceVehicle } from './toy-vehicles.js';
 import { createAssetVehicle } from './asset-vehicle.js';
 import { vehicleModel } from './vehicle-models.js';
 import { scaleVehicle } from './vehicle-scale.js';
+import { createCarLighting } from './car-lighting.js';
 export function createVehicle(options){
   const id=options.model||'explorer';
   const config=vehicleModel(id),vehicle=id==='explorer'?createExplorer(options):createAssetVehicle({...options,model:config})||createReferenceVehicle({...options,model:config});
   vehicle.modelId=id==='explorer'?'explorer':config.id;vehicle.profile||=vehicleModel(vehicle.modelId).profile;
-  return scaleVehicle(vehicle,{THREE:options.THREE});
+  scaleVehicle(vehicle,{THREE:options.THREE});
+  const lighting=createCarLighting({...options,vehicle}),update=vehicle.update.bind(vehicle),dispose=vehicle.dispose.bind(vehicle);
+  vehicle.lighting=lighting;
+  vehicle.update=(dt,state)=>{update(dt,state);lighting.update(state);};
+  vehicle.dispose=()=>{lighting.dispose();dispose();};
+  return vehicle;
 }
 function createExplorer({ THREE, scene, reducedMotion = false }) {
   const root = new THREE.Group(); root.name = 'Long D. Explorer'; scene.add(root);

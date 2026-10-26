@@ -48,13 +48,13 @@ const t = key => copy[state.language][key] || copy.en[key] || key;
 const local = project => localizeProject(project, state.language);
 const mediaFor = project => getProjectMedia(typeof project === 'string' ? project : project.id, state.language);
 state.music = storage.get('music','on') !== 'off';
-state.carModel='8-ball';
+state.carModel=vehicleModel(storage.get('car','8-ball')).id;state.menuOpen=false;
 const mobileMedia=matchMedia('(pointer: coarse)');
 state.mobile=mobileMedia.matches;state.tiltStatus='idle';
 document.body.classList.toggle('mobile-layout',state.mobile);
 state.mapCategory='buildings';state.mapZoom=1;state.carPosition={x:0,z:13,heading:Math.PI/2};
 state.showcaseScreen = 'project'; state.showcaseTool = null;
-const panel = $('#panel');
+const panel = $('#panel'),carPicker=$('#car-picker');
 const panelDrag=createDialogDrag({dialog:panel,handle:$('.panel-topbar'),keyboardHandle:$('#panel-context')});
 const drivingHud=createDrivingHud();
 const explorationUI=createExplorationUI({hero:$('.hero'),badge:$('#explore-status'),focusSurface:()=>$('#island-canvas')?.focus({preventScroll:true})});
@@ -77,12 +77,24 @@ function controlsModel() {
   const musicPlaying=state.musicPlaying??state.music;
   return {language:state.language,night:state.night,sound:state.sound,musicPlaying,view:state.panel,labels:{
     home:t('navHome'),projects:t('navWork'),about:t('navAbout'),contact:t('navContact'),world:t('worldSettings'),language:t('switchLanguage'),navigation:t('navigationAria'),
-    garage:t('chooseCar'),reset:`${t('reset')} (R)`,sound:t(state.sound?'soundOff':'soundOn'),music:t(musicPlaying?'musicPause':'musicPlay'),theme:t(state.night?'day':'night'),help:t('help')
+    menu:t('menuLabel'),closeMenu:t('closeMenuLabel'),openMenuAria:t('openMenuAria'),closeMenuAria:t('closeMenuAria'),socials:t('socialLinks'),garage:t('chooseCar'),reset:`${t('reset')} (R)`,sound:t(state.sound?'soundOff':'soundOn'),music:t(musicPlaying?'musicPause':'musicPlay'),theme:t(state.night?'day':'night'),help:t('help')
   }};
 }
 function syncControls() { portfolioControls?.update(controlsModel()); }
-portfolioControls=mountPortfolioControls({navigation:$('#header-navigation'),dock:$('#control-dock'),model:controlsModel(),onAction:performAction});
+portfolioControls=mountPortfolioControls({navigation:$('#header-navigation'),dock:$('#control-dock'),model:controlsModel(),onAction:performAction,onMenuChange:setMenuOpen});
 mobileMedia.addEventListener?.('change',()=>{state.mobile=mobileMedia.matches;document.body.classList.toggle('mobile-layout',state.mobile);tiltControls.setPaused(!state.mobile||!!state.panel);});
+
+function syncWorldPause(){const paused=!!state.panel||carPicker.open||state.menuOpen||document.hidden;world?.setPaused(paused);tiltControls.setPaused(paused||!state.exploring);}
+function setMenuOpen(value){state.menuOpen=value;syncWorldPause();}
+function openCarPicker(){
+  portfolioControls.closeMenu();closePanel();drivingHud.reveal();
+  $('#car-picker-content').innerHTML=renderGarage();$('#car-picker-title').textContent=t('chooseCar');
+  if(!carPicker.open)carPicker.showModal();syncWorldPause();carPicker.querySelector('[aria-pressed="true"]')?.focus({preventScroll:true});
+}
+function closeCarPicker(){if(carPicker.open)carPicker.close();}
+carPicker.addEventListener('close',()=>{syncWorldPause();if(!panel.open&&!state.menuOpen)$('#garage')?.focus({preventScroll:true});});
+carPicker.addEventListener('click',event=>{if(event.target!==carPicker)return;const r=carPicker.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)closeCarPicker();});
+$('#car-picker-close').addEventListener('click',closeCarPicker);
 
 function translatePage() {
   document.documentElement.lang = state.language;
@@ -113,7 +125,7 @@ function applyTheme() {
   panelShowcase?.setTheme(showcaseDark());
   const panelTheme=$('#panel-theme');if(panelTheme){panelTheme.innerHTML=icon(state.night?'moon':'sun');panelTheme.setAttribute('aria-pressed',String(state.night));panelTheme.setAttribute('aria-label',t(state.night?'day':'night'));}
   brandTechText.refresh();
-  $('meta[name="theme-color"]').content = state.night ? '#151515' : '#f4f4f4';
+  $('meta[name="theme-color"]').content = state.night ? '#24292e' : '#eae7e0';
 }
 function startCurrentDemo() {
   const video = $('#panel-content video[data-project-demo]');
@@ -166,6 +178,7 @@ function setHash(view, id) {
   history.replaceState(null, '', `${location.pathname}${location.search}${hash}`);
 }
 function showPanel(view, id = null) {
+  portfolioControls.closeMenu();closeCarPicker();
   if (!panel.open) { previousFocus = document.activeElement;panelDrag.reset(); }
   drivingHud.reveal();
   if(view==='map')state.mapZoom=1;
@@ -180,7 +193,7 @@ function showPanel(view, id = null) {
 function closePanel() { if (panel.open) panel.close(); }
 function handlePanelClose() {
   disposeShowcase();disposeTopography();projectPlayer?.destroy();projectPlayer=null;
-  state.panel = null; state.projectId = null; document.body.classList.remove('panel-open'); world?.setPaused(false);tiltControls.setPaused(!state.exploring);
+  state.panel = null; state.projectId = null; document.body.classList.remove('panel-open');syncWorldPause();
   setHash(null); refreshNearby(); syncControls();
   $('#panel-content').querySelectorAll('video').forEach(releaseDemo);
   if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
@@ -374,7 +387,8 @@ function renderMap(){
   return `<article class="travel-map"><p class="panel-eyebrow">${t('mapEyebrow')}</p><h2 id="panel-title">${t('map')}</h2><p class="map-intro">${t('teleportHint')}</p><div class="atlas-tabs" role="group" aria-label="${t('destinations')}">${['buildings','objects'].map(category=>`<button data-map-category="${category}" aria-pressed="${state.mapCategory===category}">${t(category==='buildings'?'mapBuildings':'mapObjects')}<span>${all.filter(l=>l.category===category).length}</span></button>`).join('')}</div><div class="travel-map-layout"><div><div class="large-map top-view-map"><svg viewBox="${box}" aria-hidden="true">${image}${vehicle}</svg><span class="atlas-north" aria-hidden="true">N ↑</span><div class="atlas-zoom"><button data-map-zoom="in" aria-label="${t('mapZoomIn')}">+</button><button data-map-zoom="out" aria-label="${t('mapZoomOut')}">−</button><button data-map-zoom="fit" aria-label="${t('mapOverview')}">↺</button></div>${locations.filter(l=>Math.abs(l.x-frame.x)<frame.halfWidth&&Math.abs(l.z-frame.z)<frame.halfHeight).map(l=>`<button class="map-pin ${l.projectId?'is-building':'is-object'}" data-teleport="${l.id}" style="left:${(l.x-left)/width*100}%;top:${(l.z-top)/height*100}%;--pin-color:${l.color||'#d3efdb'}" aria-label="${t('teleportTo')} ${l.name}"><span class="map-pin-label">${l.name}</span></button>`).join('')}</div><div class="atlas-legend"><span><i class="atlas-car-dot"></i>${t('youAreHere')}</span><span>${t(state.mapCategory==='buildings'?'mapBuildings':'mapObjects')}</span><span>${state.mapZoom.toFixed(1)}×</span></div></div><aside class="map-destinations"><h3>${t('destinations')}</h3><div class="map-location-list">${locations.map(l=>`<button data-teleport="${l.id}"><span class="destination-diamond" aria-hidden="true">${l.projectId?'◆':'◇'}</span><span>${l.name}</span>${icon('arrow')}</button>`).join('')}</div><p class="panel-footnote">${t('mapRespawn')}</p></aside></div><button class="secondary-button" data-action="close-world">${t('return')}</button></article>`;
 }
 function carIcon(id){if(id!=='explorer')return `<img src="./assets/cars/${id}-preview.png" alt="" loading="lazy" decoding="async">`;const c=vehicleModel(id).color;return `<svg viewBox="0 0 120 66" aria-hidden="true"><ellipse cx="60" cy="58" rx="48" ry="5" fill="currentColor" opacity=".09"/><path d="M17 37 28 28h64l15 12v12H17Z" fill="${c}"/><circle cx="32" cy="51" r="${id==='monster-truck'?13:9}" fill="#26383b"/><circle cx="92" cy="51" r="${id==='monster-truck'?13:9}" fill="#26383b"/>${id==='8-ball'?'<path d="M39 36a22 22 0 0 1 44 0" fill="#142329"/><circle cx="61" cy="22" r="10" fill="#f5f1df"/><text x="61" y="27" text-anchor="middle" font-size="15" font-weight="700" fill="#142329">8</text>':id==='toy-story'?'<path d="M42 31V20h39v12" fill="#f4ce48"/><ellipse cx="62" cy="18" rx="30" ry="7" fill="#765044"/><path d="M48 18V9h26v9" fill="#765044"/>':id==='monster-truck'?'<path d="m23 29 8-15 19 8 8-9 38 12-2 13Z" fill="#659d41"/><path d="m26 28 6 8 6-8 6 8 6-8" fill="#efdc9c"/>':'<path d="m40 29 8-18h30l14 18" fill="#f0e5c9"/><path d="m48 15-6 13h16V15Zm17 0v13h19l-9-13" fill="#344e5a"/>'}</svg>`;}
-function renderGarage(){return `<section id="car-selector" class="garage-section"><h3 class="skill-heading">${t('chooseCar')}</h3><p>${t('garageIntro')}</p><div class="garage-grid">${VEHICLE_MODELS.map(model=>`<button class="garage-card" data-car-model="${model.id}" aria-pressed="${state.carModel===model.id}">${carIcon(model.id)}<strong>${state.language==='vi'?model.nameVi:model.name}</strong><small>${state.language==='vi'?model.descriptionVi:model.description}</small><span>${state.carModel===model.id?t('selectedCar'):t('selectCar')}</span></button>`).join('')}</div></section>`;}
+function renderGarage(){const names={'8-ball':['8 Ball','8 Ball'],'monster-truck':['Crocodile','Cá Sấu'],'toy-story':['Woody','Woody'],'explorer':['Explorer','Khám phá']};return `<div class="car-picker-list" role="group" aria-label="${t('chooseCar')}">${VEHICLE_MODELS.map(model=>`<button class="car-choice" data-car-model="${model.id}" aria-pressed="${state.carModel===model.id}">${carIcon(model.id)}<span>${names[model.id][state.language==='vi'?1:0]}</span>${state.carModel===model.id?icon('check'):'<span class="car-choice-empty" aria-hidden="true"></span>'}</button>`).join('')}</div>`;}
+
 const weatherKey = mode => ({ clear: 'weatherClear', rain: 'weatherRain', snow: 'weatherSnow', auto: 'weatherAuto' }[mode] || 'weatherClear');
 function updateEnvironment(environment) {
   if (!environment) return;
@@ -439,6 +453,7 @@ function goHome() {
 }
 async function performAction(action) {
   if(action==='home'){goHome();return;}
+  if(action==='garage'){openCarPicker();return;}
   if(action==='toggle-language'){setLanguage(state.language==='en'?'vi':'en');return;}
   if(action==='enable-tilt'){tiltControls.setPaused(true);await tiltControls.request();return;}
   if(action==='calibrate-tilt'){tiltControls.calibrate();return;}
@@ -470,7 +485,7 @@ document.addEventListener('click', event => {
   if(button.dataset.mapCategory){state.mapCategory=button.dataset.mapCategory==='objects'?'objects':'buildings';state.mapZoom=1;renderPanel();return;}
   if(button.dataset.mapZoom){state.mapZoom=button.dataset.mapZoom==='fit'?1:Math.max(1,Math.min(6,state.mapZoom*(button.dataset.mapZoom==='in'?1.5:1/1.5)));renderPanel();return;}
   if(button.dataset.teleport){const location=mapLocations(state.language).find(l=>l.id===button.dataset.teleport);if(world?.teleportTo(button.dataset.teleport)){closePanel();drivingHud.reveal();engineAudio.update({...engineAudio.motion,paused:false});engineAudio.impact?.('teleport',3);showToast(`${t('teleported')} ${location?.name||''}`);}return;}
-  if(button.dataset.carModel){state.carModel=world?.setCarModel(button.dataset.carModel)||vehicleModel(button.dataset.carModel).id;storage.set('car',state.carModel);renderPanel();return;}
+  if(button.dataset.carModel){state.carModel=world?.setCarModel(button.dataset.carModel)||vehicleModel(button.dataset.carModel).id;storage.set('car',state.carModel);closeCarPicker();syncControls();return;}
   if (button.dataset.screenMode) setShowcaseScreen(button.dataset.screenMode);
   else if (button.dataset.stackTool) selectShowcaseTool(button.dataset.stackTool);
   else if (button.dataset.spotlight) selectSpotlight(button.dataset.spotlight);
@@ -503,10 +518,10 @@ async function toggleSound() {
   if (state.sound) await engineAudio.resume(); syncSoundButton();
 }
 function honk() { if (state.sound) engineAudio.resume().then(() => engineAudio.honk()).catch(() => {}); }
-document.addEventListener('visibilitychange',()=>{engineAudio.suspend(document.hidden);tiltControls.setPaused(document.hidden||!!state.panel||!state.exploring);});
+document.addEventListener('visibilitychange',()=>{engineAudio.suspend(document.hidden);tiltControls.setPaused(document.hidden||!!state.panel||carPicker.open||state.menuOpen||!state.exploring);});
 window.addEventListener('keydown', event => {
   if (event.ctrlKey || event.metaKey || event.altKey || event.repeat || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
-  if (panel.open) return;
+  if (panel.open||carPicker.open||state.menuOpen) return;
   if(!world&&drivingKey(event)===' ')event.preventDefault();
   const key = event.key.toLowerCase();
   if (key === 'escape') { event.preventDefault();drivingHud.toggle(); }
@@ -535,7 +550,7 @@ $('#minimap-svg').setAttribute('viewBox',MAP_VIEWBOX);$('#minimap-svg').innerHTM
 
 try {
   const { createWorld } = await import('./world.js');
-  await loadCarAssets(['8-ball']);
+  await loadCarAssets();
   world = createWorld({
     container: $('#world'), carModel:state.carModel, reducedMotion,
     onStart: startExploring,
@@ -558,7 +573,7 @@ try {
       engineAudio.update({speed:actualSpeed,rpm,gear,throttle,model:carModel,acceleration,paused,surface,airborne,boosting,elapsed,slip:Math.min(1,Math.abs((steering||0)*actualSpeed)/35*(weather==='snow'?1.2:1))});
     }
   });
-  if (state.panel) { world.setPaused(true); renderPanel(); }
+  syncWorldPause();if (state.panel) renderPanel();
   world.setLanguage(state.language); world.setTimeMode(state.timeMode); world.setWeather(state.weatherMode); world.setHeadlightsMode(state.headlights);
   updateEnvironment(world.getEnvironment());
   document.body.classList.add('loaded'); state.ready = true;

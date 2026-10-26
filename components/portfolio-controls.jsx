@@ -1,25 +1,27 @@
 import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import Dock from './react-bits/Dock.jsx';
-import GooeyNav from './react-bits/GooeyNav.jsx';
+import StaggeredMenu from './react-bits/StaggeredMenu.jsx';
 
 const glyph = name => <svg className="icon" aria-hidden="true"><use href={`#i-${name}`} /></svg>;
 
 // Two small React roots keep the real React Bits components independent of the
 // Three.js animation loop. All actions and translations belong to the portfolio.
-export function mountPortfolioControls({ navigation, dock, model, onAction }) {
+export function mountPortfolioControls({ navigation, dock, model, onAction, onMenuChange=()=>{} }) {
   const navRoot = createRoot(navigation), dockRoot = createRoot(dock);
+  const menuController={current:null};
+  const menuOpen=()=>onMenuChange(true),menuClose=()=>onMenuChange(false),selectItem=item=>onAction(item.action);
   let previous = '', disposed = false;
   function update(next) {
     const serialized = JSON.stringify(next);
     if (disposed || serialized === previous) return;
     previous = serialized;
     const { labels, language, night, sound, musicPlaying, view } = next;
-    const navigationItems = ['home', 'projects', 'about', 'contact','world'].map(action => ({ label:labels[action], action }));
-    navigationItems.push({id:'header-language',label:language.toUpperCase(),action:'toggle-language',ariaLabel:labels.language});
-    const activeIndex = view === 'project' || view === 'projects' ? 1 : view === 'about' ? 2 : view === 'contact' ? 3 : view==='world'?4:0;
+    const navigationItems = ['home', 'projects', 'about', 'contact','world','garage'].map(action => ({ label:labels[action],ariaLabel:labels[action],link:'#'+action,action,current:view===action||(action==='home'&&!view)||(action==='projects'&&view==='project') }));
+    navigationItems.push({id:'header-language',label:language==='en'?'Tiếng Việt':'English',link:'#language',action:'toggle-language',ariaLabel:labels.language});
     const item = (id, icon, label, action, active, pressed) => ({ id, icon:glyph(icon), label, active, pressed, onClick:() => onAction(action) });
     const items = [
+      item('garage','car',labels.garage,'garage'),
       item('reset', 'reset', labels.reset, 'reset'),
       { separator:true },
       item('sound', sound ? 'sound' : 'muted', labels.sound, 'toggle-sound', sound, sound),
@@ -29,10 +31,10 @@ export function mountPortfolioControls({ navigation, dock, model, onAction }) {
       item('help', 'help', labels.help, 'help')
     ];
     flushSync(() => {
-      navRoot.render(<GooeyNav items={navigationItems} activeIndex={activeIndex} ariaLabel={labels.navigation} theme={night ? 'dark' : 'light'} color={night ? '#fafafa' : '#171717'} activeTextColor={night ? '#171717' : '#fafafa'} size="md" frame={true} particleCount={15} spread={56} animationTime={600} timeVariance={300} gooeyness={0.5} wobble={0.5} hoverEffect={true} onChange={(_, item) => onAction(item.action)} className="portfolio-navigation" style={{ '--gn-frame':'var(--chrome)', '--gn-frame-edge':'var(--line)', '--gn-frame-highlight':'var(--surface)', '--gn-ink':'var(--ink)', '--gn-muted':'var(--muted)' }} />);
-      dockRoot.render(<Dock items={items} baseItemSize={50} magnification={70} panelHeight={68} autoHide={false} accentColor={night ? '#ffffff' : '#111111'} className="portfolio-dock" style={{ '--dock-panel':'var(--chrome)', '--dock-panel-edge':'var(--line)', '--dock-panel-highlight':'var(--surface)', '--dock-ink':'var(--ink)', '--dock-tile':night ? 'linear-gradient(#303030, #202020)' : 'linear-gradient(#ffffff, #eeeeee)', '--dock-tile-edge':'var(--line)', '--dock-dot':'var(--ink)', '--dock-separator':'var(--line)', '--dock-label':'var(--paper)', '--dock-label-ink':'var(--ink)' }} />);
+      navRoot.render(<StaggeredMenu controllerRef={menuController} position="right" items={navigationItems} socialItems={[{label:'GitHub',link:'https://github.com/JLTC3111'},{label:'YouTube',link:'https://www.youtube.com/@Drherbal2011'}]} displaySocials={true} displayItemNumbering={true} displayLogo={false} logoUrl="./assets/favicon.svg" isFixed={true} menuButtonColor="#f2eee6" openMenuButtonColor="#f2eee6" changeMenuColorOnOpen={true} colors={['#B497CF','#5227FF']} accentColor="#ff6b6b" menuLabel={labels.menu} closeLabel={labels.closeMenu} openAriaLabel={labels.openMenuAria} closeAriaLabel={labels.closeMenuAria} socialsLabel={labels.socials} navigationLabel={labels.navigation} onItemSelect={selectItem} onMenuOpen={menuOpen} onMenuClose={menuClose} className="portfolio-menu" />);
+      dockRoot.render(<Dock items={items} baseItemSize={50} magnification={70} panelHeight={68} autoHide={false} accentColor={night ? '#c7c8c7' : '#65717a'} className="portfolio-dock" style={{ '--dock-panel':'var(--chrome)', '--dock-panel-edge':'var(--line)', '--dock-panel-highlight':'var(--surface)', '--dock-ink':'var(--ink)', '--dock-tile':night ? 'linear-gradient(#444c55, #343c45)' : 'linear-gradient(#f4f0e8, #e6e1d8)', '--dock-tile-edge':'var(--line)', '--dock-dot':'var(--ink)', '--dock-separator':'var(--line)', '--dock-label':'var(--paper)', '--dock-label-ink':'var(--ink)' }} />);
     });
   }
   update(model);
-  return { update, dispose() { if (disposed) return; disposed = true; navRoot.unmount(); dockRoot.unmount(); } };
+  return { update, closeMenu(){menuController.current?.close();}, dispose() { if (disposed) return; disposed = true; navRoot.unmount(); dockRoot.unmount(); } };
 }
