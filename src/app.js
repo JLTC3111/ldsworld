@@ -19,13 +19,14 @@ import { createBackgroundMusic } from './background-music.js';
 import { getScenePresentation } from './scene-presentation.js';
 import { createTechText } from './tech-text.js';
 import { createEnvironmentAudio } from './environment-audio.js';
-import { createPanelPreviews } from './panel-previews.js';
 import { createDrivingHud } from './driving-hud.js';
 import { drivingKey } from './controls.js';
 import { createDialogDrag } from './dialog-drag.js';
 import { bindEngineUnlock } from './engine-unlock.js';
 import { mountPortfolioControls } from './vendor/portfolio-controls.js';
 import { createExplorationUI } from './exploration-ui.js';
+import { createProjectPlayer } from './project-player.js';
+import { createTiltControls } from './tilt-controls.js';
 
 const $ = selector => document.querySelector(selector);
 const formatCount = value => String(value).padStart(2,'0');
@@ -47,7 +48,10 @@ const t = key => copy[state.language][key] || copy.en[key] || key;
 const local = project => localizeProject(project, state.language);
 const mediaFor = project => getProjectMedia(typeof project === 'string' ? project : project.id, state.language);
 state.music = storage.get('music','on') !== 'off';
-state.carModel=vehicleModel(storage.get('car','8-ball')).id;
+state.carModel='8-ball';
+const mobileMedia=matchMedia('(pointer: coarse)');
+state.mobile=mobileMedia.matches;state.tiltStatus='idle';
+document.body.classList.toggle('mobile-layout',state.mobile);
 state.mapCategory='buildings';state.mapZoom=1;state.carPosition={x:0,z:13,heading:Math.PI/2};
 state.showcaseScreen = 'project'; state.showcaseTool = null;
 const panel = $('#panel');
@@ -56,6 +60,8 @@ const drivingHud=createDrivingHud();
 const explorationUI=createExplorationUI({hero:$('.hero'),badge:$('#explore-status'),focusSurface:()=>$('#island-canvas')?.focus({preventScroll:true})});
 let portfolioControls=null;
 let world = null, previousFocus = null, toastTimer = null, speedValue = -1;
+let projectPlayer=null,topography=null,topographyRequest=0;
+const tiltControls=createTiltControls({onInput:input=>world?.setTiltInput(input),isMobile:()=>state.mobile,onStatus:status=>{state.tiltStatus=status;syncTiltStatus();if(['denied','unavailable'].includes(status))showToast(t('tilt'+status[0].toUpperCase()+status.slice(1)),5500);}});
 const engineAudio = new EngineAudio();
 engineAudio.setEnabled(state.sound);
 const engineUnlock=bindEngineUnlock({audio:engineAudio,isDrivingGesture:event=>event.type==='keydown'?!panel.open&&!!drivingKey(event)&&!event.target.closest?.('input,textarea,select,[contenteditable]'):!!event.target.closest?.('#island-canvas,[data-drive],[data-action="explore"],[data-action="jump"],[data-action="tour"],[data-drive-project],[data-next-project],[data-teleport],[data-go-portal],[data-go-playground]')});
@@ -64,19 +70,19 @@ environmentAudio.start();
 let backgroundMusic = null;
 backgroundMusic = createBackgroundMusic({enabled:state.music,muted:!state.sound,onStateChange:syncMusicButton});
 backgroundMusic.start();
-let suspendedDemo = null, panelPreviews = null;
 let panelShowcase = null, showcaseRequest = 0;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const brandTechText = createTechText($('#brand-wordmark'), { text:'long d.', fontSize:21, fontWeight:700, letterSpacing:-.025, align:'left', reach:36, dashLength:2.2, dashGap:1.5, strokeWidth:.65, specks:3, labels:false, draggable:false, clickKick:false, sweep:false, intro:'none' });
 function controlsModel() {
   const musicPlaying=state.musicPlaying??state.music;
   return {language:state.language,night:state.night,sound:state.sound,musicPlaying,view:state.panel,labels:{
-    home:t('navHome'),projects:t('navWork'),about:t('navAbout'),contact:t('navContact'),navigation:t('navigationAria'),
+    home:t('navHome'),projects:t('navWork'),about:t('navAbout'),contact:t('navContact'),world:t('worldSettings'),language:t('switchLanguage'),navigation:t('navigationAria'),
     garage:t('chooseCar'),reset:`${t('reset')} (R)`,sound:t(state.sound?'soundOff':'soundOn'),music:t(musicPlaying?'musicPause':'musicPlay'),theme:t(state.night?'day':'night'),help:t('help')
   }};
 }
 function syncControls() { portfolioControls?.update(controlsModel()); }
 portfolioControls=mountPortfolioControls({navigation:$('#header-navigation'),dock:$('#control-dock'),model:controlsModel(),onAction:performAction});
+mobileMedia.addEventListener?.('change',()=>{state.mobile=mobileMedia.matches;document.body.classList.toggle('mobile-layout',state.mobile);tiltControls.setPaused(!state.mobile||!!state.panel);});
 
 function translatePage() {
   document.documentElement.lang = state.language;
@@ -105,13 +111,14 @@ function applyTheme() {
   document.body.classList.toggle('evening', state.night);
   syncControls();
   panelShowcase?.setTheme(showcaseDark());
+  const panelTheme=$('#panel-theme');if(panelTheme){panelTheme.innerHTML=icon(state.night?'moon':'sun');panelTheme.setAttribute('aria-pressed',String(state.night));panelTheme.setAttribute('aria-label',t(state.night?'day':'night'));}
   brandTechText.refresh();
   $('meta[name="theme-color"]').content = state.night ? '#151515' : '#f4f4f4';
 }
 function startCurrentDemo() {
   const video = $('#panel-content video[data-project-demo]');
   const id=state.panel==='projects'?state.spotlightId:state.projectId,project=getProject(id);
-  if(video&&project){const media=mediaFor(id);video.poster=media.poster;video.dataset.recordingLanguage=media.recordingLanguage;video.dataset.sourceLanguage=state.language;video.setAttribute('aria-label',`${t('demo')}: ${local(project).title}`);const title=$('#spotlight-demo-title');if(title)title.textContent=local(project).title;if(panel.open&&!document.hidden)bindDemoSource(video,media);}
+  if(video&&project){const media=mediaFor(id);video.poster=media.poster;video.dataset.recordingLanguage=media.recordingLanguage;video.dataset.sourceLanguage=state.language;video.setAttribute('aria-label',`${t('demo')}: ${local(project).title}`);const title=$('#spotlight-demo-title');if(title)title.textContent=local(project).title;if(panel.open)bindDemoSource(video,media,{autoplay:false});}
 }
 
 function syncVisitedProjects() {
@@ -164,20 +171,18 @@ function showPanel(view, id = null) {
   if(view==='map')state.mapZoom=1;
   state.panel = view; state.projectId = id; renderPanel({ mount: false });
   if (!panel.open) panel.showModal();
-  startCurrentDemo(); panelPreviews?.refresh(); mountShowcase();
-  document.body.classList.add('panel-open'); world?.setPaused(true); panel.scrollTop = 0;
+  startCurrentDemo(); mountShowcase();mountPanelTopography();
+  document.body.classList.add('panel-open'); world?.setPaused(true);tiltControls.setPaused(true); panel.scrollTop = 0;
   $('#panel-close').focus({ preventScroll: true });
   refreshNearby(); setHash(view, id);
   syncControls();
 }
 function closePanel() { if (panel.open) panel.close(); }
 function handlePanelClose() {
-  disposeShowcase();
-  panelPreviews?.destroy(); panelPreviews = null;
-  state.panel = null; state.projectId = null; document.body.classList.remove('panel-open'); world?.setPaused(false);
+  disposeShowcase();disposeTopography();projectPlayer?.destroy();projectPlayer=null;
+  state.panel = null; state.projectId = null; document.body.classList.remove('panel-open'); world?.setPaused(false);tiltControls.setPaused(!state.exploring);
   setHash(null); refreshNearby(); syncControls();
   $('#panel-content').querySelectorAll('video').forEach(releaseDemo);
-  suspendedDemo = null;
   if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
 }
 panel.addEventListener('close', handlePanelClose);
@@ -192,8 +197,17 @@ function escapeText(value) { return String(value ?? '').replaceAll('&','&amp;').
 function stageProject() { const project = local(getProject(state.panel === 'project' ? state.projectId : state.spotlightId) || projects[0]); return { ...project, language:state.language, poster:mediaFor(project).poster }; }
 function showcaseDark() { return ['world','help'].includes(state.panel) ? (state.environment?.night || 0) > .55 : state.night; }
 function disposeShowcase() { ++showcaseRequest; panelShowcase?.dispose(); panelShowcase = null; }
+function disposeTopography(){++topographyRequest;topography?.dispose();topography=null;}
+async function mountPanelTopography(){
+  const host=$('#panel [data-topography]'),request=++topographyRequest;if(!host||!panel.open)return;
+  try{const {mountTopography}=await import('./vendor/about-topography.js');if(request===topographyRequest&&host.isConnected&&panel.open)topography=mountTopography(host);}catch(error){console.warn('Topography keeps its static contour fallback.',error);}
+}
+function renderTopography(){return `<div class="topography-scene"><svg class="topography-fallback" viewBox="0 0 900 600" aria-hidden="true">${Array.from({length:22},(_,i)=>`<path d="M-30 ${130+i*17}Q200 ${20+i*15} 430 ${200+i*9}T940 ${120+i*17}"/>`).join('')}</svg><div data-topography></div></div>`;}
+function renderVideoPlayer(project){return `<div class="project-video-wrap"><video id="project-demo-player" data-project-demo controls muted loop playsinline preload="metadata" data-recording-language="${mediaFor(project).recordingLanguage}" data-source-language="${state.language}" poster="${mediaFor(project).poster}" aria-label="${t('demo')}: ${local(project).title}"><a href="${mediaFor(project).video}">${t('demo')}</a></video><button class="video-toggle" data-demo-toggle aria-label="${t('videoPlay')}" aria-pressed="false" aria-controls="project-demo-player">${icon('play')}</button></div>`;}
+function syncTiltStatus(){document.querySelectorAll('[data-tilt-status]').forEach(element=>element.textContent=t('tilt'+state.tiltStatus[0].toUpperCase()+state.tiltStatus.slice(1)));}
+
 async function mountShowcase() {
-  if(state.panel==='map')return;
+  if(['map','contact','about'].includes(state.panel))return;
   const request = ++showcaseRequest, host = $('#panel [data-showcase]');
   if (!host || !panel.open) return;
   panelShowcase?.dispose(); panelShowcase = null;
@@ -253,10 +267,6 @@ function seekDemo(seconds) {
   if (video.readyState >= 1) seek(); else { video.addEventListener('loadedmetadata', seek, {once:true}); playDemo(video); }
   video.scrollIntoView?.({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'center' });
 }
-function renderRelatedProjects(current, explicit = null) {
-  const selected = explicit ? explicit.map(getProject).filter(Boolean) : projects.filter(p => p.id !== current).slice(0,2);
-  return `${explicit ? '' : `<section class="case-section"><h3>${t('relatedLabel')}</h3>`}<div class="${explicit ? 'contact-projects' : 'related-work'}">${selected.map(project=>{const p=local(project);return `<button data-open-project="${p.id}" aria-label="${t('view')}: ${p.title}"><video data-preview-project="${p.id}" data-source-language="${state.language}" data-recording-language="${mediaFor(p).recordingLanguage}" autoplay muted loop playsinline preload="none" poster="${mediaFor(p).poster}" aria-hidden="true" width="480" height="270"></video><span><strong>${p.title}</strong><small>${p.category} · ${p.year}</small></span></button>`;}).join('')}</div>${explicit ? '' : '</section>'}`;
-}
 function renderCapabilities() {
   const groups = [['operationsTitle','operationsText',['hr','contracts']],['dataTitle','dataText',['crypto','compressor']],['webTitle','webText',['icue','ceremony']]];
   return `<section class="case-section"><h3>${t('capabilityIntro')}</h3><div class="capability-grid">${groups.map(([title,text,ids])=>`<article class="capability-card"><h4>${t(title)}</h4><p>${t(text)}</p><div class="capability-links">${ids.map(id=>`<button data-open-project="${id}">${local(getProject(id)).short}${icon('up-right')}</button>`).join('')}</div></article>`).join('')}</div></section>`;
@@ -270,6 +280,7 @@ function renderFallbackArt(kind) {
 }
 function renderStage() {
   const p = stageProject(), view = state.panel, story = getCaseStudy(p.id,state.language);
+  if(view==='about')return `<aside class="panel-stage stage-about"><p class="stage-eyebrow">${t('siteSubtitle')}</p><h3 class="stage-title">${t('aboutStageTitle')}</h3>${renderTopography()}<button class="secondary-button" data-action="projects">${t('navProjects')}${icon('arrow')}</button></aside>`;
   const title = { projects:'studioTitle', project:'projectStageTitle', about:'aboutStageTitle', contact:'contactStageTitle', world:'worldStageTitle', help:'helpStageTitle', map:'mapStageTitle' }[view] || 'studioTitle';
   const mode = ['world','help'].includes(view) ? 'car' : view === 'contact' ? 'mail' : view === 'about' ? 'workbench' : 'device';
   const hasScreen = ['device','workbench'].includes(mode);
@@ -298,7 +309,7 @@ function renderIndex() {
   if (!items.some(project => project.id === state.spotlightId)) state.spotlightId = items[0]?.id || 'hr';
   const spotlight=getProject(state.spotlightId);
   return `<div class="panel-intro"><p class="panel-eyebrow">${t('selectedWork')} / 2025</p><h2 id="panel-title">${t('index')}</h2><p>${t('studioIntro')}</p></div>
-    <section class="spotlight-demo"><h3 id="spotlight-demo-title">${local(spotlight).title}</h3><div class="project-video-wrap"><video data-project-demo controls autoplay muted loop playsinline preload="metadata" poster="${mediaFor(spotlight).poster}" aria-label="${t('demo')}: ${local(spotlight).title}"></video></div><div data-demo-caption>${renderDemoCaption(spotlight)}</div></section>
+    <section class="spotlight-demo"><h3 id="spotlight-demo-title">${local(spotlight).title}</h3>${renderVideoPlayer(spotlight)}<div data-demo-caption>${renderDemoCaption(spotlight)}</div></section>
     <div class="work-summary"><span><strong>${projectCount}</strong>${t('projectCount')}</span><span><strong>${applicationCount}</strong>${t('applicationCount')}</span><span><strong>${websiteCount}</strong>${t('websiteCount')}</span></div>
     <div class="project-filters" role="group" aria-label="${t('filtersAria')}">${[['all','all'],['apps','apps'],['web','web']].map(([value,label]) => `<button data-filter="${value}" aria-pressed="${state.filter===value}">${t(label)}</button>`).join('')}</div>
     <div class="project-list cards-count-${items.length}">${items.map(project => {
@@ -318,35 +329,31 @@ function renderProject() {
     <button class="back-button" data-action="projects">${icon('arrow')} ${t('back')}</button>
     <p class="panel-eyebrow"><span class="project-dot"></span>${p.number} / ${p.category} <span style="margin-left:auto">${p.year}</span></p>
     <h2 id="panel-title">${p.title}</h2>
-    <div class="project-video-wrap"><video data-project-demo controls autoplay muted loop playsinline preload="metadata" data-recording-language="${mediaFor(p).recordingLanguage}" data-source-language="${state.language}" poster="${mediaFor(p).poster}" aria-label="${t('demo')}: ${p.title}"><a href="${mediaFor(p).video}">${t('demo')}</a></video></div>
+    ${renderVideoPlayer(project)}
     ${renderDemoCaption(p)}
     <p class="project-description">${p.description}</p>
-    <dl class="case-meta"><div><dt>${t('projectType')}</dt><dd>${p.category}</dd></div><div><dt>${t('projectDate')}</dt><dd>${formatProjectDate(p.date,state.language)}</dd></div><div><dt>${t('technologiesAria')}</dt><dd>${p.tech.slice(0,2).join(' / ')}</dd></div></dl>
+    <dl class="case-meta"><div><dt>${t('projectType')}</dt><dd>${p.category}</dd></div><div><dt>${t('projectDate')}</dt><dd>${formatProjectDate(p.date,state.language)}</dd></div></dl>
     <section class="case-section"><h3>${t('focusLabel')}</h3><p class="case-lead">${story.focus}</p></section>
     <section class="case-section"><h3>${t('approachLabel')}</h3><p>${story.approach}</p></section>
     <section class="case-section"><h3>${t('capabilityLabel')}</h3><div class="case-features">${story.useCases.map((item,i)=>`<div class="case-feature"><span>${String(i+1).padStart(2,'0')}</span><div><h4>${item.title}</h4><p>${item.text}</p></div></div>`).join('')}</div></section>
     <section class="case-section"><h3>${t('galleryLabel')}</h3><p>${t('galleryHint')}</p><div class="case-gallery">${story.gallery.map(image=>`<figure><button data-demo-time="${image.time}" aria-label="${t('playMoment')} ${demoTimestamp(image.time)}"><img src="${image.src}" alt="${escapeText(image.alt)}" loading="lazy" width="${image.width}" height="${image.height}"></button><figcaption><span>${image.caption}</span><time>${demoTimestamp(image.time)}</time></figcaption></figure>`).join('')}</div></section>
-    <section class="case-section"><h3>${t('takeawayLabel')}</h3><p>${story.takeaway}</p></section>
     <ul class="project-highlights" hidden>${p.highlights.map(item => `<li>${icon('check')}${item}</li>`).join('')}</ul>
-    <div class="tech-tags" aria-label="${t('technologiesAria')}">${p.tech.map(tech => `<span>${tech}</span>`).join('')}</div>
     <div class="project-actions">${p.live ? `<a class="primary-button" href="${p.live}" target="_blank" rel="noopener noreferrer">${t('visit')}${icon('up-right')}</a>` : ''}<a class="${p.live ? 'secondary-button' : 'primary-button'}" href="${p.github}" target="_blank" rel="noopener noreferrer">${icon('github')}${t('code')}</a></div>
     <div class="detail-bottom">${world ? `<button class="drive-button" data-drive-project="${p.id}">${icon('car')}${t('drive')}</button>` : '<span></span>'}<button class="next-project" ${tourDone ? 'data-action="end-tour"' : `data-next-project="${next.id}"`}><span><small>${tourDone ? t('route') : t('next')}</small>${tourDone ? t('return') : next.short}</span>${icon('arrow')}</button></div>
   </article>`;
 }
 function renderAbout() {
   return `<article class="info-content"><p class="panel-eyebrow">${t('aboutLabel')}</p><h2 id="panel-title">${t('aboutTitle')}</h2><p class="info-lead">${t('aboutIntro')}</p><p>${t('aboutText')}</p>
-    <div class="about-illustration" aria-hidden="true"><span class="big-asterisk">✳</span><div class="little-facts"><span>${icon('pin')} ${t('location').toLocaleUpperCase(state.language)}</span><span>${icon('car')} ${t('factRole')}</span><span>${icon('leaf')} ${t('factCuriosity')}</span></div></div>
+
     <p>${t('aboutWork')}</p><h3 class="skill-heading">${t('skills')}</h3>
     <div class="skill-row"><strong>${t('frontend')}</strong><span>React · Next.js · Tailwind CSS · Three.js · GSAP</span></div><div class="skill-row"><strong>${t('backend')}</strong><span>Python · Node.js · Express · Django · PostgreSQL</span></div><div class="skill-row"><strong>${t('data')}</strong><span>Plotly · NumPy · ${t('dataTools')}</span></div><div class="skill-row"><strong>${t('delivery')}</strong><span>Git · Docker · CI/CD · Vercel · Supabase</span></div>
     ${renderCapabilities()}${renderJourney()}<div class="info-links"><button class="primary-button" data-action="contact">${t('navContact')}${icon('up-right')}</button><a class="secondary-button" href="https://github.com/JLTC3111" target="_blank" rel="noopener noreferrer">${icon('github')}GitHub</a></div></article>`;
 }
 function renderContact() {
-  return `<article class="info-content"><p class="panel-eyebrow">${t('contactLabel')}</p><h2 id="panel-title">${t('contactTitle')}</h2><div class="contact-art" aria-hidden="true">${icon('mail')}</div><p>${t('contactText')}</p>
-    <section class="case-section"><h3>${t('contactPrompts')}</h3><ul class="contact-prompts">${['contactPrompt1','contactPrompt2','contactPrompt3'].map(key=>`<li>${icon('arrow')}${t(key)}</li>`).join('')}</ul></section><a class="email-address" href="mailto:dev@icue.vn">dev@icue.vn ${icon('up-right')}</a><div class="info-links"><a class="primary-button" href="mailto:dev@icue.vn">${icon('mail')}${t('email')}</a><button class="secondary-button" data-action="copy-email" aria-label="${t('copyEmail')}">${icon('copy')}</button></div>
-    <section class="case-section"><h3>${t('contactProjects')}</h3>${renderRelatedProjects(null, ['hr','crypto','icue'])}</section><div class="contact-links"><a href="https://github.com/JLTC3111" target="_blank" rel="noopener noreferrer"><span>${icon('github')}GitHub</span>${icon('up-right')}</a><a href="https://www.youtube.com/@Drherbal2011" target="_blank" rel="noopener noreferrer"><span>${icon('play')}YouTube</span>${icon('up-right')}</a><a href="https://longd.tech" target="_blank" rel="noopener noreferrer"><span>${icon('up-right')}longd.tech</span>${icon('up-right')}</a></div><div class="contact-location">${icon('pin')}${t('location')} · UTC+7</div></article>`;
+  return `<article class="info-content contact-content">${renderTopography()}<p class="panel-eyebrow">${t('contactLabel')}</p><h2 id="panel-title">${t('contactTitle')}</h2><p>${t('contactText')}</p><div class="contact-links"><a href="mailto:dev@icue.vn"><span>${icon('mail')}dev@icue.vn</span>${icon('up-right')}</a><a href="https://github.com/JLTC3111" target="_blank" rel="noopener noreferrer"><span>${icon('github')}GitHub</span>${icon('up-right')}</a><a href="https://www.youtube.com/@Drherbal2011" target="_blank" rel="noopener noreferrer"><span>${icon('play')}YouTube</span>${icon('up-right')}</a></div><div class="contact-location">${t('location')} · UTC+7</div></article>`;
 }
 function renderHelp() {
-  return `<article class="info-content"><p class="panel-eyebrow">${t('help')}</p><h2 id="panel-title">${t('helpTitle')}</h2><p>${t('helpIntro')}</p><ul class="help-list"><li>${icon('car')}${t('helpDrive')}</li><li>${icon('pin')}${t('helpClick')}</li><li>${icon('map')}${t('helpMouse')}</li><li>${icon('map')}${t('helpTrackpad')}</li><li>${icon('grid')}${t('helpProject')}</li><li>${icon('car')}${t('helpProps')}</li><li><kbd>↟</kbd>${t('helpBoost')}</li><li>${icon('car')}${t('helpAir')}</li><li>${icon('map')}${t('helpMore')}</li></ul><p class="help-touch">${t('helpTouch')}</p>${reducedMotion ? `<p>${t('reduced')}</p>` : ''}<button class="primary-button" data-action="explore">${t('explore')}${icon('arrow')}</button></article>`;
+  return `<article class="info-content"><p class="panel-eyebrow">${t('help')}</p><h2 id="panel-title">${t('helpTitle')}</h2><p>${t('helpIntro')}</p><ul class="help-list"><li>${icon('car')}${t(state.mobile?'tiltReady':'helpDrive')}</li><li>${icon('pin')}${t('helpClick')}</li><li>${icon('map')}${t('helpMouse')}</li><li>${icon('map')}${t('helpTrackpad')}</li><li>${icon('grid')}${t('helpProject')}</li><li>${icon('car')}${t('helpProps')}</li><li><kbd>↟</kbd>${t('helpBoost')}</li><li>${icon('car')}${t('helpAir')}</li><li>${icon('map')}${t('helpMore')}</li></ul><p class="help-touch">${t(state.mobile?'tiltIdle':'helpTouch')}</p>${reducedMotion ? `<p>${t('reduced')}</p>` : ''}<button class="primary-button" data-action="explore">${t('explore')}${icon('arrow')}</button></article>`;
 }
 function mapSvg(large = false, carId = large ? 'large-car' : 'mini-car') {
   const river = Array.from({length:65},(_,i)=>{ const x=-RIVER_REACH+i*RIVER_REACH*2/64; return `${x},${riverCenter(x)}`; }).join('L');
@@ -384,9 +391,8 @@ function updateEnvironment(environment) {
   }
   const hour = Math.floor(environment.hour) % 24, minute = Math.floor(environment.hour % 1 * 60);
   const clock = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
-  const summary = `${clock} · ${t(weatherKey(environment.weather))}`;
-  if ($('#environment-summary').textContent !== summary) $('#environment-summary').textContent = summary;
-  if ($('#environment-clock')) $('#environment-clock').textContent = clock;
+
+
   state.timeMode = environment.timeMode; state.weatherMode = environment.weatherMode;
   if (['world','help'].includes(state.panel)) panelShowcase?.setTheme(environment.night > .55);
 }
@@ -399,8 +405,8 @@ function syncWorldChoices() {
 function renderWorld() {
   const times = [['auto','↻','timeAuto'],['sunrise','↗','timeSunrise'],['day','☀','timeDay'],['sunset','↘','timeSunset'],['night','☾','timeNight']];
   const weathers = [['clear','☀','weatherClear'],['rain','☂','weatherRain'],['snow','❄','weatherSnow'],['auto','↻','weatherAuto']];
-  return `<article class="info-content world-settings"><p class="panel-eyebrow">${t('worldSettings')} / LONG D.</p><h2 id="panel-title">${t('worldTitle')}</h2><p>${t('worldIntro')}</p><div class="world-clock-card"><span id="environment-clock">08:30</span><svg class="icon"><use href="#i-sun"/></svg></div>
-    ${renderGarage()}<h3 class="skill-heading">${t('timeLabel')}</h3><div class="world-options time-options" role="group" aria-label="${t('timeLabel')}">${times.map(([mode,glyph,key])=>`<button data-time-mode="${mode}" aria-pressed="${state.timeMode===mode}"><span aria-hidden="true">${glyph}</span>${t(key)}</button>`).join('')}</div><p class="world-explanation">${t('worldCycle')}</p><p class="world-explanation">${t('worldSoundscape')}</p>
+  return `<article class="info-content world-settings"><p class="panel-eyebrow">${t('worldSettings')} / LONG D.</p><h2 id="panel-title">${t('worldTitle')}</h2><p>${t('worldIntro')}</p>${state.mobile?`<section class="tilt-settings"><h3>${t('tiltTitle')}</h3><p data-tilt-status>${t('tilt'+state.tiltStatus[0].toUpperCase()+state.tiltStatus.slice(1))}</p><button class="secondary-button" data-action="enable-tilt">${t('tiltEnable')}</button><button class="secondary-button" data-action="calibrate-tilt">${t('tiltCalibrate')}</button></section>`:''}
+    <h3 class="skill-heading">${t('timeLabel')}</h3><div class="world-options time-options" role="group" aria-label="${t('timeLabel')}">${times.map(([mode,glyph,key])=>`<button data-time-mode="${mode}" aria-pressed="${state.timeMode===mode}"><span aria-hidden="true">${glyph}</span>${t(key)}</button>`).join('')}</div><p class="world-explanation">${t('worldCycle')}</p><p class="world-explanation">${t('worldSoundscape')}</p>
     <h3 class="skill-heading">${t('weatherLabel')}</h3><div class="world-options" role="group" aria-label="${t('weatherLabel')}">${weathers.map(([mode,glyph,key])=>`<button data-weather="${mode}" aria-pressed="${state.weatherMode===mode}"><span aria-hidden="true">${glyph}</span>${t(key)}</button>`).join('')}</div>
     <h3 class="skill-heading">${t('headlightsLabel')}</h3><div class="world-options light-options" role="group" aria-label="${t('headlightsLabel')}">${[['auto','lightsAuto'],['on','lightsOn'],['off','lightsOff']].map(([mode,key])=>`<button data-headlights="${mode}" aria-pressed="${state.headlights===mode}">${t(key)}</button>`).join('')}</div>
     <h3 class="skill-heading">${t('zoomLabel')}</h3><div class="zoom-options"><button class="secondary-button" data-zoom="out" aria-label="${t('zoomOut')}">−</button><button class="secondary-button" data-zoom="reset">${t('zoomReset')}</button><button class="secondary-button" data-zoom="in" aria-label="${t('zoomIn')}">+</button></div><p class="world-explanation">${t('zoomNote')}</p><p class="help-touch">${t('worldPhysics')}</p><button class="primary-button" data-action="close-world">${t('return')}${icon('arrow')}</button></article>`;
@@ -414,36 +420,36 @@ function syncSoundButton() {
   syncControls();
 }
 function renderPanel({ mount = true } = {}) {
-  disposeShowcase();
-  panelPreviews?.destroy(); panelPreviews = null;
+  disposeShowcase();disposeTopography();projectPlayer?.destroy();projectPlayer=null;
   // Pause an active demo before replacing its DOM, including language/filter changes.
   $('#panel-content').querySelectorAll('video').forEach(releaseDemo);
-  suspendedDemo = null;
   const context = state.panel === 'project' ? `${getProject(state.projectId)?.number || '01'} / ${projectCount} · LONG D.` : state.panel === 'projects' ? `${t('selectedWork')} · LONG D.` : t('siteSubtitle');
   $('#panel-context').textContent = context;
   const renders = { projects: renderIndex, project: renderProject, about: renderAbout, contact: renderContact, help: renderHelp, map: renderMap, world: renderWorld };
   const content = (renders[state.panel] || renderIndex)();
   panel.classList.add('portfolio-panel'); panel.dataset.view = state.panel || 'projects';
-  $('#panel-content').innerHTML = `<div class="panel-layout">${state.panel==='map'?'':renderStage()}<div class="panel-reader">${content}</div></div>`;
-  panelPreviews = createPanelPreviews({ container:$('#panel .panel-reader'), mediaFor:id=>mediaFor(id), isActive:()=>panel.open });
-  startCurrentDemo(); updateEnvironment(state.environment); if (mount && panel.open) mountShowcase();
+  $('#panel-content').innerHTML = `<div class="panel-layout">${['map','contact'].includes(state.panel)?'':renderStage()}<div class="panel-reader">${content}</div></div>`;
+  projectPlayer=createProjectPlayer({container:$('#panel .panel-reader'),label:playing=>t(playing?'videoPause':'videoPlay')});
+  startCurrentDemo();updateEnvironment(state.environment);syncTiltStatus();applyTheme();if(mount&&panel.open){mountShowcase();mountPanelTopography();}
 }
 
 function goHome() {
-  drivingHud.reveal();closePanel(); stopTour(); world?.overview(); state.exploring = false; state.nearby = null;
-  explorationUI.reset();document.body.classList.remove('exploring'); updateStatus(); refreshNearby(); setHash(null);syncControls();
+  tiltControls.setPaused(true);drivingHud.reveal();closePanel(); stopTour(); world?.overview(); state.exploring = false; state.nearby = null;
+  tiltControls.setPaused(true);explorationUI.reset();document.body.classList.remove('exploring'); updateStatus(); refreshNearby(); setHash(null);syncControls();
 }
 async function performAction(action) {
   if(action==='home'){goHome();return;}
-  if(action==='reset'){stopTour();world?.reset();explorationUI.revealHero();showToast(t('resetToast'));return;}
+  if(action==='toggle-language'){setLanguage(state.language==='en'?'vi':'en');return;}
+  if(action==='enable-tilt'){tiltControls.setPaused(true);await tiltControls.request();return;}
+  if(action==='calibrate-tilt'){tiltControls.calibrate();return;}
+  if(action==='reset'){stopTour();world?.reset();tiltControls.calibrate();explorationUI.revealHero();showToast(t('resetToast'));return;}
   if(action==='toggle-theme'){state.night=!state.night;storage.set('theme',state.night?'dark':'light');applyTheme();return;}
   if(action==='toggle-sound'){try{await toggleSound();}catch{showToast(t('soundOff'));}return;}
   if (['projects', 'about', 'contact', 'help', 'map', 'world'].includes(action)) { showPanel(action); return; }
-  if(action==='garage'){showPanel('world');$('#car-selector')?.scrollIntoView?.({block:'start'});return;}
   if (action === 'jump') { world?.jump(); return; }
   if(action==='hydraulics'){world?.hydraulics();return;}
   if (action === 'tour') { startTour(); return; }
-  if (action === 'explore') { closePanel(); if (world) {explorationUI.explore();world.start();} else if (state.ready) showPanel('projects'); else showToast(t('loading')); return; }
+  if (action === 'explore') { closePanel(); if (world) {if(state.mobile){tiltControls.setPaused(false);void tiltControls.request();}explorationUI.explore();world.start();} else if (state.ready) showPanel('projects'); else showToast(t('loading')); return; }
   if (action === 'toggle-music') { const current=backgroundMusic.getState();state.music=!current.enabled||current.blocked;storage.set('music',state.music?'on':'off');backgroundMusic.setEnabled(state.music);return; }
   if (action === 'watch-demo') { seekDemo(0); return; }
   if (action === 'reset-showcase') { panelShowcase?.resetView(); return; }
@@ -497,12 +503,7 @@ async function toggleSound() {
   if (state.sound) await engineAudio.resume(); syncSoundButton();
 }
 function honk() { if (state.sound) engineAudio.resume().then(() => engineAudio.honk()).catch(() => {}); }
-document.addEventListener('visibilitychange', () => {
-  engineAudio.suspend(document.hidden);
-  const video = $('#panel-content video[data-project-demo]');
-  if (document.hidden && video && !video.paused) { suspendedDemo = video; video.pause(); }
-  else if (!document.hidden && suspendedDemo?.isConnected && panel.open) { playDemo(suspendedDemo); suspendedDemo = null; }
-});
+document.addEventListener('visibilitychange',()=>{engineAudio.suspend(document.hidden);tiltControls.setPaused(document.hidden||!!state.panel||!state.exploring);});
 window.addEventListener('keydown', event => {
   if (event.ctrlKey || event.metaKey || event.altKey || event.repeat || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
   if (panel.open) return;
@@ -534,10 +535,11 @@ $('#minimap-svg').setAttribute('viewBox',MAP_VIEWBOX);$('#minimap-svg').innerHTM
 
 try {
   const { createWorld } = await import('./world.js');
-  await loadCarAssets();
+  await loadCarAssets(['8-ball']);
   world = createWorld({
     container: $('#world'), carModel:state.carModel, reducedMotion,
     onStart: startExploring,
+    onStop:()=>tiltControls.calibrate(),
     onProject: openProject,
     onArrival(id) { state.destination = null; updateStatus(); openProject(id); },
     onCancelRoute() { state.guided = false; state.destination = null; updateStatus(); },
@@ -558,7 +560,7 @@ try {
   });
   if (state.panel) { world.setPaused(true); renderPanel(); }
   world.setLanguage(state.language); world.setTimeMode(state.timeMode); world.setWeather(state.weatherMode); world.setHeadlightsMode(state.headlights);
-  $('#world-toolbar').hidden = false; updateEnvironment(world.getEnvironment());
+  updateEnvironment(world.getEnvironment());
   document.body.classList.add('loaded'); state.ready = true;
 } catch (error) {
   console.warn('The 3D island could not start. The full project portfolio remains available.', error);
@@ -566,4 +568,4 @@ try {
   document.body.classList.add('loaded'); state.ready = true;
   $('#explore').innerHTML = `${icon('grid')}<span data-copy="browseProjects">${t('browseProjects')}</span>${icon('arrow')}`;
 }
-window.addEventListener('pagehide', event => { if (!event.persisted) { portfolioControls.dispose();explorationUI.dispose();engineUnlock.dispose();panelDrag.dispose();drivingHud.dispose();panelPreviews?.destroy(); disposeShowcase(); world?.dispose(); engineAudio.dispose(); backgroundMusic.dispose(); brandTechText.dispose(); environmentAudio.dispose(); } });
+window.addEventListener('pagehide', event => { if (!event.persisted) { portfolioControls.dispose();projectPlayer?.destroy();disposeTopography();tiltControls.dispose();explorationUI.dispose();engineUnlock.dispose();panelDrag.dispose();drivingHud.dispose();disposeShowcase(); world?.dispose(); engineAudio.dispose(); backgroundMusic.dispose(); brandTechText.dispose(); environmentAudio.dispose(); } });

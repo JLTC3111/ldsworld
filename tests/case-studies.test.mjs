@@ -24,14 +24,14 @@ test('all six retained projects have concise case studies in English and Vietnam
   assert.deepEqual(Object.keys(caseStudies).sort(), projects.map(project => project.id).sort());
   for (const project of projects) for (const language of ['en', 'vi']) {
     const study = getCaseStudy(project.id, language);
-    for (const key of ['teaser', 'focus', 'approach', 'takeaway']) {
+    for (const key of ['teaser', 'focus', 'approach']) {
       assert.equal(typeof study[key], 'string');
       assert.ok(study[key].length >= 20 && study[key].length <= 320, `${project.id}/${language}/${key} should stay useful and concise`);
     }
     assert.equal(study.useCases.length, 3);
     assert.equal(new Set(study.useCases.map(item => item.title)).size, 3);
     for (const item of study.useCases) { assert.ok(item.title.trim()); assert.ok(item.text.length > 25); }
-    assert.deepEqual(Object.keys(study).sort(), ['teaser', 'focus', 'approach', 'useCases', 'gallery', 'takeaway'].sort());
+    assert.deepEqual(Object.keys(study).sort(), ['teaser', 'focus', 'approach', 'useCases', 'gallery'].sort());
   }
 });
 
@@ -46,7 +46,7 @@ test('gallery stills exist at their declared dimensions and remain compact', asy
       assert.equal(image.src === vietnamese.gallery[index].src, shared, 'A distinct localized recording needs matching localized gallery frames');
     }
     for (const [language, story] of [['en', english], ['vi', vietnamese]]) for (const image of story.gallery) {
-      assert.match(image.src, /^\.\/assets\/gallery\/((en|vi)\/)?[\w-]+\.jpg$/);
+      assert.match(image.src, /^\.\/assets\/gallery\/images\/(en|vi)\/[\w-]+\.jpg$/);
       assert.ok(image.alt.length > 25 && image.caption.length > 8);
       assert.ok(image.time >= 0 && Number.isFinite(image.time));
       assert.ok(image.time < getProjectMedia(project.id, language).duration, 'Gallery seek time must be inside the selected recording, for that project');
@@ -57,13 +57,13 @@ test('gallery stills exist at their declared dimensions and remain compact', asy
       if (!unique.has(image.src)) { total += (await stat(path)).size; unique.add(image.src); }
     }
   }
-  assert.equal(unique.size, 20); assert.ok(total < 2_000_000, 'Localized stills should not turn the portfolio into a heavy gallery');
+  assert.equal(unique.size, 22); assert.ok(total < 2_000_000, 'Localized stills should not turn the portfolio into a heavy gallery');
 });
 
 test('localized gallery timestamps match inspected moments in the corresponding recording', () => {
   const expected = {
-    contracts: [26.24, 104.95], compressor: [9.03, 27.09],
-    ceremony: [1.79, 5.38], icue: [5.79, 23.15]
+    hr:[15,21.6],contracts: [2,9.22], compressor: [9.03, 27.09],
+    ceremony: [1.79, 5.38], icue: [3,7.28]
   };
   for (const [id, times] of Object.entries(expected)) {
     assert.deepEqual(getCaseStudy(id, 'vi').gallery.map(image => image.time), times);

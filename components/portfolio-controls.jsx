@@ -14,12 +14,12 @@ export function mountPortfolioControls({ navigation, dock, model, onAction }) {
     const serialized = JSON.stringify(next);
     if (disposed || serialized === previous) return;
     previous = serialized;
-    const { labels, night, sound, musicPlaying, view } = next;
-    const navigationItems = ['home', 'projects', 'about', 'contact'].map(action => ({ label:labels[action], action }));
-    const activeIndex = view === 'project' || view === 'projects' ? 1 : view === 'about' ? 2 : view === 'contact' ? 3 : 0;
+    const { labels, language, night, sound, musicPlaying, view } = next;
+    const navigationItems = ['home', 'projects', 'about', 'contact','world'].map(action => ({ label:labels[action], action }));
+    navigationItems.push({id:'header-language',label:language.toUpperCase(),action:'toggle-language',ariaLabel:labels.language});
+    const activeIndex = view === 'project' || view === 'projects' ? 1 : view === 'about' ? 2 : view === 'contact' ? 3 : view==='world'?4:0;
     const item = (id, icon, label, action, active, pressed) => ({ id, icon:glyph(icon), label, active, pressed, onClick:() => onAction(action) });
     const items = [
-      item('garage', 'car', labels.garage, 'garage'),
       item('reset', 'reset', labels.reset, 'reset'),
       { separator:true },
       item('sound', sound ? 'sound' : 'muted', labels.sound, 'toggle-sound', sound, sound),

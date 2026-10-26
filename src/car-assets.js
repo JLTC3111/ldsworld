@@ -1,7 +1,7 @@
 import * as T from './vendor/three.module.js';
 import { GLTFLoader } from './vendor/GLTFLoader.js';
 import { vehicleModel } from './vehicle-models.js';
-const assets=new Map();let loading=null;
+const assets=new Map(),loading=new Map();
 export const CAR_ASSET_IDS=['8-ball','monster-truck','toy-story'];
 export async function registerCarAsset(id,bytes){
   if(!CAR_ASSET_IDS.includes(id))throw new Error(`Unknown car asset ${id}`);
@@ -10,15 +10,16 @@ export async function registerCarAsset(id,bytes){
   assets.set(id,scene);return scene;
 }
 export function getCarAsset(id){return assets.get(id)||null;}
-export function loadCarAssets(){
-  if(loading)return loading;
-  loading=Promise.allSettled(CAR_ASSET_IDS.map(async id=>{
+export function loadCarAssets(ids=CAR_ASSET_IDS){
+  const selected=ids.filter(id=>CAR_ASSET_IDS.includes(id)),key=selected.join(',');
+  if(loading.has(key))return loading.get(key);
+  const result=Promise.allSettled(selected.map(async id=>{
     if(assets.has(id))return;
     const url=new URL(`./assets/cars/${id}.glb`,import.meta.url),revision=new URL(import.meta.url).searchParams.get('v');if(revision)url.searchParams.set('v',revision);
     const response=await fetch(url);if(!response.ok)throw new Error(`Car model ${id}: ${response.status}`);
     await registerCarAsset(id,await response.arrayBuffer());
-  })).then(results=>{results.forEach((r,i)=>{if(r.status==='rejected')console.warn(`Using the local fallback for ${CAR_ASSET_IDS[i]}.`,r.reason);});return results.every(r=>r.status==='fulfilled');});
-  return loading;
+  })).then(results=>{results.forEach((r,i)=>{if(r.status==='rejected')console.warn(`Using the local fallback for ${selected[i]}.`,r.reason);});return results.every(r=>r.status==='fulfilled');});
+  loading.set(key,result);return result;
 }
 
 // Prepare in island coordinates (+Y up, +Z forward), retaining the source's

@@ -758,6 +758,8 @@ const GooeyNav = ({
       }
       const shared = {
         className: 'gooey-nav__link',
+        id:item.id,
+        'aria-label':item.ariaLabel,
         'aria-current': index === current ? 'page' : undefined,
         onClick: event => {
           if (!item.href || item.href === '#') event.preventDefault();

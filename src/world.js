@@ -26,7 +26,7 @@ import { islandFrame, constrainIslandFocus, keepVehicleVisible, clampZoom } from
 const colors = { grass: '#b7c49c', sand: '#e0d3b0', road: ROAD_COLOR, sea: '#e2e8dc', cream: '#eae4cb', dark: '#3d5146', leaf: '#7a9365', pine: '#698264', trunk: '#94785a', glass: '#8da9a1', yellow: '#d8b45d' };
 const rand = (() => { let seed = 8137; return () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; }; })();
 
-export function createWorld({ container, onStart, onProject, onArrival, onCancelRoute, onNearby, onFrame, onPortal, onEnvironment, onExplosion, onImpact, carModel='8-ball', reducedMotion = false }) {
+export function createWorld({ container, onStart, onProject, onArrival, onCancelRoute, onStop, onNearby, onFrame, onPortal, onEnvironment, onExplosion, onImpact, carModel='8-ball', reducedMotion = false }) {
   const coarse = matchMedia('(pointer: coarse)').matches;
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, coarse ? 1.5 : 1.8));
@@ -505,7 +505,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   }
   const clickGround = (x, y) => {
     const target = pickInteractive(x, y);
-    if (target?.vehicleId) { stopDriving();return; }
+    if (target?.vehicleId) { stopDriving();onStop?.();return; }
     if (target?.propId) { begin(); physics.kick(target.propId,{x:driver.x,z:driver.z,strength:4}); return; }
     if (target?.portalId) { goToPortal(target.portalId); return; }
     if (target?.projectId) { onProject?.(target.projectId); return; }
@@ -569,7 +569,8 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     }
   }
   function resetView() { orbitYaw = defaultYaw; orbitPitch = defaultPitch; zoomScale = 1; panOffset.set(0, 0, 0); }
-  const readInput=()=>({forward:keys.has('ArrowUp')||keys.has('w'),reverse:keys.has('ArrowDown')||keys.has('s'),left:keys.has('ArrowLeft')||keys.has('a'),right:keys.has('ArrowRight')||keys.has('d'),boost:keys.has('Shift'),brake:keys.has('b')});
+  let tiltInput={throttleAxis:0,steerAxis:0};
+  const readInput=()=>({...tiltInput,forward:keys.has('ArrowUp')||keys.has('w'),reverse:keys.has('ArrowDown')||keys.has('s'),left:keys.has('ArrowLeft')||keys.has('a'),right:keys.has('ArrowRight')||keys.has('d'),boost:keys.has('Shift'),brake:keys.has('b')});
   const navigation = bindNavigation({
     surface: renderer.domElement, wheelTarget: container, isPaused: () => paused,
     onKey(key, pressed) { if (pressed) { begin(); panOffset.set(0, 0, 0); keys.add(key); } else keys.delete(key); },
@@ -708,9 +709,10 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     start() { begin(); renderer.domElement.focus({ preventScroll: true }); },
     reset() { impactTimes.clear();driver.reset();driver.setVehicleProfile(vehicle.profile); navigation.clear(); resetView();blastDamage.reset();playground.reset(); physics.reset(); portalSystem.reset(); syncProps(); scenery.reset(); updateRoute(); onCancelRoute?.(); },
     overview() { exploring = false; driver.cancelRoute(); navigation.clear(); resetView(); driver.speed = 0; driver.hop = 0; driver.hopVelocity = 0; driver.jumpPending=false;driver.jumpCharge=0;driver.hydraulicOffset=0;driver.hydraulicVelocity=0;driver.hydraulicPhase='idle';driver.jumpCooldown=0;driver.landingTime=0;driver.groundHeight = Math.max(0, bridgeHeightAt(driver.x, driver.z) - .1); driver.groundVelocity = 0;driver.settle(); nearestId = null; onNearby?.(null); },
-    setPaused(value) { paused = value; navigation.clear(); driver.speed = 0;driver.vx=0;driver.vz=0;driver.boosting=false; dust.forEach(p => { p.age = 1; p.object.position.y = -10; }); },
+    setPaused(value) { paused = value; tiltInput={throttleAxis:0,steerAxis:0};navigation.clear(); driver.speed = 0;driver.vx=0;driver.vz=0;driver.boosting=false; dust.forEach(p => { p.age = 1; p.object.position.y = -10; }); },
     setLanguage(value) { language = value === 'vi' ? 'vi' : 'en';projectLabels.setLanguage(language);wayfinding.setLanguage(language); renderer.domElement.setAttribute('aria-label', copy[language].canvasAria); translatedBoards.forEach(board => board.draw(copy[language][board.key])); },
     setKey(key, pressed) { if (paused) return; begin(); pressed ? keys.add(key) : keys.delete(key); },
+    setTiltInput({throttle=0,steer=0}={}){tiltInput=paused?{throttleAxis:0,steerAxis:0}:{throttleAxis:THREE.MathUtils.clamp(Number(throttle)||0,-1,1),steerAxis:THREE.MathUtils.clamp(Number(steer)||0,-1,1)};if(!paused&&(Math.abs(throttle)>.01||Math.abs(steer)>.01))begin();},
     driveToProject(id) { const p = projects.find(p => p.id === id); if (!p) return; begin(); driver.navigate(p.stop, id); updateRoute(); },
     stopRoute() { driver.cancelRoute(); updateRoute(); },
     hydraulics(){if(!paused)return driver.toggleHydraulics();},

@@ -45,6 +45,14 @@ test('the revision also changes when an asset changes, while copied media bytes 
   assert.notEqual(first.revision,second.revision);assert.deepEqual(await readFile(path.join(destination,'assets/demo.mp4')),replacement);
 }));
 
+test('production includes the language-organized gallery and excludes legacy demos and retired reference videos',async()=>fixture(async({source,destination})=>{
+  const files=['assets/gallery/videos/en/hr_en.mp4','assets/gallery/videos/vi/hr_vn.mp4','assets/gallery/videos/cryptodashboard_demo.mp4','assets/gallery/videos/en/To-Do-App-En.mp4','assets/demos/hr.mp4','assets/posters/hr.jpg'];
+  for(const file of files){await mkdir(path.dirname(path.join(source,file)),{recursive:true});await writeFile(path.join(source,file),'fixture media');}
+  await buildProject({source,destination});
+  for(const file of files.slice(0,3))assert.equal(await readFile(path.join(destination,file),'utf8'),'fixture media');
+  for(const file of files.slice(3))await assert.rejects(readFile(path.join(destination,file)),{code:'ENOENT'});
+}));
+
 test('static, side-effect, exported, dynamic, and template-expression imports are stamped without changing prose or shader strings',()=>{
   const code=[
     "import thing from './one.js';", "import './side.js';", "export * from '../two.js';", "export { value } from './three.mjs?raw=1#part';",

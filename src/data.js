@@ -6,64 +6,64 @@ export const projects = [
   {
     id: 'hr', number: '01', title: 'HR Management Platform', short: 'HR Management',
     category: 'People & productivity', year: '2025', date: 'December 22, 2025', color: '#ce795f',
-    description: 'A connected workspace for the people behind an organization. Time tracking, an employee directory, recruitment, goals, performance reviews, and reporting come together in one platform.',
-    highlights: ['Time tracking & employee management', 'Recruitment, goals & performance reviews', 'Interactive dashboards & reporting'],
+    description: 'An HR workspace centered on multilingual PDF, CSV and Excel reporting, leave requests and approvals, and Time Clock records for salary calculations. Employee records, tasks and performance information support those daily workflows.',
+    highlights: ['Time Clock records for salary calculations', 'Leave management & approvals', 'Multilingual PDF, CSV & Excel reports'],
     tech: ['React', 'Tailwind CSS', 'Chart.js', 'PostgreSQL'],
     live: 'https://hr.icue.vn', github: 'https://github.com/JLTC3111/hr_software',
     position: [-62, -73], stop: 'o1', scale:1.7, rotation:0, footprint: [5.4, 4], labelHeight: 5.9,
-    vi: { title: 'Nền tảng Quản trị Nhân sự', short: 'Quản trị Nhân sự', category: 'Nhân sự & năng suất', description: 'Không gian làm việc kết nối con người trong tổ chức. Tích hợp chấm công, danh bạ nhân viên, tuyển dụng, mục tiêu, đánh giá hiệu suất và báo cáo.', highlights: ['Chấm công & quản lý nhân viên', 'Tuyển dụng, mục tiêu & đánh giá hiệu suất', 'Dashboard tương tác & báo cáo'] }
+    vi: { title: 'Nền tảng Quản trị Nhân sự', short: 'Quản trị Nhân sự', category: 'Nhân sự & năng suất', description: 'Nền tảng nhân sự tập trung vào báo cáo PDF, CSV và Excel bằng nhiều ngôn ngữ, quản lý yêu cầu nghỉ phép và phê duyệt, cùng dữ liệu Time Clock hỗ trợ tính lương. Hồ sơ nhân viên, công việc và hiệu suất kết nối trong cùng hệ thống.', highlights: ['Dữ liệu Time Clock hỗ trợ tính lương', 'Quản lý và phê duyệt nghỉ phép', 'Báo cáo PDF, CSV, Excel đa ngôn ngữ'] }
   },
   {
     id: 'crypto', number: '02', title: 'Crypto Dashboard', short: 'Crypto Dashboard',
     category: 'Data & analytics', year: '2025', date: 'September 12, 2025', color: '#ba9451',
-    description: 'A data-driven view of the crypto market, built with Python. Explore market data, track a portfolio, follow news and global liquidity, and visualize historical trends in one dashboard.',
-    highlights: ['Market data & portfolio tracking', 'News, watchlists & price alerts', 'Historical charts & liquidity monitoring'],
+    description: 'An English-language analytics dashboard for comparing crypto assets, exploring historical prices and reviewing investment risk. Interactive charts, return measures and correlations turn market data into a workspace for analysis.',
+    highlights: ['Market data & portfolio tracking', 'Risk measures & asset correlations', 'Historical charts & liquidity monitoring'],
     tech: ['Python', 'Streamlit', 'Plotly', 'NumPy', 'Supabase'],
     live: 'https://jltc3111-crypto-dashboard-home-7grwzp.streamlit.app/', github: 'https://github.com/JLTC3111/crypto-dashboard',
     position: [56, -72], stop: 'o3', scale:1.55, rotation:0, footprint: [4.8, 3.6], labelHeight: 7.2,
-    vi: { title: 'Quản lý Đầu tư Cá nhân', short: 'Quản lý Đầu tư', category: 'Dữ liệu & phân tích', description: 'Góc nhìn thị trường tiền mã hóa được xây dựng bằng Python. Theo dõi dữ liệu thị trường, danh mục đầu tư, tin tức, thanh khoản toàn cầu và xu hướng lịch sử trong một dashboard.', highlights: ['Dữ liệu thị trường & danh mục đầu tư', 'Tin tức, danh sách theo dõi & cảnh báo giá', 'Biểu đồ lịch sử & thanh khoản'] }
+    vi: { title: 'Quản lý Đầu tư Cá nhân', short: 'Quản lý Đầu tư', category: 'Dữ liệu & phân tích', description: 'Dashboard phân tích bằng tiếng Anh để so sánh tài sản tiền mã hóa, xem lịch sử giá và đánh giá rủi ro đầu tư. Biểu đồ tương tác, chỉ số lợi nhuận và tương quan hỗ trợ khám phá dữ liệu thị trường.', highlights: ['Dữ liệu thị trường & danh mục đầu tư', 'Chỉ số rủi ro & tương quan tài sản', 'Biểu đồ lịch sử & thanh khoản'] }
   },
   {
     id: 'contracts', number: '03', title: 'Contract Management', short: 'Contract Management',
     category: 'Business software', year: '2025', date: 'July 10, 2025', color: '#9384ae',
-    description: 'The contract lifecycle, brought into one place. Create, edit, track, sign, and archive contracts with collaboration, permissions, version control, and multilingual support.',
-    highlights: ['Create, track, sign & archive contracts', 'Collaboration & granular permissions', 'Version control & multilingual support'],
+    description: 'A bilingual workspace for contract records, lifecycle stages, approvals and supporting documents. Table and Kanban dashboards summarize contract value, status and deadlines, while analytics and activity history keep changes visible.',
+    highlights: ['Contract records, stages & approvals', 'Collaboration & granular permissions', 'Version control & multilingual support'],
     tech: ['React', 'Next.js', 'Supabase', 'Tailwind CSS', 'GSAP'],
     live: 'https://contract.icue.vn/', github: 'https://github.com/JLTC3111/contract-management-app',
     position: [108, -29], stop: 'o4', scale:1.8, rotation:Math.PI/4, footprint: [4.6, 3.6], labelHeight: 6.2,
-    vi: { title: 'Quản lý Hợp đồng', short: 'Quản lý Hợp đồng', category: 'Phần mềm doanh nghiệp', description: 'Toàn bộ vòng đời hợp đồng trong một nơi. Tạo, chỉnh sửa, theo dõi, ký và lưu trữ hợp đồng với cộng tác, phân quyền, quản lý phiên bản và hỗ trợ đa ngôn ngữ.', highlights: ['Tạo, theo dõi, ký & lưu trữ hợp đồng', 'Cộng tác & phân quyền chi tiết', 'Quản lý phiên bản & đa ngôn ngữ'] }
+    vi: { title: 'Quản lý Hợp đồng', short: 'Quản lý Hợp đồng', category: 'Phần mềm doanh nghiệp', description: 'Không gian làm việc song ngữ cho hồ sơ hợp đồng, giai đoạn xử lý, phê duyệt và tài liệu đính kèm. Bảng dữ liệu và Kanban tổng hợp giá trị, trạng thái và thời hạn; phân tích cùng lịch sử hoạt động giúp theo dõi thay đổi.', highlights: ['Hồ sơ, giai đoạn & phê duyệt hợp đồng', 'Cộng tác & phân quyền chi tiết', 'Quản lý phiên bản & đa ngôn ngữ'] }
   },
   {
     id: 'compressor', number: '04', title: 'File Compressor', short: 'File Compressor',
     category: 'Desktop utility', year: '2025', date: 'July 3, 2025', color: '#6f9fa9',
-    description: 'A small tool for a familiar problem: files that are too big. Drag in documents and images, compress batches offline, and keep your files on your own device.',
+    description: 'An offline desktop utility for compressing PDF, Word, Excel, PowerPoint and image files. Drag-and-drop batches, adjustable quality, output-folder controls and seven interface languages make everyday file preparation easier.',
     highlights: ['Drag-and-drop documents & images', 'Batch compression', 'Offline processing & no tracking'],
     tech: ['Python', 'Tkinter', 'PyInstaller'],
     live: null, github: 'https://github.com/JLTC3111/file_compressor',
     position: [101, 40], stop: 'o6', scale:1.65, rotation:Math.PI/4, footprint: [4.4, 3.6], labelHeight: 6.7,
-    vi: { title: 'Ứng dụng Nén File', short: 'Nén File', category: 'Tiện ích máy tính', description: 'Một công cụ nhỏ giải quyết vấn đề quen thuộc: tệp quá lớn. Kéo thả tài liệu và hình ảnh, nén hàng loạt ngoại tuyến và giữ dữ liệu trên thiết bị của bạn.', highlights: ['Kéo thả tài liệu & hình ảnh', 'Nén tệp hàng loạt', 'Hoạt động ngoại tuyến & không theo dõi'] }
+    vi: { title: 'Ứng dụng Nén File', short: 'Nén File', category: 'Tiện ích máy tính', description: 'Tiện ích máy tính ngoại tuyến để nén PDF, Word, Excel, PowerPoint và hình ảnh. Hỗ trợ kéo thả nhiều tệp, điều chỉnh chất lượng, chọn thư mục đầu ra và giao diện với bảy ngôn ngữ.', highlights: ['Kéo thả tài liệu & hình ảnh', 'Nén tệp hàng loạt', 'Hoạt động ngoại tuyến & không theo dõi'] }
   },
   {
     id: 'ceremony', number: '05', title: 'IKI–GIZ–ICUE Ceremony', short: 'Hội An Ceremony',
     category: 'Interactive microsite', year: '2025', date: 'June 15, 2025', color: '#d3a352',
-    description: 'A celebration of community development in Hội An. This interactive microsite documents a collaboration between IKI, GIZ, and ICUE and the spirit of international cooperation in Vietnam.',
+    description: 'A bilingual event microsite presenting the IKI, GIZ and ICUE collaboration in Hội An. Partner branding, project photography and an interactive celebratory presentation document the community project.',
     highlights: ['Hội An community development', 'IKI, GIZ & ICUE collaboration', 'Interactive event presentation'],
     tech: ['JavaScript', 'HTML5', 'CSS'],
     live: 'https://gizen.longd.tech', github: 'https://github.com/JLTC3111/ICUE-GIZ-Ceremony-EN',
     liveVi: 'https://gizvn.longd.tech', githubVi: 'https://github.com/JLTC3111/ICUE-GIZ-Ceremony-VN',
     position: [4, 77], stop: 'o8', scale:1.36, rotation:0, footprint: [6, 3.6], labelHeight: 5.8,
-    vi: { title: 'Lễ Khánh thành & Bàn giao', short: 'Sự kiện Hội An', category: 'Microsite tương tác', description: 'Tôn vinh những nỗ lực phát triển cộng đồng tại Hội An. Microsite ghi lại sự hợp tác giữa IKI, GIZ và ICUE cùng tinh thần hợp tác quốc tế tại Việt Nam.', highlights: ['Phát triển cộng đồng tại Hội An', 'Hợp tác giữa IKI, GIZ & ICUE', 'Trình bày sự kiện tương tác'] }
+    vi: { title: 'Lễ Khánh thành & Bàn giao', short: 'Sự kiện Hội An', category: 'Microsite tương tác', description: 'Microsite sự kiện song ngữ giới thiệu sự hợp tác giữa IKI, GIZ và ICUE tại Hội An. Hình ảnh dự án, nhận diện các đối tác và phần trình bày tương tác ghi lại hoạt động cộng đồng.', highlights: ['Phát triển cộng đồng tại Hội An', 'Hợp tác giữa IKI, GIZ & ICUE', 'Trình bày sự kiện tương tác'] }
   },
   {
     id: 'icue', number: '06', title: 'ICUE — Institute Website', short: 'ICUE Website',
     category: 'Institutional website', year: '2025', date: 'May 29, 2025', color: '#618a73',
-    description: 'A digital home for the Institute of Construction, Urban Planning & Economics. Connecting professionals, sharing knowledge, and bringing the institute’s work and community together online.',
+    description: 'The English and Vietnamese websites of ICUE — the Institute for Construction, Urban and Economic Research. Visitors can explore research and project work, read institute news, learn about its organization and contact the team.',
     highlights: ['Institute news & projects', 'Professional & community connections', 'English & Vietnamese websites'],
     tech: ['Vite', 'JavaScript', 'Tailwind CSS', 'GSAP', 'AOS'],
     live: 'https://en.icue.vn/', github: 'https://github.com/JLTC3111/ICUE-mainsite-en',
     liveVi: 'https://icue.vn', githubVi: 'https://github.com/JLTC3111/ICUE-mainsite-vn',
     position: [-104, 38], stop: 'o10', scale:1.55, rotation:Math.PI/4, footprint: [6, 4], labelHeight: 7.8,
-    vi: { title: 'Viện Nghiên cứu Đô thị & Kinh tế', short: 'Website ICUE', category: 'Website tổ chức', description: 'Không gian số của Viện Nghiên cứu Đô thị và Kinh tế. Kết nối chuyên gia, chia sẻ kiến thức, giới thiệu dự án và xây dựng cộng đồng trực tuyến.', highlights: ['Tin tức & dự án của Viện', 'Kết nối chuyên gia & cộng đồng', 'Website tiếng Việt & tiếng Anh'] }
+    vi: { title: 'Viện Nghiên cứu Đô thị & Kinh tế', short: 'Website ICUE', category: 'Website tổ chức', description: 'Website tiếng Anh và tiếng Việt của ICUE — Viện Nghiên cứu Kinh tế Xây dựng và Đô thị. Giới thiệu nghiên cứu, dự án, tin tức, cơ cấu tổ chức và các kênh liên hệ với Viện.', highlights: ['Tin tức & dự án của Viện', 'Kết nối chuyên gia & cộng đồng', 'Website tiếng Việt & tiếng Anh'] }
   },
 
 ];
@@ -85,6 +85,11 @@ export const localizeProject = (project, language = 'en') => language === 'vi' ?
 
 export const copy = {
   en: {
+    videoPlay:'Play video', videoPause:'Pause video', switchLanguage:'Switch language: English / Tiếng Việt',
+    tiltTitle:'Drive by tilting', tiltEnable:'Enable tilt controls', tiltCalibrate:'Recenter tilt',
+    tiltIdle:'Choose Let’s explore to enable motion controls. Hold your phone comfortably, then tilt left or right to steer and forward or back to drive.',
+    tiltCalibrating:'Hold your phone comfortably to set the neutral position.', tiltReady:'Tilt to steer and lean forward or back to drive. Return to neutral to coast. Tap the car to stop.',
+    tiltDenied:'Motion access was not granted. You can still tap the ground to drive.', tiltUnavailable:'Motion sensors are unavailable here. Tap the ground to drive instead.',
     navHome:'Home', navWork:'Work',
     navProjects: 'Projects', navAbout: 'About', navContact: 'Contact', navTour: 'Take a tour',
     eyebrow: 'SOFTWARE ENGINEER · CURIOUS BY NATURE', hero: 'Ideas, made<br>into things.',
@@ -137,6 +142,11 @@ export const copy = {
     screenControls: 'Computer display', screenProject: 'Project', screenStack: 'Stack', screenPreview: 'Preview', screenHint: 'Click the screen to switch · Drag to turn', screenStackHint: 'Select a tool to learn what it does.', screenPreviewHint: 'A real frame from this project’s demo.', watchDemo: 'Watch the demo', demoEnglish: 'English recording', demoVietnamese: 'Vietnamese recording', demoShared: 'Shared original recording', demoMultilingual:'Multilingual recording',
   },
   vi: {
+    videoPlay:'Phát video', videoPause:'Tạm dừng video', switchLanguage:'Đổi ngôn ngữ: English / Tiếng Việt',
+    tiltTitle:'Lái xe bằng cách nghiêng máy', tiltEnable:'Bật điều khiển nghiêng', tiltCalibrate:'Căn lại vị trí trung tâm',
+    tiltIdle:'Chọn Cùng khám phá để bật cảm biến. Giữ điện thoại thoải mái, nghiêng trái hoặc phải để lái và nghiêng trước hoặc sau để tiến hoặc lùi.',
+    tiltCalibrating:'Giữ điện thoại thoải mái để xác định vị trí trung tâm.', tiltReady:'Nghiêng máy để điều hướng, nghiêng trước hoặc sau để tiến hoặc lùi. Đưa máy về vị trí ban đầu để thả trôi. Chạm xe để dừng.',
+    tiltDenied:'Chưa được cấp quyền cảm biến. Bạn vẫn có thể chạm mặt đất để lái xe.', tiltUnavailable:'Thiết bị chưa hỗ trợ cảm biến tại đây. Chạm mặt đất để lái xe.',
     navHome:'Trang chủ', navWork:'Dự án',
     navProjects: 'Dự án', navAbout: 'Giới thiệu', navContact: 'Liên hệ', navTour: 'Tham quan',
     eyebrow: 'KỸ SƯ PHẦN MỀM · LUÔN TÒ MÒ', hero: 'Từ ý tưởng<br>đến thực tế.',

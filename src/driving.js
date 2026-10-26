@@ -203,12 +203,14 @@ export class Driver {
     this.attitude.bodyTop=this.profile.bodyTop+this.rideHeight+this.hydraulicOffset;this.attitude.halfWidth=this.profile.halfWidth+.1;this.attitude.halfLength=this.profile.halfLength+.12;
     this.boosting=Boolean(input.boost)&&(!this.route.length||Boolean(input.forward));
     this.collisionImpact *= Math.exp(-5 * dt);
-    const manual = input.forward || input.reverse || input.left || input.right || input.brake || input.boost;
+    const throttleAxis=clamp(Number(input.throttleAxis)||0,-1,1),steerAxis=clamp(Number(input.steerAxis)||0,-1,1);
+    const manual = input.forward || input.reverse || input.left || input.right || input.brake || input.boost || Math.abs(throttleAxis)>.01 || Math.abs(steerAxis)>.01;
     let cancelled = false;
     if (manual && this.route.length) { this.cancelRoute(); cancelled = true; }
-    let forward = input.forward ? 1 : 0;
-    let reverse = input.reverse ? 1 : 0;
-    let steering = (input.left ? 1 : 0) - (input.right ? 1 : 0);
+    const keyboardThrottle=input.forward||input.reverse,keyboardSteering=input.left||input.right;
+    let forward = input.forward ? 1 : keyboardThrottle?0:Math.max(0,throttleAxis);
+    let reverse = input.reverse ? 1 : keyboardThrottle?0:Math.max(0,-throttleAxis);
+    let steering = keyboardSteering?(input.left?1:0)-(input.right?1:0):-steerAxis;
     let arrived = null;
     if (flying) {
       this.attitude.stepAir(dt,input);
@@ -237,7 +239,7 @@ export class Driver {
       }
     } else {
       const maxSpeed = input.boost ? DRIVE_TUNING.boostSpeed : DRIVE_TUNING.speed;
-      if (forward || reverse || input.boost) this.speed += ((forward || (input.boost&&!reverse)?1:0) - reverse) * DRIVE_TUNING.acceleration * traction * dt;
+      if (forward || reverse || input.boost) this.speed += ((input.boost&&!reverse?1:forward) - reverse) * DRIVE_TUNING.acceleration * traction * dt;
       else this.speed *= Math.exp(-(snowy ? .9 : wet ? 1.5 : 2.2) * dt);
       if (input.brake) this.speed *= Math.exp(-9 * dt);
       this.speed = clamp(this.speed, -DRIVE_TUNING.reverseSpeed, maxSpeed);
@@ -310,7 +312,7 @@ export class Driver {
     const targetRoll = clamp(-this.steering * this.speed * (snowy ? .022 : .013), -.22, .22);
     this.pitch += (targetPitch - this.pitch) * Math.min(dt * 10, 1); this.roll += (targetRoll - this.roll) * Math.min(dt * 8, 1);
     this.acceleration = dt ? clamp((this.speed - previousSpeed) / dt, -40, 30) : 0;
-    this.throttle=input.brake?0:this.boosting||forward||reverse?1:this.route.length ? .42 : 0;
+    this.throttle=input.brake?0:this.boosting?1:forward||reverse?Math.max(forward,reverse):this.route.length ? .42 : 0;
     const powertrain=powertrainState(this.speed,{throttle:this.throttle,airborne:this.airborne,boosting:this.boosting});
     this.gear=powertrain.gear;
     const targetRpm=powertrain.rpm;

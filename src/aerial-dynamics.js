@@ -15,7 +15,9 @@ export class AerialDynamics {
     this.airTime+=dt;this.impulseTime=Math.max(0,this.impulseTime-dt);
     if(!this.impulseTime){
       const response=1-Math.exp(-5.5*dt);
-      const targets=[(Number(!!input.forward)-Number(!!input.reverse))*3.8,(Number(!!input.left)-Number(!!input.right))*2.8,0];
+      const pitch=input.forward||input.reverse?Number(!!input.forward)-Number(!!input.reverse):Math.max(-1,Math.min(1,Number(input.throttleAxis)||0));
+      const yaw=input.left||input.right?Number(!!input.left)-Number(!!input.right):-Math.max(-1,Math.min(1,Number(input.steerAxis)||0));
+      const targets=[pitch*3.8,yaw*2.8,0];
       for(const [i,key] of ['x','y','z'].entries())this.angularVelocity[key]+=(targets[i]-this.angularVelocity[key])*response;
     }
     const speed=this.angularVelocity.length();
