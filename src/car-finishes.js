@@ -1,5 +1,5 @@
 const palettes={
-  '8-ball':{red:'#ff3829',red_lite:'#ffb08c',red_dark:'#c92328',white:'#fff5e4',domed_black:'#19232f',black:'#343c45'},
+  '8-ball':{red:'#ff3829',red_lite:'#ff7964',red_dark:'#c92328',white:'#fff5e4',domed_black:'#19232f',black:'#343c45'},
   'monster-truck':{green:'#46b968',green_light:'#a9ee8b',green_dark:'#287a50',gold:'#e7bd52',gold_bright:'#ffe18a',croc_belly:'#e5efb7'},
   'toy-story':{blue:'#299fdf',yellow:'#ffd45d',brown:'#bf9068',brown_dark:'#76533e',gold:'#ebc35d',white:'#fff4df'}
 };

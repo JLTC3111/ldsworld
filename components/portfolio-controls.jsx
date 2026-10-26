@@ -2,6 +2,7 @@ import { createRoot } from 'react-dom/client';
 import { flushSync } from 'react-dom';
 import Dock from './react-bits/Dock.jsx';
 import StaggeredMenu from './react-bits/StaggeredMenu.jsx';
+import GooeyNav from './react-bits/GooeyNav.jsx';
 
 const glyph = name => <svg className="icon" aria-hidden="true"><use href={`#i-${name}`} /></svg>;
 
@@ -16,9 +17,13 @@ export function mountPortfolioControls({ navigation, dock, model, onAction, onMe
     const serialized = JSON.stringify(next);
     if (disposed || serialized === previous) return;
     previous = serialized;
-    const { labels, language, night, sound, musicPlaying, view } = next;
+    const { labels, language, night, sound, musicPlaying, view, mobileNavigation } = next;
+    navigation.dataset.mode=mobileNavigation?'mobile':'desktop';
     const navigationItems = ['home', 'projects', 'about', 'contact','world','garage'].map(action => ({ label:labels[action],ariaLabel:labels[action],link:'#'+action,action,current:view===action||(action==='home'&&!view)||(action==='projects'&&view==='project') }));
     navigationItems.push({id:'header-language',label:language==='en'?'Tiếng Việt':'English',link:'#language',action:'toggle-language',ariaLabel:labels.language});
+    const desktopItems = navigationItems.slice(0,5).map(({label,action})=>({label,action}));
+    desktopItems.push({id:'header-language',label:language.toUpperCase(),action:'toggle-language',ariaLabel:labels.language});
+    const activeIndex=view==='project'||view==='projects'?1:view==='about'?2:view==='contact'?3:view==='world'?4:0;
     const item = (id, icon, label, action, active, pressed) => ({ id, icon:glyph(icon), label, active, pressed, onClick:() => onAction(action) });
     const items = [
       item('garage','car',labels.garage,'garage'),
@@ -31,7 +36,7 @@ export function mountPortfolioControls({ navigation, dock, model, onAction, onMe
       item('help', 'help', labels.help, 'help')
     ];
     flushSync(() => {
-      navRoot.render(<StaggeredMenu controllerRef={menuController} position="right" items={navigationItems} socialItems={[{label:'GitHub',link:'https://github.com/JLTC3111'},{label:'YouTube',link:'https://www.youtube.com/@Drherbal2011'}]} displaySocials={true} displayItemNumbering={true} displayLogo={false} logoUrl="./assets/favicon.svg" isFixed={true} menuButtonColor="#f2eee6" openMenuButtonColor="#f2eee6" changeMenuColorOnOpen={true} colors={['#B497CF','#5227FF']} accentColor="#ff6b6b" menuLabel={labels.menu} closeLabel={labels.closeMenu} openAriaLabel={labels.openMenuAria} closeAriaLabel={labels.closeMenuAria} socialsLabel={labels.socials} navigationLabel={labels.navigation} onItemSelect={selectItem} onMenuOpen={menuOpen} onMenuClose={menuClose} className="portfolio-menu" />);
+      navRoot.render(mobileNavigation ? <StaggeredMenu controllerRef={menuController} position="right" items={navigationItems} socialItems={[{label:'GitHub',link:'https://github.com/JLTC3111'},{label:'YouTube',link:'https://www.youtube.com/@Drherbal2011'}]} displaySocials={true} displayItemNumbering={true} displayLogo={false} logoUrl="./assets/favicon.svg" isFixed={true} menuButtonColor="#f2eee6" openMenuButtonColor="#f2eee6" changeMenuColorOnOpen={true} colors={['#B497CF','#5227FF']} accentColor="#ff6b6b" menuLabel={labels.menu} closeLabel={labels.closeMenu} openAriaLabel={labels.openMenuAria} closeAriaLabel={labels.closeMenuAria} socialsLabel={labels.socials} navigationLabel={labels.navigation} onItemSelect={selectItem} onMenuOpen={menuOpen} onMenuClose={menuClose} className="portfolio-menu" /> : <GooeyNav items={desktopItems} activeIndex={activeIndex} ariaLabel={labels.navigation} theme={night?'dark':'light'} color={night?'#c9c3b8':'#59636b'} activeTextColor={night?'#353d44':'#f4f0e8'} size="md" frame={true} particleCount={15} spread={56} animationTime={600} timeVariance={300} gooeyness={0.5} wobble={0.5} hoverEffect={true} onChange={(_,item)=>onAction(item.action)} className="portfolio-navigation" style={{'--gn-frame':'var(--chrome)','--gn-frame-edge':'var(--line)','--gn-frame-highlight':'var(--surface)','--gn-ink':'var(--ink)','--gn-muted':'var(--muted)'}} />);
       dockRoot.render(<Dock items={items} baseItemSize={50} magnification={70} panelHeight={68} autoHide={false} accentColor={night ? '#c7c8c7' : '#65717a'} className="portfolio-dock" style={{ '--dock-panel':'var(--chrome)', '--dock-panel-edge':'var(--line)', '--dock-panel-highlight':'var(--surface)', '--dock-ink':'var(--ink)', '--dock-tile':night ? 'linear-gradient(#444c55, #343c45)' : 'linear-gradient(#f4f0e8, #e6e1d8)', '--dock-tile-edge':'var(--line)', '--dock-dot':'var(--ink)', '--dock-separator':'var(--line)', '--dock-label':'var(--paper)', '--dock-label-ink':'var(--ink)' }} />);
     });
   }

@@ -1,15 +1,16 @@
 # React Bits controls
 
-Dock, Staggered Menu and Topography are the JavaScript/CSS components published by David Haz:
+Dock, Gooey Nav, Staggered Menu and Topography are the JavaScript/CSS components published by David Haz:
 
 - https://reactbits.dev/components/dock
+- https://reactbits.dev/components/gooey-nav
 - https://reactbits.dev/components/staggered-menu
 - https://reactbits.dev/backgrounds/topography
 - https://github.com/DavidHDev/react-bits/tree/main/src/content/Components
 
-These components form part of Long D.’s portfolio under the MIT + Commons Clause license in [`REACT-BITS-LICENSE.txt`](../../src/vendor/REACT-BITS-LICENSE.txt). React’s license is retained alongside it. The previous Gooey Nav source is retained but is no longer mounted.
+These components form part of Long D.’s portfolio under the MIT + Commons Clause license in [`REACT-BITS-LICENSE.txt`](../../src/vendor/REACT-BITS-LICENSE.txt). React’s license is retained alongside it. Gooey Nav supplies the horizontal desktop header. Staggered Menu is mounted only on phones (up to 720px) and coarse-pointer touch devices; resizing out of that layout closes the drawer and resumes the world.
 
-The integration adds Dock item IDs and `aria-pressed`, and prevents handled toolbar navigation keys from reaching the car. Staggered Menu retains the upstream GSAP staggered layers, text/icon animations, numbering and social links. It adds translated labels, action callbacks, a close controller, inert closed links, focus trapping/return, Escape handling, reduced-motion timing and cleanup. Rapid reopen cancels a pending close animation. The existing brand supplies the logo, so the duplicate drawer logo is hidden.
+The integration adds Dock item IDs and `aria-pressed`, and prevents handled toolbar navigation keys from reaching the car. Staggered Menu retains the upstream GSAP staggered layers, text/icon animations, numbering and social links. It adds translated labels, action callbacks, a close controller, inert closed links, focus trapping/return, Escape handling, reduced-motion timing and cleanup. Rapid reopen cancels a pending close animation. The existing brand supplies the logo, so the duplicate drawer logo is hidden. Purple numbering sits immediately beside each label, with a lighter dark-theme color.
 
 GSAP 3.15.0 is vendored from GreenSock’s official `dist/gsap.min.js` into `../vendor/gsap.cjs`, with only the unavailable source-map reference and trailing whitespace removed. The `.cjs` extension makes the upstream UMD export work with the local esbuild bundle. Its copyright and Standard License link remain in the source and production bundle; see [`GSAP-NOTICE.txt`](../../src/vendor/GSAP-NOTICE.txt).
 

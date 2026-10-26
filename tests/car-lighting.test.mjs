@@ -11,8 +11,11 @@ test('supplied paint receives owned glossy finishes while the original assets re
     const bytes=await readFile(new URL(`../src/assets/cars/${id}.glb`,import.meta.url));await registerCarAsset(id,bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength));
     const source=finishes(getCarAsset(id)),before=new Map([...source].map(([name,m])=>[name,m.color.getHexString()])),clone=cloneCarAsset(id);
     const painted=finishes(clone.orient);
+    // A lit material needs vertex normals or the derivative-based flat shader.
+    // Checking color values alone missed the gray-paint regression.
+    for(const mesh of clone.meshes){assert.ok(mesh.geometry.hasAttribute('normal')||mesh.material.flatShading,`${id}/${mesh.name}: missing usable surface normals`);assert.equal(mesh.material.flatShading,true,'Preserve the GLTF loader’s face-normal shader for these supplied assets');}
     for(const [name,m]of painted){assert.notEqual(m,source.get(name));if(m.userData.visibilityPaint){assert.equal(m.isMeshPhysicalMaterial,true);assert.equal(m.clearcoat,.95);assert.equal(m.roughness,.25);assert.ok(m.emissiveIntensity>0);}}
-    if(id==='8-ball'){assert.equal(painted.get('red').color.getHexString(),'ff3829');assert.equal(painted.get('red_lite').color.getHexString(),'ffb08c');assert.ok(painted.get('red_dark').color.r>painted.get('red_dark').color.g*3);}
+    if(id==='8-ball'){assert.equal(painted.get('red').color.getHexString(),'ff3829');assert.equal(painted.get('red_lite').color.getHexString(),'ff7964');assert.ok(painted.get('red_dark').color.r>painted.get('red_dark').color.g*3);}
     clone.geometries.forEach(g=>g.dispose());clone.materials.forEach(m=>m.dispose());for(const [name,m]of source)assert.equal(m.color.getHexString(),before.get(name));
   }
 });

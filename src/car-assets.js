@@ -32,7 +32,9 @@ export function cloneCarAsset(id){
     if(!geometries.has(o.geometry))geometries.set(o.geometry,o.geometry.clone());o.geometry=geometries.get(o.geometry);
     if(!materials.has(o.material)){
       const old=o.material,finish=suppliedCarFinish(id,o.name,old),{visibilityPaint,...properties}=finish;
-      const material=new T.MeshPhysicalMaterial({...properties,emissive:visibilityPaint?properties.color:0,side:old.side});material.name=old.name||o.name;material.userData.visibilityPaint=visibilityPaint;materials.set(o.material,material);
+      // These supplied GLBs omit NORMAL attributes. Preserve the loader's
+      // derivative-based face normals instead of shading with a zero normal.
+      const material=new T.MeshPhysicalMaterial({...properties,emissive:visibilityPaint?properties.color:0,side:old.side,flatShading:old.flatShading||!o.geometry.hasAttribute('normal')});material.name=old.name||o.name;material.userData.visibilityPaint=visibilityPaint;materials.set(o.material,material);
     }o.material=materials.get(o.material);o.castShadow=o.receiveShadow=true;
   }});
   const orient=new T.Group();orient.name=`Supplied ${config.name} GLB`;orient.add(clone);

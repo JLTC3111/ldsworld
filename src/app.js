@@ -50,6 +50,8 @@ const mediaFor = project => getProjectMedia(typeof project === 'string' ? projec
 state.music = storage.get('music','on') !== 'off';
 state.carModel=vehicleModel(storage.get('car','8-ball')).id;state.menuOpen=false;
 const mobileMedia=matchMedia('(pointer: coarse)');
+const navigationMedia=matchMedia('(max-width: 720px), (pointer: coarse)');
+document.body.classList.toggle('compact-navigation',navigationMedia.matches);
 state.mobile=mobileMedia.matches;state.tiltStatus='idle';
 document.body.classList.toggle('mobile-layout',state.mobile);
 state.mapCategory='buildings';state.mapZoom=1;state.carPosition={x:0,z:13,heading:Math.PI/2};
@@ -75,13 +77,14 @@ const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const brandTechText = createTechText($('#brand-wordmark'), { text:'long d.', fontSize:21, fontWeight:700, letterSpacing:-.025, align:'left', reach:36, dashLength:2.2, dashGap:1.5, strokeWidth:.65, specks:3, labels:false, draggable:false, clickKick:false, sweep:false, intro:'none' });
 function controlsModel() {
   const musicPlaying=state.musicPlaying??state.music;
-  return {language:state.language,night:state.night,sound:state.sound,musicPlaying,view:state.panel,labels:{
+  return {mobileNavigation:navigationMedia.matches,language:state.language,night:state.night,sound:state.sound,musicPlaying,view:state.panel,labels:{
     home:t('navHome'),projects:t('navWork'),about:t('navAbout'),contact:t('navContact'),world:t('worldSettings'),language:t('switchLanguage'),navigation:t('navigationAria'),
     menu:t('menuLabel'),closeMenu:t('closeMenuLabel'),openMenuAria:t('openMenuAria'),closeMenuAria:t('closeMenuAria'),socials:t('socialLinks'),garage:t('chooseCar'),reset:`${t('reset')} (R)`,sound:t(state.sound?'soundOff':'soundOn'),music:t(musicPlaying?'musicPause':'musicPlay'),theme:t(state.night?'day':'night'),help:t('help')
   }};
 }
 function syncControls() { portfolioControls?.update(controlsModel()); }
 portfolioControls=mountPortfolioControls({navigation:$('#header-navigation'),dock:$('#control-dock'),model:controlsModel(),onAction:performAction,onMenuChange:setMenuOpen});
+navigationMedia.addEventListener?.('change',()=>{portfolioControls?.closeMenu();document.body.classList.toggle('compact-navigation',navigationMedia.matches);syncControls();});
 mobileMedia.addEventListener?.('change',()=>{state.mobile=mobileMedia.matches;document.body.classList.toggle('mobile-layout',state.mobile);tiltControls.setPaused(!state.mobile||!!state.panel);});
 
 function syncWorldPause(){const paused=!!state.panel||carPicker.open||state.menuOpen||document.hidden;world?.setPaused(paused);tiltControls.setPaused(paused||!state.exploring);}
