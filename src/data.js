@@ -85,7 +85,8 @@ export const localizeProject = (project, language = 'en') => language === 'vi' ?
 
 export const copy = {
   en: {
-    navProjects: 'Projects', navAbout: 'About', navContact: 'Say hello', navTour: 'Take a tour',
+    navHome:'Home', navWork:'Work',
+    navProjects: 'Projects', navAbout: 'About', navContact: 'Contact', navTour: 'Take a tour',
     eyebrow: 'SOFTWARE ENGINEER · CURIOUS BY NATURE', hero: 'Ideas, made<br>into things.',
     intro: 'I’m Long. I build useful software, thoughtful<br class="desktop-break"> websites, and things worth exploring.', explore: 'Let’s explore', browse: 'Or, go straight to the projects',
     hint: 'A small world of things I’ve built.', hintSub: 'Drive around. Explore the things I’ve built.',
@@ -115,7 +116,6 @@ export const copy = {
     location: 'Hanoi, Vietnam', locationShort: 'HANOI, VN', factRole: 'SOFTWARE ENGINEER', factCuriosity: 'ALWAYS BUILDING SOMETHING',
     frontend: 'Frontend', backend: 'Backend', data: 'Data', delivery: 'Delivery', dataTools: 'Data analysis & visualization',
     helpMouse: 'Drag to orbit · Right-drag or Shift-drag to pan', helpTrackpad: 'Scroll or pinch to zoom · Shift-scroll to pan',
-    navigationHint: 'WASD to drive · Drag to orbit · Scroll to zoom · Esc to hide/show UI',
     canvasAria: 'Use WASD or arrow keys to drive. Click the ground to travel, buildings for projects, and loose objects to nudge them. Drag to orbit, right-drag to pan, and scroll or pinch to zoom.',
     scenicSign: 'TAKE THE\nSCENIC ROUTE', welcomeSign: 'HELLO, CURIOUS HUMAN.', dataSign: 'DATA LAB', contractsSign: 'CONTRACTS', compressorSign: 'SMALLER IS BETTER',
     worldSettings: 'World', worldTitle: 'A world with a little life.', worldIntro: 'Discover project buildings across the island. Follow the roads, drive through shallow streams, and find warm fire cans after sunset.',
@@ -134,10 +134,11 @@ export const copy = {
     aboutStageText: 'Websites, databases, practical software, and a little room to play.', worldStageText: 'Choose your ride, try the lights, and find a new season.', helpStageText: 'A closer look at your ride before you take the scenic route.', mapStageText: 'Six projects connected by one small island.',
     interfaceLanguage: 'Read in', dayNight: 'Day / night', rainSnow: 'Rain / snow', controlsLabel: 'Controls', driveLabel: 'WASD / arrows', cameraLabel: 'Drag / scroll',
     musicPause:'Pause music', musicPlay:'Play music', worldSoundscape:'Wind and flowing water accompany the island. Roosters call in the morning, birds chirp at sunset, and the river grows louder as you approach. The speaker button mutes the whole soundscape.',
-    screenControls: 'Computer display', screenProject: 'Project', screenStack: 'Stack', screenPreview: 'Preview', screenHint: 'Click the screen to switch · Drag to turn', screenStackHint: 'Select a tool to learn what it does.', screenPreviewHint: 'A real frame from this project’s demo.', watchDemo: 'Watch the demo', demoEnglish: 'English recording', demoVietnamese: 'Vietnamese recording', demoShared: 'Shared original recording', demoMultilingual:'Multilingual recording', demoMissingEnglish:'This original demo is in Vietnamese. The supplied portfolio has no English recording.', demoMissingVietnamese:'Video gốc này bằng tiếng Anh. Portfolio nguồn chưa có bản ghi tiếng Việt.',
+    screenControls: 'Computer display', screenProject: 'Project', screenStack: 'Stack', screenPreview: 'Preview', screenHint: 'Click the screen to switch · Drag to turn', screenStackHint: 'Select a tool to learn what it does.', screenPreviewHint: 'A real frame from this project’s demo.', watchDemo: 'Watch the demo', demoEnglish: 'English recording', demoVietnamese: 'Vietnamese recording', demoShared: 'Shared original recording', demoMultilingual:'Multilingual recording',
   },
   vi: {
-    navProjects: 'Dự án', navAbout: 'Giới thiệu', navContact: 'Chào nhé', navTour: 'Tham quan',
+    navHome:'Trang chủ', navWork:'Dự án',
+    navProjects: 'Dự án', navAbout: 'Giới thiệu', navContact: 'Liên hệ', navTour: 'Tham quan',
     eyebrow: 'KỸ SƯ PHẦN MỀM · LUÔN TÒ MÒ', hero: 'Từ ý tưởng<br>đến thực tế.',
     intro: 'Mình là Long. Mình xây dựng phần mềm,<br class="desktop-break"> website và những điều đáng khám phá.', explore: 'Cùng khám phá', browse: 'Hoặc, xem ngay các dự án',
     hint: 'Một thế giới nhỏ từ những điều mình đã xây dựng.', hintSub: 'Lái xe và khám phá những dự án mình đã làm.',
@@ -167,7 +168,6 @@ export const copy = {
     location: 'Hà Nội, Việt Nam', locationShort: 'HÀ NỘI, VN', factRole: 'KỸ SƯ PHẦN MỀM', factCuriosity: 'LUÔN XÂY DỰNG ĐIỀU GÌ ĐÓ',
     frontend: 'Giao diện', backend: 'Hệ thống', data: 'Dữ liệu', delivery: 'Triển khai', dataTools: 'Phân tích & trực quan hóa dữ liệu',
     helpMouse: 'Kéo để xoay góc nhìn · Kéo chuột phải hoặc Shift+kéo để di chuyển góc nhìn', helpTrackpad: 'Cuộn hoặc chụm/mở để thu phóng · Shift+cuộn để di chuyển góc nhìn',
-    navigationHint: 'WASD để lái xe · Kéo để xoay · Cuộn để thu phóng · Esc để ẩn/hiện giao diện',
     canvasAria: 'Dùng WASD hoặc phím mũi tên để lái xe. Nhấp xuống đất để đi đến, tòa nhà để xem dự án và đồ vật rời để đẩy chúng. Kéo để xoay, kéo chuột phải để di chuyển góc nhìn và cuộn hoặc chụm/mở để thu phóng.',
     scenicSign: 'CHỌN CON ĐƯỜNG\nTHÚ VỊ HƠN', welcomeSign: 'CHÀO BẠN, NGƯỜI TÒ MÒ.', dataSign: 'PHÂN TÍCH', contractsSign: 'HỢP ĐỒNG', compressorSign: 'GỌN NHẸ HƠN',
     worldSettings: 'Thế giới', worldTitle: 'Một thế giới đầy sức sống.', worldIntro: 'Khám phá các tòa nhà dự án khắp hòn đảo. Đi theo những con đường, lái xe qua suối cạn và tìm những thùng lửa ấm áp sau hoàng hôn.',
@@ -186,6 +186,6 @@ export const copy = {
     aboutStageText: 'Website, cơ sở dữ liệu, phần mềm thực tiễn và một chút không gian để sáng tạo.', worldStageText: 'Chọn chiếc xe yêu thích, thử đèn xe và khám phá mùa mới.', helpStageText: 'Ngắm kỹ chiếc xe trước khi bắt đầu hành trình khám phá.', mapStageText: 'Sáu dự án được kết nối trên một hòn đảo nhỏ.',
     interfaceLanguage: 'Ngôn ngữ', dayNight: 'Ngày / đêm', rainSnow: 'Mưa / tuyết', controlsLabel: 'Điều khiển', driveLabel: 'WASD / mũi tên', cameraLabel: 'Kéo / cuộn',
     musicPause:'Tạm dừng nhạc', musicPlay:'Phát nhạc', worldSoundscape:'Gió và tiếng nước chảy luôn đồng hành cùng hòn đảo. Gà gáy vào buổi sáng, chim hót lúc hoàng hôn, tiếng sông rõ hơn khi bạn đến gần. Nút loa tắt tiếng toàn bộ không gian âm thanh.',
-    screenControls: 'Màn hình máy tính', screenProject: 'Dự án', screenStack: 'Công nghệ', screenPreview: 'Xem trước', screenHint: 'Nhấp màn hình để chuyển · Kéo để xoay', screenStackHint: 'Chọn công cụ để tìm hiểu chức năng.', screenPreviewHint: 'Khung hình thật từ video demo của dự án.', watchDemo: 'Xem video demo', demoEnglish: 'Video tiếng Anh', demoVietnamese: 'Video tiếng Việt', demoShared: 'Video gốc dùng chung', demoMultilingual:'Video đa ngôn ngữ', demoMissingEnglish:'Video gốc này bằng tiếng Việt. Portfolio nguồn chưa có bản ghi tiếng Anh.', demoMissingVietnamese:'Video gốc này bằng tiếng Anh. Portfolio nguồn chưa có bản ghi tiếng Việt.',
+    screenControls: 'Màn hình máy tính', screenProject: 'Dự án', screenStack: 'Công nghệ', screenPreview: 'Xem trước', screenHint: 'Nhấp màn hình để chuyển · Kéo để xoay', screenStackHint: 'Chọn công cụ để tìm hiểu chức năng.', screenPreviewHint: 'Khung hình thật từ video demo của dự án.', watchDemo: 'Xem video demo', demoEnglish: 'Video tiếng Anh', demoVietnamese: 'Video tiếng Việt', demoShared: 'Video gốc dùng chung', demoMultilingual:'Video đa ngôn ngữ',
   }
 };

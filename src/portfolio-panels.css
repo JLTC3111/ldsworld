@@ -16,7 +16,7 @@ dialog#panel.portfolio-panel[open] {
 }
 
 dialog#panel.portfolio-panel::backdrop {
-  background: #10251a4d;
+  background: #2020204d;
   backdrop-filter: blur(5px);
 }
 
@@ -1529,16 +1529,6 @@ dialog#panel.portfolio-panel::backdrop {
 }
 
 
-.portfolio-panel .demo-source-note {
-  margin: 9px 0 18px;
-  padding: 10px 12px;
-  border-left: 2px solid var(--accent-shadow);
-  border-radius: 0 6px 6px 0;
-  background: var(--surface-soft);
-  color: var(--muted);
-  font-size: 11px;
-  line-height: 1.65;
-}
 
 
 .portfolio-panel video[data-preview-project] {

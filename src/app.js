@@ -24,6 +24,8 @@ import { createDrivingHud } from './driving-hud.js';
 import { drivingKey } from './controls.js';
 import { createDialogDrag } from './dialog-drag.js';
 import { bindEngineUnlock } from './engine-unlock.js';
+import { mountPortfolioControls } from './vendor/portfolio-controls.js';
+import { createExplorationUI } from './exploration-ui.js';
 
 const $ = selector => document.querySelector(selector);
 const formatCount = value => String(value).padStart(2,'0');
@@ -51,6 +53,8 @@ state.showcaseScreen = 'project'; state.showcaseTool = null;
 const panel = $('#panel');
 const panelDrag=createDialogDrag({dialog:panel,handle:$('.panel-topbar'),keyboardHandle:$('#panel-context')});
 const drivingHud=createDrivingHud();
+const explorationUI=createExplorationUI({hero:$('.hero'),badge:$('#explore-status'),focusSurface:()=>$('#island-canvas')?.focus({preventScroll:true})});
+let portfolioControls=null;
 let world = null, previousFocus = null, toastTimer = null, speedValue = -1;
 const engineAudio = new EngineAudio();
 engineAudio.setEnabled(state.sound);
@@ -64,6 +68,15 @@ let suspendedDemo = null, panelPreviews = null;
 let panelShowcase = null, showcaseRequest = 0;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const brandTechText = createTechText($('#brand-wordmark'), { text:'long d.', fontSize:21, fontWeight:700, letterSpacing:-.025, align:'left', reach:36, dashLength:2.2, dashGap:1.5, strokeWidth:.65, specks:3, labels:false, draggable:false, clickKick:false, sweep:false, intro:'none' });
+function controlsModel() {
+  const musicPlaying=state.musicPlaying??state.music;
+  return {language:state.language,night:state.night,sound:state.sound,musicPlaying,view:state.panel,labels:{
+    home:t('navHome'),projects:t('navWork'),about:t('navAbout'),contact:t('navContact'),navigation:t('navigationAria'),
+    garage:t('chooseCar'),reset:`${t('reset')} (R)`,sound:t(state.sound?'soundOff':'soundOn'),music:t(musicPlaying?'musicPause':'musicPlay'),theme:t(state.night?'day':'night'),help:t('help')
+  }};
+}
+function syncControls() { portfolioControls?.update(controlsModel()); }
+portfolioControls=mountPortfolioControls({navigation:$('#header-navigation'),dock:$('#control-dock'),model:controlsModel(),onAction:performAction});
 
 function translatePage() {
   document.documentElement.lang = state.language;
@@ -76,13 +89,7 @@ function translatePage() {
   document.querySelectorAll('[data-html]').forEach(element => { element.innerHTML = t(element.dataset.html); });
   document.querySelectorAll('[data-aria]').forEach(element => element.setAttribute('aria-label', t(element.dataset.aria)));
   document.querySelectorAll('[data-language]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.language === state.language)));
-  $('#reset').setAttribute('aria-label', `${t('reset')} (R)`);
-  $('#reset').title = `${t('reset')} (R)`;
-  $('#help').setAttribute('aria-label', t('help'));
-  $('#help').title = t('help');
   $('#minimap').setAttribute('aria-label', t('map'));
-  $('#sound').setAttribute('aria-label', state.sound ? t('soundOff') : t('soundOn'));
-  $('#sound').title = state.sound ? t('soundOff') : t('soundOn');
   applyTheme(); syncSoundButton(); syncMusicButton(); updateEnvironment(state.environment);
   if (state.panel) renderPanel();
   refreshNearby(); updateStatus();
@@ -96,11 +103,10 @@ function setLanguage(language) {
 }
 function applyTheme() {
   document.body.classList.toggle('evening', state.night);
-  $('#theme').innerHTML = icon(state.night ? 'moon' : 'sun'); $('#theme').setAttribute('aria-pressed', String(state.night));
-  $('#theme').setAttribute('aria-label', state.night ? t('day') : t('night')); $('#theme').title = state.night ? t('day') : t('night');
+  syncControls();
   panelShowcase?.setTheme(showcaseDark());
   brandTechText.refresh();
-  $('meta[name="theme-color"]').content = state.night ? '#22352f' : '#f0f0e7';
+  $('meta[name="theme-color"]').content = state.night ? '#151515' : '#f4f4f4';
 }
 function startCurrentDemo() {
   const video = $('#panel-content video[data-project-demo]');
@@ -120,7 +126,7 @@ function showToast(message, duration = 2800) {
   toastTimer = setTimeout(() => toast.classList.remove('visible'), duration);
 }
 function updateStatus() {
-  $('#explore-status').hidden = !state.exploring;
+  explorationUI.setStatus({exploring:state.exploring,touring:!!state.destination||state.guided});
   $('#stop-tour').hidden = !state.destination && !state.guided;
   const destination = getProject(state.destination);
   $('#status-text').textContent = destination ? `${t('touring')} ${local(destination).short}` : t('driving');
@@ -162,14 +168,14 @@ function showPanel(view, id = null) {
   document.body.classList.add('panel-open'); world?.setPaused(true); panel.scrollTop = 0;
   $('#panel-close').focus({ preventScroll: true });
   refreshNearby(); setHash(view, id);
-  document.querySelectorAll('.navigation button').forEach(button => button.setAttribute('aria-current', button.dataset.action === view ? 'page' : 'false'));
+  syncControls();
 }
 function closePanel() { if (panel.open) panel.close(); }
 function handlePanelClose() {
   disposeShowcase();
   panelPreviews?.destroy(); panelPreviews = null;
   state.panel = null; state.projectId = null; document.body.classList.remove('panel-open'); world?.setPaused(false);
-  setHash(null); refreshNearby(); document.querySelectorAll('.navigation button').forEach(button => button.removeAttribute('aria-current'));
+  setHash(null); refreshNearby(); syncControls();
   $('#panel-content').querySelectorAll('video').forEach(releaseDemo);
   suspendedDemo = null;
   if (previousFocus?.isConnected) previousFocus.focus({ preventScroll: true });
@@ -302,7 +308,7 @@ function renderIndex() {
 }
 function renderDemoCaption(project) {
   const media=mediaFor(project);
-  return `<p class="demo-caption">${icon('play')} ${t('demo')}<span class="demo-language">${t({en:'demoEnglish',vi:'demoVietnamese',mixed:'demoMultilingual'}[media.recordingLanguage]||'demoShared')}</span></p>${['en','vi'].includes(media.recordingLanguage)&&media.recordingLanguage!==state.language?`<p class="demo-source-note">${t(state.language==='en'?'demoMissingEnglish':'demoMissingVietnamese')}</p>`:''}`;
+  return `<p class="demo-caption">${icon('play')} ${t('demo')}<span class="demo-language">${t({en:'demoEnglish',vi:'demoVietnamese',mixed:'demoMultilingual'}[media.recordingLanguage]||'demoShared')}</span></p>`;
 }
 function renderProject() {
   const project = getProject(state.projectId); if (!project) return renderIndex();
@@ -324,7 +330,7 @@ function renderProject() {
     <ul class="project-highlights" hidden>${p.highlights.map(item => `<li>${icon('check')}${item}</li>`).join('')}</ul>
     <div class="tech-tags" aria-label="${t('technologiesAria')}">${p.tech.map(tech => `<span>${tech}</span>`).join('')}</div>
     <div class="project-actions">${p.live ? `<a class="primary-button" href="${p.live}" target="_blank" rel="noopener noreferrer">${t('visit')}${icon('up-right')}</a>` : ''}<a class="${p.live ? 'secondary-button' : 'primary-button'}" href="${p.github}" target="_blank" rel="noopener noreferrer">${icon('github')}${t('code')}</a></div>
-    ${renderRelatedProjects(project.id)}<div class="detail-bottom">${world ? `<button class="drive-button" data-drive-project="${p.id}">${icon('car')}${t('drive')}</button>` : '<span></span>'}<button class="next-project" ${tourDone ? 'data-action="end-tour"' : `data-next-project="${next.id}"`}><span><small>${tourDone ? t('route') : t('next')}</small>${tourDone ? t('return') : next.short}</span>${icon('arrow')}</button></div>
+    <div class="detail-bottom">${world ? `<button class="drive-button" data-drive-project="${p.id}">${icon('car')}${t('drive')}</button>` : '<span></span>'}<button class="next-project" ${tourDone ? 'data-action="end-tour"' : `data-next-project="${next.id}"`}><span><small>${tourDone ? t('route') : t('next')}</small>${tourDone ? t('return') : next.short}</span>${icon('arrow')}</button></div>
   </article>`;
 }
 function renderAbout() {
@@ -401,14 +407,11 @@ function renderWorld() {
 }
 function syncMusicButton(snapshot) {
   const info=snapshot||backgroundMusic?.getState()||{enabled:state.music,blocked:false};
-  const button=$('#music');if(!button)return;
   const active=info.enabled&&!info.blocked;
-  button.innerHTML=icon(active?'pause':'play');
-  button.setAttribute('aria-pressed',String(active));button.setAttribute('aria-label',t(active?'musicPause':'musicPlay'));button.title=t(active?'musicPause':'musicPlay');
+  state.musicPlaying=active;syncControls();
 }
 function syncSoundButton() {
-  $('#sound').innerHTML = icon(state.sound ? 'sound' : 'muted'); $('#sound').setAttribute('aria-pressed', String(state.sound));
-  $('#sound').setAttribute('aria-label', state.sound ? t('soundOff') : t('soundOn')); $('#sound').title = state.sound ? t('soundOff') : t('soundOn');
+  syncControls();
 }
 function renderPanel({ mount = true } = {}) {
   disposeShowcase();
@@ -428,15 +431,19 @@ function renderPanel({ mount = true } = {}) {
 
 function goHome() {
   drivingHud.reveal();closePanel(); stopTour(); world?.overview(); state.exploring = false; state.nearby = null;
-  document.body.classList.remove('exploring'); updateStatus(); refreshNearby(); setHash(null);
+  explorationUI.reset();document.body.classList.remove('exploring'); updateStatus(); refreshNearby(); setHash(null);syncControls();
 }
 async function performAction(action) {
+  if(action==='home'){goHome();return;}
+  if(action==='reset'){stopTour();world?.reset();explorationUI.revealHero();showToast(t('resetToast'));return;}
+  if(action==='toggle-theme'){state.night=!state.night;storage.set('theme',state.night?'dark':'light');applyTheme();return;}
+  if(action==='toggle-sound'){try{await toggleSound();}catch{showToast(t('soundOff'));}return;}
   if (['projects', 'about', 'contact', 'help', 'map', 'world'].includes(action)) { showPanel(action); return; }
   if(action==='garage'){showPanel('world');$('#car-selector')?.scrollIntoView?.({block:'start'});return;}
   if (action === 'jump') { world?.jump(); return; }
   if(action==='hydraulics'){world?.hydraulics();return;}
   if (action === 'tour') { startTour(); return; }
-  if (action === 'explore') { closePanel(); if (world) world.start(); else if (state.ready) showPanel('projects'); else showToast(t('loading')); return; }
+  if (action === 'explore') { closePanel(); if (world) {explorationUI.explore();world.start();} else if (state.ready) showPanel('projects'); else showToast(t('loading')); return; }
   if (action === 'toggle-music') { const current=backgroundMusic.getState();state.music=!current.enabled||current.blocked;storage.set('music',state.music?'on':'off');backgroundMusic.setEnabled(state.music);return; }
   if (action === 'watch-demo') { seekDemo(0); return; }
   if (action === 'reset-showcase') { panelShowcase?.resetView(); return; }
@@ -484,17 +491,12 @@ $('#home-link').addEventListener('click', event => { event.preventDefault(); goH
 $('#skip-link').addEventListener('click', event => { event.preventDefault(); showPanel('projects'); });
 $('#nearby-project').addEventListener('click', () => { if (state.nearby) openProject(state.nearby); });
 $('#stop-tour').addEventListener('click', stopTour);
-$('#reset').addEventListener('click', () => { stopTour(); world?.reset(); showToast(t('resetToast')); });
-$('#theme').addEventListener('click', () => {
-  state.night = !state.night; storage.set('theme', state.night ? 'dark' : 'light'); applyTheme();
-});
 
 async function toggleSound() {
   state.sound = !state.sound; storage.set('sound', state.sound ? 'on' : 'off'); engineAudio.setEnabled(state.sound);backgroundMusic.setMuted(!state.sound);environmentAudio.setEnabled(state.sound);
   if (state.sound) await engineAudio.resume(); syncSoundButton();
 }
 function honk() { if (state.sound) engineAudio.resume().then(() => engineAudio.honk()).catch(() => {}); }
-$('#sound').addEventListener('click', () => toggleSound().catch(() => showToast(t('soundOff'))));
 document.addEventListener('visibilitychange', () => {
   engineAudio.suspend(document.hidden);
   const video = $('#panel-content video[data-project-demo]');
@@ -509,7 +511,7 @@ window.addEventListener('keydown', event => {
   if (key === 'escape') { event.preventDefault();drivingHud.toggle(); }
   if (key === 'm') { event.preventDefault(); showPanel('map'); }
   if (key === 'p') { event.preventDefault(); showPanel('projects'); }
-  if (key === 'r') { event.preventDefault(); stopTour(); world?.reset(); showToast(t('resetToast')); }
+  if (key === 'r') { event.preventDefault();performAction('reset'); }
   if (key === 'h') honk();
   if (key === '?') showPanel('help');
   if (key === 'enter' && state.nearby && ['BODY', 'CANVAS'].includes(event.target.tagName)) { event.preventDefault(); openProject(state.nearby); }
@@ -545,6 +547,7 @@ try {
     onExplosion({distance}){engineAudio.blast(distance);},
     onEnvironment: updateEnvironment,
     onFrame({ x, z, heading, speed, actualSpeed, rpm, gear, throttle,carModel, acceleration, paused, hop, elapsed,surface,airborne,boosting,landingImpact,steering,weather }) {
+      explorationUI.updateMotion({speed:actualSpeed,airborne,hop,paused,dt:elapsed});
       state.carPosition={x,z,heading};
       state.riverDistance = Math.abs(z-riverCenter(x));
       const transform = `translate(${x.toFixed(2)},${z.toFixed(2)}) rotate(${(-heading * 180 / Math.PI).toFixed(1)})`;
@@ -563,4 +566,4 @@ try {
   document.body.classList.add('loaded'); state.ready = true;
   $('#explore').innerHTML = `${icon('grid')}<span data-copy="browseProjects">${t('browseProjects')}</span>${icon('arrow')}`;
 }
-window.addEventListener('pagehide', event => { if (!event.persisted) { engineUnlock.dispose();panelDrag.dispose();drivingHud.dispose();panelPreviews?.destroy(); disposeShowcase(); world?.dispose(); engineAudio.dispose(); backgroundMusic.dispose(); brandTechText.dispose(); environmentAudio.dispose(); } });
+window.addEventListener('pagehide', event => { if (!event.persisted) { portfolioControls.dispose();explorationUI.dispose();engineUnlock.dispose();panelDrag.dispose();drivingHud.dispose();panelPreviews?.destroy(); disposeShowcase(); world?.dispose(); engineAudio.dispose(); backgroundMusic.dispose(); brandTechText.dispose(); environmentAudio.dispose(); } });

@@ -6,8 +6,14 @@
   "description": "Long D.'s interactive, drivable 3D portfolio.",
   "scripts": {
     "dev": "node scripts/serve.mjs --source",
-    "build": "node scripts/build.mjs",
+    "build": "node scripts/build-controls.mjs && node scripts/build.mjs",
+    "build:controls": "node scripts/build-controls.mjs",
     "preview": "node scripts/serve.mjs",
     "test": "node --test tests/*.test.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   }
 }

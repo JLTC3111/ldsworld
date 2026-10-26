@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three.module.js';
 import { createVehicle } from './vehicle.js';
 
-const colors = { ink: '#304a3d', sage: '#93afa0', pale: '#d9e1cf', cream: '#ede6cc', gold: '#d6b46c', wood: '#b99b74', glass: '#789d94' };
+const colors = { ink: '#444444', sage: '#a8a8a8', pale: '#dedede', cream: '#e6e6e6', gold: '#b6b6b6', wood: '#9f9f9f', glass: '#949494' };
 const modes = new Set(['device', 'car', 'workbench', 'mail']);
 const screens = ['project', 'stack', 'preview'];
 const screenCopy = {
@@ -48,7 +48,7 @@ export function createShowcaseScreenTexture({ project = {}, screen = 'project', 
   if (!context || typeof context.fillText !== 'function' || typeof context.fillRect !== 'function') return null;
   canvas.width = width; canvas.height = height;
   const content = getShowcaseScreenContent(project, language), copy = screenCopy[validLanguage(language)];
-  const palette = night ? { background: '#1e332b', card: '#2e493d', ink: '#f3eedc', muted: '#c2d0bd', accent: '#e4c47f' } : { background: '#f1eddd', card: '#dfe5d5', ink: '#284336', muted: '#50634f', accent: '#775a26' };
+  const palette = night ? { background: '#2e2e2e', card: '#424242', ink: '#eeeeee', muted: '#cccccc', accent: '#c6c6c6' } : { background: '#ededed', card: '#e3e3e3', ink: '#3c3c3c', muted: '#5e5e5e', accent: '#5c5c5c' };
   const margin = 62, usable = width - margin * 2;
   const text = (value, x, y, size, color = palette.ink, weight = 400, maxWidth = usable, maxLines = 1) => {
     context.font = `${weight} ${size}px system-ui, -apple-system, "Segoe UI", sans-serif`; context.fillStyle = color;
@@ -132,26 +132,26 @@ export function buildShowcaseModel({ project = {}, mode = 'device', carModel='ex
     return mesh(new T.ExtrudeGeometry(shape, { depth:d, bevelEnabled:true, bevelSize:.025, bevelThickness:.025, bevelSegments:2, steps:1, curveSegments:6 }), material, parent, x, y, z-d/2);
   }
   function paper(parent, x, y, z, width = 1.15, depth = 1.48, index = 0) {
-    const sheet = box(width, .035, depth, index % 2 ? '#e4ddc4' : '#f2eddc', parent, x, y, z); sheet.rotation.y = (index - 1) * .06; return sheet;
+    const sheet = box(width, .035, depth, index % 2 ? '#dddddd' : '#ededed', parent, x, y, z); sheet.rotation.y = (index - 1) * .06; return sheet;
   }
   function plant(x, z, scale = 1) {
     const pot = mesh(new T.CylinderGeometry(.25,.19,.4,12), colors.wood, content, x, .24, z);
     const leaves = new T.Group(); leaves.position.set(x,.46,z); content.add(leaves);
-    for(let i=0;i<5;i++) { const leaf = sphere(.22, ['#829c75','#9dab7c','#a9b78f'][i%3], leaves, Math.sin(i*2.4)*.18, .15+Math.cos(i)*.08, Math.cos(i*2.4)*.18); leaf.scale.set(.55,1.6,.7); leaf.rotation.z=Math.sin(i)*.55; }
+    for(let i=0;i<5;i++) { const leaf = sphere(.22, ['#949494','#a5a5a5','#b1b1b1'][i%3], leaves, Math.sin(i*2.4)*.18, .15+Math.cos(i)*.08, Math.cos(i*2.4)*.18); leaf.scale.set(.55,1.6,.7); leaf.rotation.z=Math.sin(i)*.55; }
     pot.scale.setScalar(scale); leaves.scale.setScalar(scale); return leaves;
   }
   function keyboard(parent, width = 3.8, depth = 1.2, x = 0, y = .2, z = .9) {
     const deck = rounded(width,.11,depth,colors.pale,parent,x,y,z,.08);
     const keyGeometry = new T.BoxGeometry(.21,.025,.14); geometries.add(keyGeometry);
-    const keys = new T.InstancedMesh(keyGeometry, mat('#c1cdb9'), 42); keys.castShadow=true; const dummy = new T.Object3D();
+    const keys = new T.InstancedMesh(keyGeometry, mat('#c9c9c9'), 42); keys.castShadow=true; const dummy = new T.Object3D();
     for(let row=0;row<3;row++) for(let column=0;column<14;column++){dummy.position.set(x-width*.41+column*width*.063,y+.09,z-depth*.25+row*.19);dummy.updateMatrix();keys.setMatrixAt(row*14+column,dummy.matrix);}
-    parent.add(keys); box(.9,.02,.2,'#b6c3b1',parent,x,y+.1,z+.43); return deck;
+    parent.add(keys); box(.9,.02,.2,'#bfbfbf',parent,x,y+.1,z+.43); return deck;
   }
   function display({ width=3.9,height=2.45,laptop=false,tablet=false } = {}) {
     const device = new T.Group(); device.position.set(0,laptop?1.72:1.92,tablet?-.12:-.2); device.rotation.x=-.09; content.add(device);
     rounded(width+.23,height+.25,.2,colors.cream,device);
     rounded(width+.08,height+.1,.075,colors.ink,device,0,0,.14,.09);
-    screenMaterial = new T.MeshBasicMaterial({ color:texture?'#ffffff':'#d5ddce',map:texture,toneMapped:false }); materials.add(screenMaterial);
+    screenMaterial = new T.MeshBasicMaterial({ color:texture?'#ffffff':'#dadada',map:texture,toneMapped:false }); materials.add(screenMaterial);
     // The beveled inner frame reaches z=.2025; the image must sit in front
     // of that opaque face, including when the monitor is turned slightly.
     const screen = mesh(new T.PlaneGeometry(width,height),screenMaterial,device,0,0,.215); screen.name='Original project preview'; screen.userData.showcaseScreen=true; screen.castShadow=false; screen.receiveShadow=false;screenObject=screen;
@@ -165,34 +165,34 @@ export function buildShowcaseModel({ project = {}, mode = 'device', carModel='ex
     const badge=new T.Group();content.add(badge);badge.position.set(-2.2,.65,.88);badge.rotation.set(-.06,0,-.13);
     rounded(.85,1.13,.065,colors.cream,badge,0,.16,0,.09);box(.28,.13,.09,colors.sage,badge,0,.77,0);
     sphere(.12,colors.sage,badge,0,.39,.06);const torso=sphere(.2,colors.sage,badge,0,.15,.055);torso.scale.set(1,.5,.15);
-    for(let i=0;i<2;i++)box(.43,.025,.02,'#b9c5ac',badge,0,-.08-i*.12,.05);
+    for(let i=0;i<2;i++)box(.43,.025,.02,'#c1c1c1',badge,0,-.08-i*.12,.05);
     const loop=mesh(new T.TorusGeometry(.23,.028,5,28,Math.PI),colors.gold,badge,0,.95,0);loop.rotation.z=0;
-    for(let i=0;i<3;i++){const token=cylinder(.19,.06,['#c58a70','#9fb29d','#d9bf7a'][i],content,1.95+i*.24,.27+i*.045,.82);token.rotation.x=.08;}
+    for(let i=0;i<3;i++){const token=cylinder(.19,.06,['#959595','#acacac','#c0c0c0'][i],content,1.95+i*.24,.27+i*.045,.82);token.rotation.x=.08;}
   }
   function chartAndCoins() {
-    for(let i=0;i<4;i++){const height=[.45,.85,.66,1.2][i];box(.22,height,.32,['#b6bd88','#c8a86a','#92a68f','#d8bc74'][i],content,-2.45+i*.32,.18+height/2,.75);}
+    for(let i=0;i<4;i++){const height=[.45,.85,.66,1.2][i];box(.22,height,.32,['#b8b8b8','#aaaaaa','#a0a0a0','#bdbdbd'][i],content,-2.45+i*.32,.18+height/2,.75);}
     for(let i=0;i<3;i++){const coin=cylinder(.28,.08,colors.gold,content,2.22,.26+i*.1,.7);coin.rotation.z=.06;}
     const standing=cylinder(.48,.11,colors.gold,content,2.26,.95,.5);standing.rotation.x=Math.PI/2;standing.rotation.z=.18;
-    const ring=mesh(new T.TorusGeometry(.32,.02,5,30),'#f0d69a',standing,0,.066,0);ring.rotation.x=Math.PI/2;
+    const ring=mesh(new T.TorusGeometry(.32,.02,5,30),'#d7d7d7',standing,0,.066,0);ring.rotation.x=Math.PI/2;
   }
   function documents() {
     for(let i=0;i<5;i++)paper(content,-2.05,.23+i*.046,1.05,1.05,1.3,i);
     const clip=box(.37,.06,.15,colors.sage,content,-2.05,.48,.52);
     const pen=cylinder(.035,1.3,colors.ink,content,2.03,.26,1.08,10);pen.rotation.z=Math.PI/2;pen.rotation.y=-.32;
     const nib=mesh(new T.ConeGeometry(.035,.17,8),colors.gold,content,2.65,.26,.87);nib.rotation.z=-Math.PI/2;
-    for(let i=0;i<2;i++)box(.86,.025,.02,'#b0bda7',content,-2.05,.48,.88+i*.2).rotation.x=-Math.PI/2;
+    for(let i=0;i<2;i++)box(.86,.025,.02,'#b9b9b9',content,-2.05,.48,.88+i*.2).rotation.x=-Math.PI/2;
   }
   function archiveBox() {
     const archive=new T.Group();archive.position.set(2.15,.21,.7);archive.rotation.y=-.2;content.add(archive);
-    rounded(1.04,1.0,.94,'#c9ad79',archive,0,.5,0,.06);box(1.14,.13,1.03,'#dbc493',archive,0,1.06,0);
-    box(.13,.92,.026,'#8f835f',archive,0,.51,.49);for(let i=0;i<7;i++)box(.18,.025,.03,'#eddfb8',archive,i%2?.025:-.025,.15+i*.12,.515);
+    rounded(1.04,1.0,.94,'#afafaf',archive,0,.5,0,.06);box(1.14,.13,1.03,'#c5c5c5',archive,0,1.06,0);
+    box(.13,.92,.026,'#838383',archive,0,.51,.49);for(let i=0;i<7;i++)box(.18,.025,.03,'#dfdfdf',archive,i%2?.025:-.025,.15+i*.12,.515);
     const handle=mesh(new T.TorusGeometry(.18,.025,5,20,Math.PI),colors.ink,archive,0,1.19,0);
     const paperStack=new T.Group();paperStack.position.set(-2.2,0,.95);content.add(paperStack);for(let i=0;i<4;i++)paper(paperStack,0,.23+i*.045,0,.93,1.05,i);
   }
   function lanterns() {
     const stand=new T.Group();stand.position.set(2.1,.2,.2);content.add(stand);
     box(.48,.08,.48,colors.sage,stand,0,.04,0);cylinder(.035,2.5,colors.wood,stand,0,1.28,0,8);box(1.18,.07,.08,colors.wood,stand,-.4,2.5,0);
-    for(let i=0;i<2;i++){const x=-.35-i*.6;cylinder(.009,.32,colors.ink,stand,x,2.31,0,4);const globe=sphere(.23,['#d79c6f','#ddbe70'][i],stand,x,1.97,0);globe.scale.set(.85,1.18,.85);box(.12,.055,.12,colors.wood,stand,x,1.69,0);}
+    for(let i=0;i<2;i++){const x=-.35-i*.6;cylinder(.009,.32,colors.ink,stand,x,2.31,0,4);const globe=sphere(.23,['#a5a5a5','#bfbfbf'][i],stand,x,1.97,0);globe.scale.set(.85,1.18,.85);box(.12,.055,.12,colors.wood,stand,x,1.69,0);}
     const postcard=rounded(.87,1.04,.035,colors.cream,content,-2.02,.7,1.03,.05);postcard.rotation.z=.12;
     const roof=mesh(new T.ConeGeometry(.38,.3,4),colors.wood,content,-2.02,.8,1.07);roof.rotation.y=Math.PI/4;roof.scale.z=.12;
     box(.52,.35,.035,colors.gold,content,-2.02,.53,1.07);
@@ -206,22 +206,22 @@ export function buildShowcaseModel({ project = {}, mode = 'device', carModel='ex
   }
   function workbench() {
     display({width:3.6,height:2.25});plant(-2.1,.6);
-    for(let i=0;i<3;i++){const book=box(.95,.15,1.25,['#c3ac7b','#97b1a0','#d7d7b4'][i],content,2.07,.25+i*.16,.83);book.rotation.y=(i-1)*.07;}
+    for(let i=0;i<3;i++){const book=box(.95,.15,1.25,['#adadad','#aaaaaa','#d4d4d4'][i],content,2.07,.25+i*.16,.83);book.rotation.y=(i-1)*.07;}
     const mug=cylinder(.22,.42,colors.cream,content,-1.8,.38,1.35,20);const handle=mesh(new T.TorusGeometry(.14,.035,6,18),colors.cream,content,-1.51,.4,1.35);handle.rotation.y=Math.PI/2;
   }
   function mail() {
     const envelope=new T.Group();envelope.position.set(0,1.37,0);envelope.rotation.z=-.08;content.add(envelope);
     rounded(3.55,2.14,.18,colors.cream,envelope,0,-.13,0,.1);
-    rounded(2.9,2.48,.055,'#f2edda',envelope,0,.67,-.1,.06);
-    for(let i=0;i<4;i++)box(i===3?1.4:2.13,.035,.015,'#aabca5',envelope,i===3?-.35:0,1.43-i*.25,-.058);
+    rounded(2.9,2.48,.055,'#ededed',envelope,0,.67,-.1,.06);
+    for(let i=0;i<4;i++)box(i===3?1.4:2.13,.035,.015,'#b7b7b7',envelope,i===3?-.35:0,1.43-i*.25,-.058);
     const triangle=(points,color,z)=>{const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(points.flatMap(([x,y])=>[x,y,z]),3));geometry.computeVertexNormals();return mesh(geometry,mat(color,{side:T.DoubleSide}),envelope);};
-    triangle([[-1.76,.88],[0,-.19],[-1.76,-1.18]],'#e4dcc0',.12);triangle([[1.76,.88],[1.76,-1.18],[0,-.19]],'#e8dfc2',.13);triangle([[-1.76,-1.18],[1.76,-1.18],[0,.13]],'#eee4c9',.15);
+    triangle([[-1.76,.88],[0,-.19],[-1.76,-1.18]],'#dcdcdc',.12);triangle([[1.76,.88],[1.76,-1.18],[0,-.19]],'#dfdfdf',.13);triangle([[-1.76,-1.18],[1.76,-1.18],[0,.13]],'#e4e4e4',.15);
     const seal=cylinder(.26,.04,colors.gold,envelope,0,-.12,.19,32);seal.rotation.x=Math.PI/2;
-    for(let i=0;i<6;i++){const petal=sphere(.052,'#f0ddb1',envelope,Math.sin(i*Math.PI/3)*.115,-.12+Math.cos(i*Math.PI/3)*.115,.222);petal.scale.z=.25;}
+    for(let i=0;i<6;i++){const petal=sphere(.052,'#dedede',envelope,Math.sin(i*Math.PI/3)*.115,-.12+Math.cos(i*Math.PI/3)*.115,.222);petal.scale.z=.25;}
     const stamp=rounded(.44,.53,.018,colors.sage,envelope,1.12,1.19,-.04,.03);stamp.rotation.z=.08;
   }
 
-  const pedestalMaterial=mat('#d8ddcb',{roughness:.82});
+  const pedestalMaterial=mat('#dbdbdb',{roughness:.82});
   const pedestal=cylinder(mode==='car'?2.15:3.0,.12,pedestalMaterial,root,0,.03,0,64);pedestal.scale.z=mode==='car'?1:.76;
   if(mode==='car') {
     vehicle=createVehicle({THREE:T,scene:content,reducedMotion:true,model:carModel});vehicle.root.rotation.y=-.28;
@@ -244,7 +244,7 @@ export function buildShowcaseModel({ project = {}, mode = 'device', carModel='ex
     informationTexture=createShowcaseScreenTexture({project,screen:selectedScreen,language:selectedLanguage,night,width:1024,height:Math.round(1024/aspect),namespace:T});
     applyTexture();previous?.dispose();
   }
-  function applyTexture(){if(screenMaterial){const nextTexture=informationTexture||previewTexture;screenMaterial.map=nextTexture;screenMaterial.color.set(nextTexture?'#ffffff':'#d5ddce');screenMaterial.needsUpdate=true;}}
+  function applyTexture(){if(screenMaterial){const nextTexture=informationTexture||previewTexture;screenMaterial.map=nextTexture;screenMaterial.color.set(nextTexture?'#ffffff':'#dadada');screenMaterial.needsUpdate=true;}}
   updateScreen();
   return {
     root, content, focusBounds, screenMaterial, screen:screenObject,
@@ -253,7 +253,7 @@ export function buildShowcaseModel({ project = {}, mode = 'device', carModel='ex
     setScreen(value){if(disposed||!screens.includes(value)||selectedScreen===value)return;selectedScreen=value;updateScreen();},
     setLanguage(value){const next=validLanguage(value);if(disposed||next===selectedLanguage)return;selectedLanguage=next;updateScreen();},
     setTexture(nextTexture) { if(disposed)return;previewTexture=nextTexture;applyTexture(); },
-    setTheme(value){const changed=night!==!!value;night=!!value;pedestalMaterial.color.set(night?'#465e4d':'#d8ddcb');if(changed)updateScreen();},
+    setTheme(value){const changed=night!==!!value;night=!!value;pedestalMaterial.color.set(night?'#585858':'#dbdbdb');if(changed)updateScreen();},
     setHeadlights(value){if(['auto','on','off'].includes(value))lights=value;},
     update(dt,time=0){vehicle?.update(dt,{driver,night:night ? .85 : 0,headlights:lights,time});},
     dispose(){if(disposed)return;disposed=true;vehicle?.dispose();informationTexture?.dispose();root.removeFromParent();geometries.forEach(geometry=>geometry.dispose());materials.forEach(material=>material.dispose());}
@@ -310,9 +310,9 @@ export function createShowcase({ container, project = {}, mode = 'device', carMo
       renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=dark?1:1.13;
       renderer.domElement.setAttribute('aria-hidden','true');renderer.domElement.tabIndex=-1;renderer.domElement.style.touchAction='none';container.append(renderer.domElement);
       scene=new THREE.Scene();camera=new THREE.OrthographicCamera(-3,3,2,-2,.1,50);
-      scene.add(new THREE.HemisphereLight('#fff9e6','#77997f',2));
-      const key=new THREE.DirectionalLight('#fff1d7',2.6);key.position.set(-4,7,5);key.castShadow=true;key.shadow.mapSize.set(1024,1024);Object.assign(key.shadow.camera,{left:-6,right:6,top:7,bottom:-5,near:.1,far:20});key.shadow.normalBias=.025;scene.add(key);
-      const rim=new THREE.DirectionalLight('#b7dbd5',1.2);rim.position.set(5,4,-4);scene.add(rim);
+      scene.add(new THREE.HemisphereLight('#f9f9f9','#909090',2));
+      const key=new THREE.DirectionalLight('#f2f2f2',2.6);key.position.set(-4,7,5);key.castShadow=true;key.shadow.mapSize.set(1024,1024);Object.assign(key.shadow.camera,{left:-6,right:6,top:7,bottom:-5,near:.1,far:20});key.shadow.normalBias=.025;scene.add(key);
+      const rim=new THREE.DirectionalLight('#d3d3d3',1.2);rim.position.set(5,4,-4);scene.add(rim);
       rebuild();resume();
     } catch {
       failed=true;stop();renderer?.dispose();renderer?.domElement.remove();renderer=null;model?.dispose();model=null;removeReady();

@@ -18,3 +18,8 @@ test('explicit reveal and disposal restore every control without an automatic mo
   f.hud.toggle();assert.equal(f.hud.hidden,true);
   f.hud.dispose();assert.equal(f.hud.hidden,false);assert.ok(f.overlays.every(o=>!o.inert));
 });
+test('Escape restores the header and controls while an Explore-hidden introduction stays inert',()=>{
+  const f=fixture();f.overlays[0].classList={contains:name=>name==='hero-driving'};
+  f.hud.toggle();f.hud.reveal();
+  assert.equal(f.hud.hidden,false);assert.equal(f.overlays[0].inert,true);assert.equal(f.overlays[1].inert,false);
+});

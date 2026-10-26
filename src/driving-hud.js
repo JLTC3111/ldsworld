@@ -6,7 +6,7 @@ export function createDrivingHud({document:page=globalThis.document}={}) {
     if(hidden===value)return;
     hidden=value;page.body.classList.toggle('ui-hidden',value);
     if(value&&overlays.some(element=>element.contains(page.activeElement)))page.querySelector('#island-canvas')?.focus({preventScroll:true});
-    overlays.forEach(element=>{element.inert=value;});
+    overlays.forEach(element=>{element.inert=value||Boolean(element.classList?.contains('hero-driving'));});
   }
   return {
     toggle(){setHidden(!hidden);return hidden;},

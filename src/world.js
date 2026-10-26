@@ -28,7 +28,7 @@ const rand = (() => { let seed = 8137; return () => { seed = (seed * 16807) % 21
 
 export function createWorld({ container, onStart, onProject, onArrival, onCancelRoute, onNearby, onFrame, onPortal, onEnvironment, onExplosion, onImpact, carModel='8-ball', reducedMotion = false }) {
   const coarse = matchMedia('(pointer: coarse)').matches;
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(devicePixelRatio || 1, coarse ? 1.5 : 1.8));
   renderer.setSize(innerWidth, innerHeight);
   renderer.shadowMap.enabled = true;
@@ -543,6 +543,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     const fog=scene.fog,background=scene.background,sky=hemisphere.intensity,sunlight=sun.intensity,fillLight=fill.intensity,hidden=[],savedColors=[],savedUniforms=[];
     const sunPosition=sun.position.clone(),sunTarget=sun.target.position.clone(),shadowCamera=sun.shadow.camera,shadow={left:shadowCamera.left,right:shadowCamera.right,top:shadowCamera.top,bottom:shadowCamera.bottom,near:shadowCamera.near,far:shadowCamera.far};
     const oldSize=renderer.getSize?.(new THREE.Vector2()),oldRatio=renderer.getPixelRatio?.();
+    const clearAlpha=renderer.getClearAlpha(),clearColor=renderer.getClearColor(new THREE.Color()).clone();
     const tint=(color,value)=>{savedColors.push([color,color.clone()]);color.set(value);};
     scene.traverse(object=>{
       if(['island-atmosphere','island-flyover','Project rooftop typography','Frosted canopy tips'].includes(object.name)||object.material===winterMaterial||object.userData.atlasSnow){hidden.push([object,object.visible]);object.visible=false;}
@@ -552,14 +553,15 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
       if(uniforms?.uSky){savedColors.push([uniforms.uSky.value,uniforms.uSky.value.clone()]);uniforms.uSky.value.set('#b9dedc');}
     });
     try{
-      scene.fog=null;scene.background=new THREE.Color('#243f4d');
-      tint(island.material[0].color,'#91a765');tint(island.material[1].color,'#dcb985');tint(sea.material.color,'#264957');tint(pond.material.color,'#63b7bb');tint(hemisphere.color,'#fff5df');tint(hemisphere.groundColor,'#788a61');tint(sun.color,'#fff1d2');
+      scene.fog=null;scene.background=null;renderer.setClearColor(0x000000,0);
+      hidden.push([sea,sea.visible]);sea.visible=false;
+      tint(island.material[0].color,'#91a765');tint(island.material[1].color,'#dcb985');tint(pond.material.color,'#63b7bb');tint(hemisphere.color,'#fff5df');tint(hemisphere.groundColor,'#788a61');tint(sun.color,'#fff1d2');
       hemisphere.intensity=2;sun.intensity=2.7;fill.intensity=.9;sun.position.set(-90,140,100);sun.target.position.set(0,0,0);
       Object.assign(shadowCamera,{left:-195,right:195,top:170,bottom:-170,near:1,far:400});shadowCamera.updateProjectionMatrix();sun.shadow.needsUpdate=true;
       if(oldSize&&Number.isFinite(oldRatio)){renderer.setPixelRatio(1);renderer.setSize(1536,Math.round(1536*halfHeight/halfWidth),false);}
       renderer.render(scene,mapCamera);const picture=renderer.domElement.toDataURL?.('image/png');return typeof picture==='string'&&picture.startsWith('data:image/png')?picture:'';
     }catch{return '';}finally{
-      scene.fog=fog;scene.background=background;hemisphere.intensity=sky;sun.intensity=sunlight;fill.intensity=fillLight;
+      scene.fog=fog;scene.background=background;renderer.setClearColor(clearColor,clearAlpha);hemisphere.intensity=sky;sun.intensity=sunlight;fill.intensity=fillLight;
       savedColors.forEach(([color,value])=>color.copy(value));savedUniforms.forEach(([uniform,value])=>uniform.value=value);hidden.forEach(([object,visible])=>object.visible=visible);
       sun.position.copy(sunPosition);sun.target.position.copy(sunTarget);Object.assign(shadowCamera,shadow);shadowCamera.updateProjectionMatrix();sun.shadow.needsUpdate=true;
       if(oldSize&&Number.isFinite(oldRatio)){renderer.setPixelRatio(oldRatio);renderer.setSize(oldSize.x,oldSize.y,false);}

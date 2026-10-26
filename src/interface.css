@@ -1,0 +1,131 @@
+/* Portfolio integration for the locally bundled React Bits components. */
+#header-navigation.navigation {
+  display:block;
+  left:50%;
+  right:auto;
+  transform:translateX(-50%);
+  padding:0;
+  border:0;
+  background:none;
+  box-shadow:none;
+  backdrop-filter:none;
+  max-width:calc(100vw - 32px);
+}
+#header-navigation .gooey-nav__link {
+  display:inline-flex;
+  gap:8px;
+  padding:var(--gn-y) var(--gn-x);
+  border-radius:999px;
+  background:none;
+  font-size:var(--gn-font);
+  line-height:1.2;
+}
+#header-navigation .gooey-nav__link:hover,
+#header-navigation .gooey-nav__link[aria-current="page"] { background:none; }
+#header-navigation .gooey-nav__list { flex-wrap:nowrap; }
+#header-navigation .gooey-nav__list--active .gooey-nav__link { color:var(--gn-active-ink); }
+#header-navigation .gooey-nav--framed { box-shadow:var(--shadow); }
+
+#control-dock.control-dock {
+  position:fixed;
+  left:50%;
+  bottom:max(10px, env(safe-area-inset-bottom));
+  width:min(640px, calc(100vw - 24px));
+  height:90px;
+  display:block;
+  padding:0;
+  border:0;
+  border-radius:0;
+  background:none;
+  box-shadow:none;
+  backdrop-filter:none;
+  transform:translateX(-50%);
+  pointer-events:none;
+  z-index:7;
+}
+#control-dock .portfolio-dock { pointer-events:auto; }
+#control-dock .dock-face .icon { width:1em; height:1em; stroke-width:1.8; }
+#control-dock .dock-separator { margin:0; border:0; }
+.primary-button { color:var(--button-ink); }
+.hero.hero-driving {
+  opacity:0 !important;
+  visibility:hidden !important;
+  pointer-events:none !important;
+}
+.hero.hero-driving :is(button,a) { pointer-events:none !important; }
+
+/* Lift the atlas without consuming the translate property used for dragging. */
+dialog#panel.portfolio-panel[data-view="map"] {
+  --map-top:90px;
+  --map-bottom:24px;
+  inset:max(8px, calc(var(--map-top) - 7.5vh)) 24px auto;
+  width:min(1220px, calc(100vw - 48px));
+  max-width:calc(100vw - 48px);
+  height:calc(100dvh - var(--map-top) - var(--map-bottom));
+  max-height:calc(100dvh - 24px);
+}
+dialog#panel[data-view="map"] .travel-map-layout {
+  grid-template-columns:minmax(0, 760px) minmax(200px, 240px);
+  gap:24px;
+  justify-content:center;
+}
+dialog#panel[data-view="map"] .large-map.top-view-map,
+dialog#panel[data-view="map"] .top-view-map>svg {
+  background:transparent;
+  border:0;
+  border-radius:0;
+}
+dialog#panel[data-view="map"] .large-map.top-view-map { margin:0; }
+.atlas-north { color:var(--ink); background:var(--chrome); border-color:var(--line); }
+.atlas-zoom { border-color:var(--line); }
+.atlas-zoom button { background:var(--chrome); color:var(--ink); }
+.atlas-zoom button:hover { background:var(--hover-bg); }
+dialog#panel.portfolio-panel::backdrop { background:#00000040; }
+
+/* Project pages have square surfaces, with just these two control exceptions. */
+dialog#panel[data-view="project"],
+dialog#panel[data-view="project"] * { border-radius:0 !important; }
+dialog#panel[data-view="project"] .language-switch,
+dialog#panel[data-view="project"] .language-option { border-radius:999px !important; }
+dialog#panel[data-view="project"] #panel-close { border-radius:50% !important; }
+.project-detail { --project-color:var(--ink) !important; --project-bg:var(--surface-soft) !important; }
+.project-card { --project-bg:var(--surface-soft) !important; }
+
+@media(max-width:1080px) and (min-width:901px) {
+  #header-navigation .gooey-nav { --gn-x:12px; --gn-font:13px; }
+  .header-tools { gap:10px; }
+  .location { padding:9px; font-size:8px; }
+}
+@media(max-width:900px) {
+  #header-navigation.navigation { top:88px; left:50%; right:auto; }
+  #header-navigation .gooey-nav { --gn-x:14px; --gn-font:12px; }
+  .hero { top:max(154px, 22vh); }
+  .world-toolbar { top:139px; }
+}
+@media(max-width:720px) {
+  dialog#panel.portfolio-panel[data-view="map"] {
+    --map-top:18px;
+    --map-bottom:18px;
+    inset:8px 12px auto;
+    width:calc(100vw - 24px);
+    max-width:calc(100vw - 24px);
+    height:calc(100dvh - 36px);
+  }
+  dialog#panel[data-view="map"] .travel-map-layout { grid-template-columns:minmax(0, 1fr); }
+}
+@media(max-height:620px) and (min-width:721px) {
+  dialog#panel.portfolio-panel[data-view="map"] { --map-top:28px; --map-bottom:20px; }
+  #header-navigation.navigation { top:24px; }
+}
+@media(max-width:560px) {
+  #header-navigation.navigation { top:79px; }
+  #header-navigation .gooey-nav { --gn-x:12px; --gn-y:9px; --gn-font:12px; }
+  .hero { top:max(148px, 20vh); }
+  .world-toolbar { top:130px; }
+  .world-settings-button { min-height:34px; padding:7px 9px; }
+  .world-settings-button small { display:none; }
+  .minimap-wrap { bottom:118px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .hero.hero-driving { transition:none; }
+}
