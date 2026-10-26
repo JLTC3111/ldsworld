@@ -8,17 +8,13 @@ function fixture(){
   const page={activeElement:active,body:{classList:{toggle(name,value){value?classes.add(name):classes.delete(name);}}},querySelectorAll:()=>overlays,querySelector:()=>({focus(){focuses++;}})};
   return {hud:createDrivingHud({document:page}),overlays,classes,get focuses(){return focuses;}};
 }
-test('movement hides every overlay, transfers focus to the car, and restores controls after settling',()=>{
-  const f=fixture();f.hud.update({speed:2});assert.ok(f.hud.hidden&&f.classes.has('is-driving'));assert.ok(f.overlays.every(o=>o.inert));assert.equal(f.focuses,1);
-  f.hud.update({speed:0,elapsed:.05});assert.ok(f.hud.hidden,'A collision or momentary pause should not flash all overlays');
-  for(let i=0;i<8;i++)f.hud.update({speed:0,elapsed:.1});
-  assert.equal(f.hud.hidden,false);assert.ok(f.overlays.every(o=>!o.inert));
+test('the interface starts visible and only an explicit toggle hides every overlay and moves focus safely',()=>{
+  const f=fixture();assert.equal(f.hud.hidden,false);assert.ok(f.overlays.every(o=>!o.inert));assert.equal(f.focuses,0);
+  assert.equal(f.hud.toggle(),true);assert.ok(f.hud.hidden&&f.classes.has('ui-hidden'));assert.ok(f.overlays.every(o=>o.inert));assert.equal(f.focuses,1);
+  assert.equal(f.hud.toggle(),false);assert.equal(f.hud.hidden,false);assert.equal(f.classes.has('ui-hidden'),false);assert.ok(f.overlays.every(o=>!o.inert));
 });
-test('a dialog, Escape reveal, or disposal always makes controls available again',()=>{
-  const f=fixture();f.hud.update({speed:4});f.hud.update({speed:4,panelOpen:true});assert.equal(f.hud.hidden,false);
-  f.hud.update({speed:4});f.hud.reveal();f.hud.update({speed:4});assert.equal(f.hud.hidden,false);
-  f.hud.engage();f.hud.update({speed:4});assert.equal(f.hud.hidden,true,'A fresh driving input hides overlays again immediately after Escape');
-  for(let i=0;i<8;i++)f.hud.update({speed:0,elapsed:.1});
-  f.hud.update({speed:4});assert.equal(f.hud.hidden,true);
+test('explicit reveal and disposal restore every control without an automatic motion-driven visibility state',()=>{
+  const f=fixture();f.hud.toggle();f.hud.reveal();assert.equal(f.hud.hidden,false);assert.ok(f.overlays.every(o=>!o.inert));
+  f.hud.toggle();assert.equal(f.hud.hidden,true);
   f.hud.dispose();assert.equal(f.hud.hidden,false);assert.ok(f.overlays.every(o=>!o.inert));
 });

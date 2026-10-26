@@ -449,7 +449,6 @@ async function performAction(action) {
   }
 }
 function spotlightFromCard(event) { if (state.panel !== 'projects') return; const card = event.target.closest?.('.project-card'); if (card && card.dataset.openProject !== state.spotlightId) selectSpotlight(card.dataset.openProject); }
-document.addEventListener('pointerdown',event=>{if(!panel.open&&event.target.closest?.('#island-canvas,[data-drive],[data-action="jump"]'))drivingHud.engage();});
 document.addEventListener('pointerover', spotlightFromCard);
 document.addEventListener('focusin', spotlightFromCard);
 document.addEventListener('click', event => {
@@ -506,9 +505,8 @@ window.addEventListener('keydown', event => {
   if (event.ctrlKey || event.metaKey || event.altKey || event.repeat || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
   if (panel.open) return;
   if(!world&&drivingKey(event)===' ')event.preventDefault();
-  if(drivingKey(event))drivingHud.engage();
   const key = event.key.toLowerCase();
-  if (key === 'escape') { event.preventDefault();world?.stopDriving();drivingHud.reveal(); }
+  if (key === 'escape') { event.preventDefault();drivingHud.toggle(); }
   if (key === 'm') { event.preventDefault(); showPanel('map'); }
   if (key === 'p') { event.preventDefault(); showPanel('projects'); }
   if (key === 'r') { event.preventDefault(); stopTour(); world?.reset(); showToast(t('resetToast')); }
@@ -547,7 +545,6 @@ try {
     onExplosion({distance}){engineAudio.blast(distance);},
     onEnvironment: updateEnvironment,
     onFrame({ x, z, heading, speed, actualSpeed, rpm, gear, throttle,carModel, acceleration, paused, hop, elapsed,surface,airborne,boosting,landingImpact,steering,weather }) {
-      drivingHud.update({speed:actualSpeed,hop,elapsed,paused,panelOpen:panel.open});
       state.carPosition={x,z,heading};
       state.riverDistance = Math.abs(z-riverCenter(x));
       const transform = `translate(${x.toFixed(2)},${z.toFixed(2)}) rotate(${(-heading * 180 / Math.PI).toFixed(1)})`;

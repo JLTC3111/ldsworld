@@ -54,7 +54,7 @@ The `dist/` folder is a complete static site. Deploy it to any static host with 
 - On a touchscreen, use two fingers to pan and pinch to zoom.
 - Zoom allows a wider driving view up to 1.55× the default view extent, while the island remains viewport-sized. Camera tracking keeps the car clear of the header and controls.
 - Space: hydraulic jump, with visible compression, piston extension, and landing rebound. One jump per landing; additional Space presses in midair have no effect. Space is intercepted even when the minimap button retains focus after its panel closes. The car recovers from awkward landings. H: honk (when sound is enabled). R: reset the car, fallen pins, TNT crates, and other props.
-- While the car moves or jumps, page overlays fade while the live minimap remains visible and interactive. Stop, click the car, or press Escape to restore the controls. Projects and map shortcuts remain available; opening a panel pauses driving. Touch users can tap the car to stop.
+- The logo, header, headline, language switcher, navigation and controls stay visible while driving, jumping and stopping. Escape toggles the complete interface, including the dock and minimap, without stopping the car. Press Escape again to restore it; movement never changes the choice. Opening a project or map restores the interface and pauses driving. Click or tap the car to stop.
 - M or the bottom-right minimap: full top view and instant destination teleport. Car button: switch among four rides. P: projects. Escape: close a panel.
 - Touch controls appear after entering the world on small screens.
 - “Take a tour” drives between project stops; each detail panel leads to the next stop.
@@ -92,7 +92,7 @@ The world and showcase objects use original procedural geometry in the scene mod
 - `src/breakables.js` / `src/blast-damage.js`: complete physical target registry, impact thresholds, instance/contact removal, residual fires, individual respawn timers, occupancy checks, and restoration.
 - `src/car-assets.js` / `src/asset-vehicle.js`: supplied GLB loading, owned model copies, axis adaptation, wheel pivots, and hydraulic/headlight integration.
 - `src/project-labels.js`: bilingual, extruded rooftop titles and outlined materials.
-- `src/controls.js` / `src/driving-hud.js`: physical WASD/Space keys, mouse, trackpad and touch gestures, and automatic overlay visibility while driving.
+- `src/controls.js` / `src/driving-hud.js`: physical WASD/Space keys, mouse, trackpad and touch gestures, and explicit Escape visibility controls.
 - `src/media.js` / `src/panel-previews.js`: muted autoplay, safe main-demo playback, and visible card previews.
 - `src/preferences.js`: language selection from a URL, saved choice, or browser locale.
 - `src/island-boundary.js`: continuous physical perimeter, striped curbs, guardrails, and night reflectors.

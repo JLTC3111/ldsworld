@@ -174,9 +174,6 @@ kbd {
   background: linear-gradient(90deg,#f0f0e7 0%,#f0f0e7c9 14%,#f0f0e700 43%);
   transition: opacity .8s;
 }
-body.exploring #world:after {
-  opacity: 0;
-}
 #world-loading {
   position: absolute;
   left: 50%;
@@ -497,15 +494,6 @@ body.loaded #world-loading {
   left: -29px;
   color: var(--muted);
   transform: rotate(48deg);
-}
-body.exploring .hero {
-  opacity: 0;
-  transform: translateY(-15px);
-  visibility: hidden;
-  transition: opacity .5s,transform .7s,visibility 0s .6s;
-}
-body.exploring .hero button {
-  pointer-events: none;
 }
 .world-caption {
   position: fixed;
@@ -1484,9 +1472,6 @@ body.evening #world:after {
 body.panel-open .hero {
   opacity: .5;
 }
-body.exploring.panel-open .hero {
-  opacity: 0;
-}
 @keyframes arrive{
   from {
     opacity: 0;
@@ -2319,9 +2304,6 @@ button:focus-visible,a:focus-visible,canvas:focus-visible {
   white-space: nowrap;
   pointer-events: none;
 }
-body.exploring .navigation-hint {
-  display: none;
-}
 body.evening .project-video-wrap {
   border-color: var(--line);
 }
@@ -2415,11 +2397,10 @@ body[data-scene-palette] .hero .text-button:hover {
   }
 }
 
-/* Moving the car clears the viewport; stopping restores the controls. */
+/* Escape toggles the interface; driving never changes its visibility. */
 [data-world-overlay] { transition: opacity .25s, visibility .25s; }
-body.is-driving [data-world-overlay]:not([data-driving-persistent]) { opacity:0 !important;visibility:hidden !important;pointer-events:none !important; }
-body.is-driving [data-driving-persistent] { opacity:1;visibility:visible;pointer-events:auto; }
-body.is-driving #world::after { opacity:0 !important; }
+body.ui-hidden [data-world-overlay] { opacity:0 !important;visibility:hidden !important;pointer-events:none !important; }
+body.ui-hidden #world::after { opacity:0 !important; }
 @media(prefers-reduced-motion:reduce) { [data-world-overlay] { transition:none; } }
 
 /* A full island travel map and a keyboard-accessible four-car garage. */
@@ -2453,5 +2434,4 @@ body.is-driving #world::after { opacity:0 !important; }
 #minimap .map-caption{min-width:0;height:18px;padding:3px 1px 0;font-size:7px;line-height:12px;overflow:hidden;}
 #minimap .map-caption>svg{width:10px;height:10px;}#minimap .map-caption>span{display:inline;white-space:nowrap;}
 #minimap:focus-visible{outline-offset:-3px;outline-width:2px;}
-body.is-driving .minimap-wrap .map-heading{display:none;}
 @media(max-width:560px){.minimap-wrap{width:104px;max-width:104px;right:12px;bottom:78px;}#minimap{height:88px;grid-template-rows:58px 16px;padding:5px;}#minimap-svg{height:58px;max-height:58px;}#minimap .map-caption{height:16px;font-size:6px;gap:3px;}}
