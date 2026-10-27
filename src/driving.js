@@ -239,8 +239,12 @@ export class Driver {
       }
     } else {
       const maxSpeed = input.boost ? DRIVE_TUNING.boostSpeed : DRIVE_TUNING.speed;
-      if (forward || reverse || input.boost) this.speed += ((input.boost&&!reverse?1:forward) - reverse) * DRIVE_TUNING.acceleration * traction * dt;
-      else this.speed *= Math.exp(-(snowy ? .9 : wet ? 1.5 : 2.2) * dt);
+      const desired=((input.boost&&!reverse?1:forward)-reverse);
+      if(input.smoothDrive&&desired*this.speed<0){
+        // A held opposite direction brakes to zero; the next step can reverse.
+        this.speed=Math.sign(this.speed)*Math.max(0,Math.abs(this.speed)-26*traction*dt);
+      }else if (forward || reverse || input.boost) this.speed += desired * (input.smoothDrive?18:DRIVE_TUNING.acceleration) * traction * dt;
+      else this.speed *= Math.exp(-(input.smoothDrive?2.2:snowy ? .9 : wet ? 1.5 : 2.2) * dt);
       if (input.brake) this.speed *= Math.exp(-9 * dt);
       this.speed = clamp(this.speed, -DRIVE_TUNING.reverseSpeed, maxSpeed);
       this.heading += steering * Math.sign(this.speed) * 3.2 * Math.min(Math.abs(this.speed) / 4, 1) * (1-.32*Math.min(1,Math.abs(this.speed)/DRIVE_TUNING.boostSpeed)) * traction * dt;

@@ -26,7 +26,8 @@ import { bindEngineUnlock } from './engine-unlock.js';
 import { mountPortfolioControls } from './vendor/portfolio-controls.js';
 import { createExplorationUI } from './exploration-ui.js';
 import { createProjectPlayer } from './project-player.js';
-import { createTiltControls } from './tilt-controls.js';
+import { createTouchDriving } from './touch-driving.js';
+import { createMobileGameplay } from './mobile-gameplay.js';
 
 const $ = selector => document.querySelector(selector);
 const formatCount = value => String(value).padStart(2,'0');
@@ -52,7 +53,7 @@ state.carModel=vehicleModel(storage.get('car','8-ball')).id;state.menuOpen=false
 const mobileMedia=matchMedia('(pointer: coarse)');
 const navigationMedia=matchMedia('(max-width: 720px), (pointer: coarse)');
 document.body.classList.toggle('compact-navigation',navigationMedia.matches);
-state.mobile=mobileMedia.matches;state.tiltStatus='idle';
+state.mobile=mobileMedia.matches;state.mobileGameplay=false;state.portrait=innerHeight>innerWidth;
 document.body.classList.toggle('mobile-layout',state.mobile);
 state.mapCategory='buildings';state.mapZoom=1;state.carPosition={x:0,z:13,heading:Math.PI/2};
 state.showcaseScreen = 'project'; state.showcaseTool = null;
@@ -62,11 +63,12 @@ const drivingHud=createDrivingHud();
 const explorationUI=createExplorationUI({hero:$('.hero'),badge:$('#explore-status'),focusSurface:()=>$('#island-canvas')?.focus({preventScroll:true})});
 let portfolioControls=null;
 let world = null, previousFocus = null, toastTimer = null, speedValue = -1;
-let projectPlayer=null,topography=null,topographyRequest=0;
-const tiltControls=createTiltControls({onInput:input=>world?.setTiltInput(input),isMobile:()=>state.mobile,onStatus:status=>{state.tiltStatus=status;syncTiltStatus();if(['denied','unavailable'].includes(status))showToast(t('tilt'+status[0].toUpperCase()+status.slice(1)),5500);}});
+let projectPlayer=null,topography=null,topographyRequest=0,flyingAction=null,flyingRequest=0;
+const touchControls=createTouchDriving({root:$('#mobile-driving-controls'),onInput:input=>world?.setDriveInput(input)});
+const mobileGameplay=createMobileGameplay({onChange:status=>{state.mobileGameplay=status.active;state.portrait=status.portrait;document.body.classList.toggle('mobile-gameplay',state.mobile&&status.active);syncControls();syncMobileControls();}});
 const engineAudio = new EngineAudio();
 engineAudio.setEnabled(state.sound);
-const engineUnlock=bindEngineUnlock({audio:engineAudio,isDrivingGesture:event=>event.type==='keydown'?!panel.open&&!!drivingKey(event)&&!event.target.closest?.('input,textarea,select,[contenteditable]'):!!event.target.closest?.('#island-canvas,[data-drive],[data-action="explore"],[data-action="jump"],[data-action="tour"],[data-drive-project],[data-next-project],[data-teleport],[data-go-portal],[data-go-playground]')});
+const engineUnlock=bindEngineUnlock({audio:engineAudio,isDrivingGesture:event=>event.type==='keydown'?!panel.open&&!!drivingKey(event)&&!event.target.closest?.('input,textarea,select,[contenteditable]'):!!event.target.closest?.('#island-canvas,#explore,[data-thumb-action],[data-drive],[data-action="explore"],[data-action="jump"],[data-action="tour"],[data-drive-project],[data-next-project],[data-teleport],[data-go-portal],[data-go-playground]')});
 const environmentAudio = createEnvironmentAudio({enabled:state.sound});
 environmentAudio.start();
 let backgroundMusic = null;
@@ -77,7 +79,7 @@ const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const brandTechText = createTechText($('#brand-wordmark'), { text:'long d.', fontSize:21, fontWeight:700, letterSpacing:-.025, align:'left', reach:36, dashLength:2.2, dashGap:1.5, strokeWidth:.65, specks:3, labels:false, draggable:false, clickKick:false, sweep:false, intro:'none' });
 function controlsModel() {
   const musicPlaying=state.musicPlaying??state.music;
-  return {mobileNavigation:navigationMedia.matches,language:state.language,night:state.night,sound:state.sound,musicPlaying,view:state.panel,labels:{
+  return {mobileGameplay:state.mobile&&state.mobileGameplay,mobileNavigation:navigationMedia.matches,language:state.language,night:state.night,sound:state.sound,musicPlaying,view:state.panel,labels:{
     home:t('navHome'),projects:t('navWork'),about:t('navAbout'),contact:t('navContact'),world:t('worldSettings'),language:t('switchLanguage'),navigation:t('navigationAria'),
     menu:t('menuLabel'),closeMenu:t('closeMenuLabel'),openMenuAria:t('openMenuAria'),closeMenuAria:t('closeMenuAria'),socials:t('socialLinks'),garage:t('chooseCar'),reset:`${t('reset')} (R)`,sound:t(state.sound?'soundOff':'soundOn'),music:t(musicPlaying?'musicPause':'musicPlay'),theme:t(state.night?'day':'night'),help:t('help')
   }};
@@ -85,9 +87,10 @@ function controlsModel() {
 function syncControls() { portfolioControls?.update(controlsModel()); }
 portfolioControls=mountPortfolioControls({navigation:$('#header-navigation'),dock:$('#control-dock'),model:controlsModel(),onAction:performAction,onMenuChange:setMenuOpen});
 navigationMedia.addEventListener?.('change',()=>{portfolioControls?.closeMenu();document.body.classList.toggle('compact-navigation',navigationMedia.matches);syncControls();});
-mobileMedia.addEventListener?.('change',()=>{state.mobile=mobileMedia.matches;document.body.classList.toggle('mobile-layout',state.mobile);tiltControls.setPaused(!state.mobile||!!state.panel);});
+mobileMedia.addEventListener?.('change',()=>{state.mobile=mobileMedia.matches;document.body.classList.toggle('mobile-layout',state.mobile);if(!state.mobile)mobileGameplay.exit();syncMobileControls();});
 
-function syncWorldPause(){const paused=!!state.panel||carPicker.open||state.menuOpen||document.hidden;world?.setPaused(paused);tiltControls.setPaused(paused||!state.exploring);}
+function syncMobileControls(){touchControls.setEnabled(state.mobile&&state.exploring);touchControls.setPaused(!!state.panel||carPicker.open||state.menuOpen||document.hidden);$('#rotate-phone-hint').hidden=!(touchControls.active&&state.mobileGameplay&&state.portrait);}
+function syncWorldPause(){const paused=!!state.panel||carPicker.open||state.menuOpen||document.hidden;world?.setPaused(paused);syncMobileControls();}
 function setMenuOpen(value){state.menuOpen=value;syncWorldPause();}
 function openCarPicker(){
   portfolioControls.closeMenu();closePanel();drivingHud.reveal();
@@ -124,7 +127,7 @@ function setLanguage(language) {
 }
 function applyTheme() {
   document.body.classList.toggle('evening', state.night);
-  syncControls();
+  syncControls();updateFlyingAction();
   panelShowcase?.setTheme(showcaseDark());
   const panelTheme=$('#panel-theme');if(panelTheme){panelTheme.innerHTML=icon(state.night?'moon':'sun');panelTheme.setAttribute('aria-pressed',String(state.night));panelTheme.setAttribute('aria-label',t(state.night?'day':'night'));}
   brandTechText.refresh();
@@ -154,7 +157,7 @@ function updateStatus() {
   $('#status-text').textContent = destination ? `${t('touring')} ${local(destination).short}` : t('driving');
 }
 function startExploring() {
-  state.exploring = true; document.body.classList.add('exploring'); updateStatus();
+  state.exploring = true; document.body.classList.add('exploring');syncMobileControls();updateStatus();
   if (state.sound) engineAudio.resume().catch(() => {});
 }
 function refreshNearby() {
@@ -187,15 +190,15 @@ function showPanel(view, id = null) {
   if(view==='map')state.mapZoom=1;
   state.panel = view; state.projectId = id; renderPanel({ mount: false });
   if (!panel.open) panel.showModal();
-  startCurrentDemo(); mountShowcase();mountPanelTopography();
-  document.body.classList.add('panel-open'); world?.setPaused(true);tiltControls.setPaused(true); panel.scrollTop = 0;
+  startCurrentDemo(); mountShowcase();mountPanelTopography();void mountFlyingAction();
+  document.body.classList.add('panel-open'); world?.setPaused(true);syncMobileControls(); panel.scrollTop = 0;
   $('#panel-close').focus({ preventScroll: true });
   refreshNearby(); setHash(view, id);
   syncControls();
 }
 function closePanel() { if (panel.open) panel.close(); }
 function handlePanelClose() {
-  disposeShowcase();disposeTopography();projectPlayer?.destroy();projectPlayer=null;
+  disposeShowcase();disposeTopography();disposeFlyingAction();projectPlayer?.destroy();projectPlayer=null;
   state.panel = null; state.projectId = null; document.body.classList.remove('panel-open');syncWorldPause();
   setHash(null); refreshNearby(); syncControls();
   $('#panel-content').querySelectorAll('video').forEach(releaseDemo);
@@ -212,6 +215,14 @@ panel.addEventListener('click', event => {
 function escapeText(value) { return String(value ?? '').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'); }
 function stageProject() { const project = local(getProject(state.panel === 'project' ? state.projectId : state.spotlightId) || projects[0]); return { ...project, language:state.language, poster:mediaFor(project).poster }; }
 function showcaseDark() { return ['world','help'].includes(state.panel) ? (state.environment?.night || 0) > .55 : state.night; }
+function flyingActionModel(){const p=local(getProject(state.spotlightId));return {night:state.night,projectId:p.id,label:t('openPreview'),ariaLabel:`${t('view')}: ${p.title}`};}
+function disposeFlyingAction(){++flyingRequest;flyingAction?.dispose();flyingAction=null;}
+function updateFlyingAction(){flyingAction?.update(flyingActionModel());}
+async function mountFlyingAction(){
+  const host=$('[data-flying-project]');if(!host||!panel.open||state.panel!=='projects')return;
+  const request=++flyingRequest;
+  try{const {mountFlyingProjectAction}=await import('./vendor/project-flying-button.js');if(request===flyingRequest&&host.isConnected&&panel.open)flyingAction=mountFlyingProjectAction({host,model:flyingActionModel(),onOpen:openProject});}catch{ /* The existing accessible project button remains usable. */ }
+}
 function disposeShowcase() { ++showcaseRequest; panelShowcase?.dispose(); panelShowcase = null; }
 function disposeTopography(){++topographyRequest;topography?.dispose();topography=null;}
 async function mountPanelTopography(){
@@ -220,7 +231,6 @@ async function mountPanelTopography(){
 }
 function renderTopography(){return `<div class="topography-scene"><svg class="topography-fallback" viewBox="0 0 900 600" aria-hidden="true">${Array.from({length:22},(_,i)=>`<path d="M-30 ${130+i*17}Q200 ${20+i*15} 430 ${200+i*9}T940 ${120+i*17}"/>`).join('')}</svg><div data-topography></div></div>`;}
 function renderVideoPlayer(project){return `<div class="project-video-wrap"><video id="project-demo-player" data-project-demo controls muted loop playsinline preload="metadata" data-recording-language="${mediaFor(project).recordingLanguage}" data-source-language="${state.language}" poster="${mediaFor(project).poster}" aria-label="${t('demo')}: ${local(project).title}"><a href="${mediaFor(project).video}">${t('demo')}</a></video><button class="video-toggle" data-demo-toggle aria-label="${t('videoPlay')}" aria-pressed="false" aria-controls="project-demo-player">${icon('play')}</button></div>`;}
-function syncTiltStatus(){document.querySelectorAll('[data-tilt-status]').forEach(element=>element.textContent=t('tilt'+state.tiltStatus[0].toUpperCase()+state.tiltStatus.slice(1)));}
 
 async function mountShowcase() {
   if(['map','contact','about'].includes(state.panel))return;
@@ -241,7 +251,7 @@ function selectSpotlight(id) {
   stage.querySelector('[data-stage-description]').textContent = story.teaser;
   stage.querySelector('[data-stage-project-label]').textContent = project.title;
   const poster = stage.querySelector('.stage-poster'); if (poster) { poster.src = mediaFor(project).poster; poster.alt = `${t('projectPreview')}: ${project.title}`; }
-  const action = stage.querySelector('[data-stage-open]'); if (action) { action.dataset.openProject = id; action.setAttribute('aria-label', `${t('view')}: ${project.title}`); }
+  const action = stage.querySelector('[data-stage-open]'); if (action) { action.dataset.openProject = id; action.setAttribute('aria-label', `${t('view')}: ${project.title}`); }updateFlyingAction();
   stage.querySelectorAll('[data-spotlight]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.spotlight === id)));
   updateScreenReadout();
   panelShowcase?.setProject(project);
@@ -312,7 +322,7 @@ function renderStage() {
   const nav=['projects','project'].includes(view)?`<div class="stage-project-nav" role="group" aria-label="${t('choosePreview')}">${projects.map(project=>`<button ${view==='projects'?`data-spotlight="${project.id}" aria-pressed="${p.id===project.id}"`:`data-open-project="${project.id}" aria-current="${p.id===project.id}"`} aria-label="${local(project).title}">${project.number}</button>`).join('')}</div>`:'';
   const caption=['project','projects','about'].includes(view)?p.title:t(mode==='mail'?'navContact':view==='map'?'map':'controls');
   let action;
-  if(view==='projects')action=`<button class="primary-button" data-open-project="${p.id}" data-stage-open aria-label="${t('view')}: ${p.title}">${t('openPreview')}${icon('up-right')}</button>`;
+  if(view==='projects')action=`<div data-flying-project><button class="primary-button" data-open-project="${p.id}" data-stage-open aria-label="${t('view')}: ${p.title}">${t('openPreview')}${icon('up-right')}</button></div>`;
   else if(view==='project')action=`<a class="primary-button" href="${p.live||p.github}" target="_blank" rel="noopener noreferrer">${t(p.live?'visit':'code')}${icon('up-right')}</a>`;
   else if(view==='contact')action=`<a class="primary-button" href="mailto:dev@icue.vn">${icon('mail')}${t('email')}</a>`;
   else if(view==='about')action=`<button class="primary-button" data-action="projects">${t('navProjects')}${icon('arrow')}</button>`;
@@ -369,7 +379,7 @@ function renderContact() {
   return `<article class="info-content contact-content">${renderTopography()}<p class="panel-eyebrow">${t('contactLabel')}</p><h2 id="panel-title">${t('contactTitle')}</h2><p>${t('contactText')}</p><div class="contact-links"><a href="mailto:dev@icue.vn"><span>${icon('mail')}dev@icue.vn</span>${icon('up-right')}</a><a href="https://github.com/JLTC3111" target="_blank" rel="noopener noreferrer"><span>${icon('github')}GitHub</span>${icon('up-right')}</a><a href="https://www.youtube.com/@Drherbal2011" target="_blank" rel="noopener noreferrer"><span>${icon('play')}YouTube</span>${icon('up-right')}</a></div><div class="contact-location">${t('location')} · UTC+7</div></article>`;
 }
 function renderHelp() {
-  return `<article class="info-content"><p class="panel-eyebrow">${t('help')}</p><h2 id="panel-title">${t('helpTitle')}</h2><p>${t('helpIntro')}</p><ul class="help-list"><li>${icon('car')}${t(state.mobile?'tiltReady':'helpDrive')}</li><li>${icon('pin')}${t('helpClick')}</li><li>${icon('map')}${t('helpMouse')}</li><li>${icon('map')}${t('helpTrackpad')}</li><li>${icon('grid')}${t('helpProject')}</li><li>${icon('car')}${t('helpProps')}</li><li><kbd>↟</kbd>${t('helpBoost')}</li><li>${icon('car')}${t('helpAir')}</li><li>${icon('map')}${t('helpMore')}</li></ul><p class="help-touch">${t(state.mobile?'tiltIdle':'helpTouch')}</p>${reducedMotion ? `<p>${t('reduced')}</p>` : ''}<button class="primary-button" data-action="explore">${t('explore')}${icon('arrow')}</button></article>`;
+  return `<article class="info-content"><p class="panel-eyebrow">${t('help')}</p><h2 id="panel-title">${t('helpTitle')}</h2><p>${t('helpIntro')}</p><ul class="help-list"><li>${icon('car')}${t(state.mobile?'touchDriveHelp':'helpDrive')}</li><li>${icon('pin')}${t('helpClick')}</li><li>${icon('map')}${t('helpMouse')}</li><li>${icon('map')}${t('helpTrackpad')}</li><li>${icon('grid')}${t('helpProject')}</li><li>${icon('car')}${t('helpProps')}</li>${state.mobile?'':`<li><kbd>↟</kbd>${t('helpBoost')}</li><li>${icon('car')}${t('helpAir')}</li>`}<li>${icon('map')}${t('helpMore')}</li></ul><p class="help-touch">${t('helpTouch')}</p>${reducedMotion ? `<p>${t('reduced')}</p>` : ''}<button class="primary-button" data-action="explore">${t('explore')}${icon('arrow')}</button></article>`;
 }
 function mapSvg(large = false, carId = large ? 'large-car' : 'mini-car') {
   const river = Array.from({length:65},(_,i)=>{ const x=-RIVER_REACH+i*RIVER_REACH*2/64; return `${x},${riverCenter(x)}`; }).join('L');
@@ -422,7 +432,7 @@ function syncWorldChoices() {
 function renderWorld() {
   const times = [['auto','↻','timeAuto'],['sunrise','↗','timeSunrise'],['day','☀','timeDay'],['sunset','↘','timeSunset'],['night','☾','timeNight']];
   const weathers = [['clear','☀','weatherClear'],['rain','☂','weatherRain'],['snow','❄','weatherSnow'],['auto','↻','weatherAuto']];
-  return `<article class="info-content world-settings"><p class="panel-eyebrow">${t('worldSettings')} / LONG D.</p><h2 id="panel-title">${t('worldTitle')}</h2><p>${t('worldIntro')}</p>${state.mobile?`<section class="tilt-settings"><h3>${t('tiltTitle')}</h3><p data-tilt-status>${t('tilt'+state.tiltStatus[0].toUpperCase()+state.tiltStatus.slice(1))}</p><button class="secondary-button" data-action="enable-tilt">${t('tiltEnable')}</button><button class="secondary-button" data-action="calibrate-tilt">${t('tiltCalibrate')}</button></section>`:''}
+  return `<article class="info-content world-settings"><p class="panel-eyebrow">${t('worldSettings')} / LONG D.</p><h2 id="panel-title">${t('worldTitle')}</h2><p>${t('worldIntro')}</p>${state.mobile?`<section class="touch-settings"><h3>${t('touchControlsTitle')}</h3><p>${t('touchDriveHelp')}</p></section>`:''}
     <h3 class="skill-heading">${t('timeLabel')}</h3><div class="world-options time-options" role="group" aria-label="${t('timeLabel')}">${times.map(([mode,glyph,key])=>`<button data-time-mode="${mode}" aria-pressed="${state.timeMode===mode}"><span aria-hidden="true">${glyph}</span>${t(key)}</button>`).join('')}</div><p class="world-explanation">${t('worldCycle')}</p><p class="world-explanation">${t('worldSoundscape')}</p>
     <h3 class="skill-heading">${t('weatherLabel')}</h3><div class="world-options" role="group" aria-label="${t('weatherLabel')}">${weathers.map(([mode,glyph,key])=>`<button data-weather="${mode}" aria-pressed="${state.weatherMode===mode}"><span aria-hidden="true">${glyph}</span>${t(key)}</button>`).join('')}</div>
     <h3 class="skill-heading">${t('headlightsLabel')}</h3><div class="world-options light-options" role="group" aria-label="${t('headlightsLabel')}">${[['auto','lightsAuto'],['on','lightsOn'],['off','lightsOff']].map(([mode,key])=>`<button data-headlights="${mode}" aria-pressed="${state.headlights===mode}">${t(key)}</button>`).join('')}</div>
@@ -437,7 +447,7 @@ function syncSoundButton() {
   syncControls();
 }
 function renderPanel({ mount = true } = {}) {
-  disposeShowcase();disposeTopography();projectPlayer?.destroy();projectPlayer=null;
+  disposeShowcase();disposeTopography();disposeFlyingAction();projectPlayer?.destroy();projectPlayer=null;
   // Pause an active demo before replacing its DOM, including language/filter changes.
   $('#panel-content').querySelectorAll('video').forEach(releaseDemo);
   const context = state.panel === 'project' ? `${getProject(state.projectId)?.number || '01'} / ${projectCount} · LONG D.` : state.panel === 'projects' ? `${t('selectedWork')} · LONG D.` : t('siteSubtitle');
@@ -447,27 +457,25 @@ function renderPanel({ mount = true } = {}) {
   panel.classList.add('portfolio-panel'); panel.dataset.view = state.panel || 'projects';
   $('#panel-content').innerHTML = `<div class="panel-layout">${['map','contact'].includes(state.panel)?'':renderStage()}<div class="panel-reader">${content}</div></div>`;
   projectPlayer=createProjectPlayer({container:$('#panel .panel-reader'),label:playing=>t(playing?'videoPause':'videoPlay')});
-  startCurrentDemo();updateEnvironment(state.environment);syncTiltStatus();applyTheme();if(mount&&panel.open){mountShowcase();mountPanelTopography();}
+  startCurrentDemo();updateEnvironment(state.environment);applyTheme();if(mount&&panel.open){mountShowcase();mountPanelTopography();void mountFlyingAction();}
 }
 
 function goHome() {
-  tiltControls.setPaused(true);drivingHud.reveal();closePanel(); stopTour(); world?.overview(); state.exploring = false; state.nearby = null;
-  tiltControls.setPaused(true);explorationUI.reset();document.body.classList.remove('exploring'); updateStatus(); refreshNearby(); setHash(null);syncControls();
+  touchControls.clear();mobileGameplay.exit();drivingHud.reveal();closePanel(); stopTour(); world?.overview(); state.exploring = false; state.nearby = null;
+  syncMobileControls();explorationUI.reset();document.body.classList.remove('exploring'); updateStatus(); refreshNearby(); setHash(null);syncControls();
 }
 async function performAction(action) {
   if(action==='home'){goHome();return;}
   if(action==='garage'){openCarPicker();return;}
   if(action==='toggle-language'){setLanguage(state.language==='en'?'vi':'en');return;}
-  if(action==='enable-tilt'){tiltControls.setPaused(true);await tiltControls.request();return;}
-  if(action==='calibrate-tilt'){tiltControls.calibrate();return;}
-  if(action==='reset'){stopTour();world?.reset();tiltControls.calibrate();explorationUI.revealHero();showToast(t('resetToast'));return;}
+  if(action==='reset'){stopTour();world?.reset();touchControls.clear();explorationUI.revealHero();showToast(t('resetToast'));return;}
   if(action==='toggle-theme'){state.night=!state.night;storage.set('theme',state.night?'dark':'light');applyTheme();return;}
   if(action==='toggle-sound'){try{await toggleSound();}catch{showToast(t('soundOff'));}return;}
   if (['projects', 'about', 'contact', 'help', 'map', 'world'].includes(action)) { showPanel(action); return; }
   if (action === 'jump') { world?.jump(); return; }
   if(action==='hydraulics'){world?.hydraulics();return;}
   if (action === 'tour') { startTour(); return; }
-  if (action === 'explore') { closePanel(); if (world) {if(state.mobile){tiltControls.setPaused(false);void tiltControls.request();}explorationUI.explore();world.start();} else if (state.ready) showPanel('projects'); else showToast(t('loading')); return; }
+  if (action === 'explore') { closePanel(); if (world) {if(state.mobile)void mobileGameplay.enter();explorationUI.explore();world.start();} else if (state.ready) showPanel('projects'); else showToast(t('loading')); return; }
   if (action === 'toggle-music') { const current=backgroundMusic.getState();state.music=!current.enabled||current.blocked;storage.set('music',state.music?'on':'off');backgroundMusic.setEnabled(state.music);return; }
   if (action === 'watch-demo') { seekDemo(0); return; }
   if (action === 'reset-showcase') { panelShowcase?.resetView(); return; }
@@ -521,7 +529,7 @@ async function toggleSound() {
   if (state.sound) await engineAudio.resume(); syncSoundButton();
 }
 function honk() { if (state.sound) engineAudio.resume().then(() => engineAudio.honk()).catch(() => {}); }
-document.addEventListener('visibilitychange',()=>{engineAudio.suspend(document.hidden);tiltControls.setPaused(document.hidden||!!state.panel||carPicker.open||state.menuOpen||!state.exploring);});
+document.addEventListener('visibilitychange',()=>{engineAudio.suspend(document.hidden);syncMobileControls();});
 window.addEventListener('keydown', event => {
   if (event.ctrlKey || event.metaKey || event.altKey || event.repeat || /INPUT|TEXTAREA|SELECT/.test(event.target.tagName)) return;
   if (panel.open||carPicker.open||state.menuOpen) return;
@@ -557,7 +565,7 @@ try {
   world = createWorld({
     container: $('#world'), carModel:state.carModel, reducedMotion,
     onStart: startExploring,
-    onStop:()=>tiltControls.calibrate(),
+    onStop:()=>touchControls.clear(),
     onProject: openProject,
     onArrival(id) { state.destination = null; updateStatus(); openProject(id); },
     onCancelRoute() { state.guided = false; state.destination = null; updateStatus(); },
@@ -586,4 +594,4 @@ try {
   document.body.classList.add('loaded'); state.ready = true;
   $('#explore').innerHTML = `${icon('grid')}<span data-copy="browseProjects">${t('browseProjects')}</span>${icon('arrow')}`;
 }
-window.addEventListener('pagehide', event => { if (!event.persisted) { portfolioControls.dispose();projectPlayer?.destroy();disposeTopography();tiltControls.dispose();explorationUI.dispose();engineUnlock.dispose();panelDrag.dispose();drivingHud.dispose();disposeShowcase(); world?.dispose(); engineAudio.dispose(); backgroundMusic.dispose(); brandTechText.dispose(); environmentAudio.dispose(); } });
+window.addEventListener('pagehide', event => { if (!event.persisted) { portfolioControls.dispose();projectPlayer?.destroy();disposeTopography();disposeFlyingAction();mobileGameplay.dispose();touchControls.dispose();explorationUI.dispose();engineUnlock.dispose();panelDrag.dispose();drivingHud.dispose();disposeShowcase(); world?.dispose(); engineAudio.dispose(); backgroundMusic.dispose(); brandTechText.dispose(); environmentAudio.dispose(); } });

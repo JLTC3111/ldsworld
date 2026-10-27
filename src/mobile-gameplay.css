@@ -1,0 +1,92 @@
+/* Mobile chrome stays clear of notches in portrait and either landscape side. */
+.mobile-language { display:none; }
+body.compact-navigation .mobile-language {
+  position:fixed; display:flex; align-items:center; gap:2px; padding:3px;
+  top:max(12px,calc(env(safe-area-inset-top,0px) + 8px));
+  left:max(12px,calc(env(safe-area-inset-left,0px) + 8px));
+  border:1px solid var(--chrome-border); border-radius:999px;
+  color:var(--ink); background:var(--paper); box-shadow:var(--shadow); z-index:45;
+}
+.mobile-language .language-option { min-width:35px; min-height:36px; padding:7px; font:11px var(--mono); }
+body.compact-navigation #header-navigation .staggered-menu-header {
+  padding-top:max(12px,calc(env(safe-area-inset-top,0px) + 8px));
+  padding-right:max(12px,calc(env(safe-area-inset-right,0px) + 8px));
+}
+body.compact-navigation #header-navigation .staggered-menu-panel {
+  padding-top:max(80px,calc(env(safe-area-inset-top,0px) + 76px));
+  padding-bottom:max(24px,calc(env(safe-area-inset-bottom,0px) + 12px));
+  padding-right:max(24px,calc(env(safe-area-inset-right,0px) + 16px));
+}
+.tiny-star { display:inline-block; width:1em; height:1em; flex:none; }
+body.compact-navigation .tiny-star { padding:0; border:0; background:transparent; box-shadow:none; }
+.control-instructions { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+.mobile-driving-controls,body.mobile-gameplay { --thumb-size:clamp(112px,31dvh,152px); }
+.mobile-driving-controls {
+  position:fixed; inset:0; z-index:8; pointer-events:none;
+  --pad-surface:#f3f0e980; --pad-edge:#7888939e; --pad-button:#3c4a59a8;
+  --pad-pressed:#b34f40c4; --pad-ink:#fffaf2;
+}
+body.evening .mobile-driving-controls { --pad-surface:#17243180; --pad-edge:#b0c0d0a1; --pad-button:#4c5c6bb0; --pad-pressed:#b85d4bd9; }
+.drive-pad {
+  position:absolute; bottom:max(12px,calc(env(safe-area-inset-bottom,0px) + 12px));
+  width:var(--thumb-size); height:var(--thumb-size); border:1.5px solid var(--pad-edge);
+  border-radius:50%; background:var(--pad-surface); backdrop-filter:blur(4px);
+  display:flex; align-items:center; justify-content:center; gap:7px;
+  pointer-events:auto; touch-action:none; user-select:none; -webkit-user-select:none;
+}
+.drive-pad--movement { left:max(12px,calc(env(safe-area-inset-left,0px) + 10px)); flex-direction:column; }
+.drive-pad--steering { right:max(12px,calc(env(safe-area-inset-right,0px) + 10px)); }
+.drive-pad-label {
+  position:absolute; top:-25px; left:50%; transform:translateX(-50%);
+  padding:4px 7px; border-radius:5px; background:var(--chrome); color:var(--ink);
+  font:9px var(--mono); text-transform:uppercase; letter-spacing:.7px; white-space:nowrap;
+}
+.drive-pad button {
+  display:grid; place-items:center; flex:none; width:max(44px,calc(var(--thumb-size) * .36)); height:max(44px,calc(var(--thumb-size) * .36));
+  padding:10px; border:1.5px solid var(--pad-edge); border-radius:50%; color:var(--pad-ink);
+  background:var(--pad-button); touch-action:none; user-select:none; -webkit-user-select:none;
+}
+.drive-pad button[aria-pressed="true"] { background:var(--pad-pressed); border-color:var(--pad-ink); }
+.drive-pad button svg { width:100%; height:100%; fill:currentColor; pointer-events:none; }
+.drive-pad button:focus-visible { outline-color:var(--pad-ink); outline-offset:2px; }
+.mobile-drive-exit {
+  position:absolute; top:max(12px,calc(env(safe-area-inset-top,0px) + 8px)); left:50%; transform:translateX(-50%);
+  display:flex; align-items:center; justify-content:center; gap:5px; min-height:44px; padding:8px 12px;
+  border:1px solid var(--chrome-border); border-radius:999px; background:var(--paper); color:var(--ink);
+  font:10px var(--mono); pointer-events:auto;
+}
+.rotate-phone-hint {
+  position:absolute; top:calc(env(safe-area-inset-top,0px) + 180px); left:50%; transform:translateX(-50%);
+  width:max-content; max-width:calc(100vw - 48px); margin:0; padding:8px 12px;
+  border:1px solid var(--chrome-border); border-radius:8px; background:var(--paper); color:var(--ink);
+  font:11px/1.5 var(--mono); text-align:center;
+}
+body.mobile-gameplay .hero,body.mobile-gameplay .world-caption { display:none; }
+body.mobile-gameplay #world { height:100vh; height:100dvh; }
+body.mobile-gameplay #control-dock {
+  bottom:max(8px,calc(env(safe-area-inset-bottom,0px) + 8px)); height:70px;
+  width:min(360px,calc(100vw - var(--thumb-size) * 2 - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 48px));
+}
+body.mobile-gameplay .minimap-wrap {
+  top:max(76px,calc(env(safe-area-inset-top,0px) + 72px)); bottom:auto;
+  right:max(12px,calc(env(safe-area-inset-right,0px) + 10px)); width:104px; max-width:104px;
+}
+body.mobile-gameplay #minimap { height:88px; grid-template-rows:58px 16px; padding:5px; }
+body.mobile-gameplay #minimap-svg { height:58px; max-height:58px; }
+body.mobile-gameplay #minimap .map-caption { height:16px; font-size:6px; gap:3px; }
+body.mobile-gameplay .map-heading { display:none; }
+body.mobile-gameplay .explore-status { top:auto; bottom:calc(env(safe-area-inset-bottom,0px) + 84px); padding:8px 12px; font-size:10px; }
+body.mobile-gameplay .nearby-project { bottom:calc(env(safe-area-inset-bottom,0px) + 84px); }
+body.mobile-gameplay .toast { bottom:calc(env(safe-area-inset-bottom,0px) + 84px); }
+body.mobile-layout .portfolio-panel .panel-topbar {
+  padding-top:max(12px,env(safe-area-inset-top,0px));
+  padding-left:max(14px,env(safe-area-inset-left,0px)); padding-right:max(14px,env(safe-area-inset-right,0px));
+}
+body.mobile-layout .portfolio-panel .panel-reader { padding-bottom:max(30px,env(safe-area-inset-bottom,0px)); }
+.touch-settings { margin:18px 0; padding:16px 0; border-bottom:1px solid var(--line); }
+@media(orientation:portrait) {
+  body.mobile-gameplay #control-dock { top:calc(env(safe-area-inset-top,0px) + 62px); bottom:auto; width:min(350px,calc(100vw - 24px)); height:65px; }
+  body.mobile-gameplay .minimap-wrap { top:calc(env(safe-area-inset-top,0px) + 130px); }
+  .rotate-phone-hint { top:calc(env(safe-area-inset-top,0px) + 230px); }
+}
+@media(prefers-reduced-motion:reduce) { .drive-pad button { transition:none; } }

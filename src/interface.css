@@ -209,3 +209,12 @@ body.mobile-layout .site-header { min-height:65px; padding:12px; }
   .stage-about .topography-scene { height:380px; }
 }
 @media(prefers-reduced-motion:reduce) { .video-toggle { transition:none; } }
+
+/* The real Flying Button has a small flight area above its normal action. */
+[data-flying-project] { width:100%; }
+[data-flying-project][data-flight-mode="on"] { height:96px; }
+[data-flying-project] .project-flying-button { height:100%; min-height:0; }
+.project-flying-button .flying-button__label { display:inline-flex; align-items:center; gap:8px; font-size:11px; }
+.project-flying-button .flying-button__craft { cursor:pointer; }
+.project-flying-button .flying-button__face { background:linear-gradient(180deg,#ffffff14,transparent 46%); }
+.project-flying-button .flying-button__craft:focus-visible { outline:3px solid var(--focus); outline-offset:3px; }

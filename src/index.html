@@ -15,7 +15,9 @@
   <link rel="stylesheet" href="./portfolio-panels.css">
   <link rel="stylesheet" href="./vendor/portfolio-controls.css">
   <link rel="stylesheet" href="./vendor/about-topography.css">
+  <link rel="stylesheet" href="./vendor/project-flying-button.css">
   <link rel="stylesheet" href="./interface.css">
+  <link rel="stylesheet" href="./mobile-gameplay.css">
   <link rel="modulepreload" href="./data.js">
   <script type="module" src="./app.js"></script>
 </head>
@@ -55,6 +57,7 @@
   </div>
 
   <header class="site-header" data-world-overlay>
+    <div id="mobile-languages" class="mobile-language language-switch" role="group" data-aria="languageAria" aria-label="Language"><button class="language-option" data-language="en" lang="en" aria-label="English" aria-pressed="true">EN</button><button class="language-option" data-language="vi" lang="vi" aria-label="Tiếng Việt" aria-pressed="false">VI</button></div>
     <a class="brand" href="#" id="home-link" aria-label="Long D. — Home" data-aria="homeAria"><span class="brand-mark" aria-hidden="true">l<span>d</span><i></i></span><span class="brand-text"><span class="brand-wordmark" id="brand-wordmark"><span class="tech-text-fallback">long d.</span></span><small data-copy="siteSubtitle">FOLLOW YOUR CURIOSITY</small></span></a>
     <div class="navigation" id="header-navigation">
       <button data-action="projects"><span data-copy="navProjects">Projects</span><sup data-project-count>06</sup></button>
@@ -66,7 +69,7 @@
 
   <main>
     <section class="hero" data-world-overlay aria-labelledby="hero-title">
-      <p class="eyebrow"><span class="tiny-star">✳</span><span data-copy="eyebrow">SOFTWARE ENGINEER · CURIOUS BY NATURE</span></p>
+      <p class="eyebrow"><svg class="tiny-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M5.6 18.4 18.4 5.6"/></svg><span data-copy="eyebrow">SOFTWARE ENGINEER · CURIOUS BY NATURE</span></p>
       <h1 id="hero-title" data-html="hero">Ideas, made<br>into things.</h1>
       <p class="hero-intro" data-html="intro">I’m Long. I build useful software, thoughtful<br class="desktop-break"> websites, and things worth exploring.</p>
       <button class="primary-button explore-button" id="explore"><svg class="icon"><use href="#i-car"/></svg><span data-copy="explore">Let’s explore</span><svg class="icon"><use href="#i-arrow"/></svg></button>
@@ -87,6 +90,13 @@
     <div class="minimap-wrap" data-world-overlay><div class="map-heading"><span class="mini-signal"><i></i><i></i><i></i></span><span id="speed">00</span><small>KM/H</small><button class="tour-link" data-action="tour"><span data-copy="navTour">Take a tour</span><svg class="icon small"><use href="#i-arrow"/></svg></button></div><button class="minimap" id="minimap" data-action="map" aria-label="Open island map"><svg id="minimap-svg" width="124" height="74" overflow="hidden" viewBox="-165 -125 330 250" aria-hidden="true"></svg><span class="map-caption"><svg class="icon small"><use href="#i-map"/></svg><span data-copy="map">Island map</span><kbd>M</kbd></span></button></div>
 
 
+    <div id="mobile-driving-controls" class="mobile-driving-controls" data-world-overlay hidden>
+      <button class="mobile-drive-exit" data-action="home" data-aria="leaveDrive" aria-label="Exit drive"><svg class="icon small"><use href="#i-close"/></svg><span data-copy="leaveDrive">Exit drive</span></button>
+      <p id="rotate-phone-hint" class="rotate-phone-hint" role="status" hidden data-copy="rotatePhone">Rotate your phone for landscape driving.</p>
+      <p id="thumb-controls-help" class="control-instructions" data-copy="touchDriveHelp">Hold the left pad to go forward or reverse. Hold the right pad to steer. Release to coast and straighten the wheels.</p>
+      <div class="drive-pad drive-pad--movement" role="group" aria-labelledby="movement-label" aria-describedby="thumb-controls-help"><span class="drive-pad-label" id="movement-label" data-copy="movement">Movement</span><button type="button" data-thumb-action="forward" data-aria="driveForward" aria-label="Hold to drive forward" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 5 9 14H3Z"/></svg></button><button type="button" data-thumb-action="reverse" data-aria="driveReverse" aria-label="Hold to reverse" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19 9-14H3Z"/></svg></button></div>
+      <div class="drive-pad drive-pad--steering" role="group" aria-labelledby="steering-label" aria-describedby="thumb-controls-help"><span class="drive-pad-label" id="steering-label" data-copy="steering">Steering</span><button type="button" data-thumb-action="left" data-aria="steerLeft" aria-label="Hold to steer left" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 14-9v18Z"/></svg></button><button type="button" data-thumb-action="right" data-aria="steerRight" aria-label="Hold to steer right" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m19 12-14-9v18Z"/></svg></button></div>
+    </div>
   </main>
 
   <div class="toast" data-world-overlay id="toast" role="status" aria-live="polite"></div>

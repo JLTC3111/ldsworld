@@ -7,7 +7,7 @@ for(const filename of await readdir(vendor))if(/^ui-shared-.*\.js$/.test(filenam
 
 await build({
   absWorkingDir:fileURLToPath(new URL('../', import.meta.url)),
-  entryPoints:{'portfolio-controls':'components/portfolio-controls.jsx','about-topography':'components/about-topography.jsx'},
+  entryPoints:{'portfolio-controls':'components/portfolio-controls.jsx','about-topography':'components/about-topography.jsx','project-flying-button':'components/project-flying-button.jsx'},
   outdir:'src/vendor', splitting:true, chunkNames:'ui-shared-[hash]',
   bundle:true, format:'esm', platform:'browser', target:'es2022',
   jsx:'automatic', minify:true, legalComments:'eof',
