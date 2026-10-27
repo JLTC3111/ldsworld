@@ -26,6 +26,8 @@ import { bindEngineUnlock } from './engine-unlock.js';
 import { mountPortfolioControls } from './vendor/portfolio-controls.js';
 import { createExplorationUI } from './exploration-ui.js';
 import { createProjectPlayer } from './project-player.js';
+import { createProjectCarousel } from './project-carousel.js';
+import { renderProjectCarousel } from './project-carousel-view.js';
 import { createTouchDriving } from './touch-driving.js';
 import { createMobileGameplay } from './mobile-gameplay.js';
 
@@ -63,7 +65,7 @@ const drivingHud=createDrivingHud();
 const explorationUI=createExplorationUI({hero:$('.hero'),badge:$('#explore-status'),focusSurface:()=>$('#island-canvas')?.focus({preventScroll:true})});
 let portfolioControls=null;
 let world = null, previousFocus = null, toastTimer = null, speedValue = -1;
-let projectPlayer=null,topography=null,topographyRequest=0,flyingAction=null,flyingRequest=0;
+let projectPlayer=null,projectCarousel=null,carouselRequest=0,topography=null,topographyRequest=0,flyingAction=null,flyingRequest=0;
 const touchControls=createTouchDriving({root:$('#mobile-driving-controls'),onInput:input=>world?.setDriveInput(input)});
 const mobileGameplay=createMobileGameplay({onChange:status=>{state.mobileGameplay=status.active;state.portrait=status.portrait;document.body.classList.toggle('mobile-gameplay',state.mobile&&status.active);syncControls();syncMobileControls();}});
 const engineAudio = new EngineAudio();
@@ -134,6 +136,7 @@ function applyTheme() {
   $('meta[name="theme-color"]').content = state.night ? '#24292e' : '#eae7e0';
 }
 function startCurrentDemo() {
+  if(state.panel==='projects')return;
   const video = $('#panel-content video[data-project-demo]');
   const id=state.panel==='projects'?state.spotlightId:state.projectId,project=getProject(id);
   if(video&&project){const media=mediaFor(id);video.poster=media.poster;video.dataset.recordingLanguage=media.recordingLanguage;video.dataset.sourceLanguage=state.language;video.setAttribute('aria-label',`${t('demo')}: ${local(project).title}`);const title=$('#spotlight-demo-title');if(title)title.textContent=local(project).title;if(panel.open)bindDemoSource(video,media,{autoplay:false});}
@@ -190,7 +193,7 @@ function showPanel(view, id = null) {
   if(view==='map')state.mapZoom=1;
   state.panel = view; state.projectId = id; renderPanel({ mount: false });
   if (!panel.open) panel.showModal();
-  startCurrentDemo(); mountShowcase();mountPanelTopography();void mountFlyingAction();
+  startCurrentDemo(); mountShowcase();mountPanelTopography();void mountFlyingAction();void mountProjectCarousel();
   document.body.classList.add('panel-open'); world?.setPaused(true);syncMobileControls(); panel.scrollTop = 0;
   $('#panel-close').focus({ preventScroll: true });
   refreshNearby(); setHash(view, id);
@@ -198,7 +201,7 @@ function showPanel(view, id = null) {
 }
 function closePanel() { if (panel.open) panel.close(); }
 function handlePanelClose() {
-  disposeShowcase();disposeTopography();disposeFlyingAction();projectPlayer?.destroy();projectPlayer=null;
+  disposeShowcase();disposeTopography();disposeFlyingAction();disposeProjectCarousel();projectPlayer?.destroy();projectPlayer=null;
   state.panel = null; state.projectId = null; document.body.classList.remove('panel-open');syncWorldPause();
   setHash(null); refreshNearby(); syncControls();
   $('#panel-content').querySelectorAll('video').forEach(releaseDemo);
@@ -223,6 +226,17 @@ async function mountFlyingAction(){
   const request=++flyingRequest;
   try{const {mountFlyingProjectAction}=await import('./vendor/project-flying-button.js');if(request===flyingRequest&&host.isConnected&&panel.open)flyingAction=mountFlyingProjectAction({host,model:flyingActionModel(),onOpen:openProject});}catch{ /* The existing accessible project button remains usable. */ }
 }
+function disposeProjectCarousel(){++carouselRequest;projectCarousel?.destroy();projectCarousel=null;}
+function carouselLabels(){return Object.fromEntries(['carousel','slide','previews','watch','previous','next','choose','pause','resume','watching','automatic','paused'].map(key=>[key,t('carousel'+key[0].toUpperCase()+key.slice(1))]).concat([['videoPlay',t('videoPlay')],['videoPause',t('videoPause')],['demo',t('demo')],['explore',t('openPreview')]]));}
+async function mountProjectCarousel(){
+  const host=$('[data-project-carousel]');if(!host||!panel.open||state.panel!=='projects'||projectCarousel)return;
+  const request=++carouselRequest;
+  try{
+    const {EmblaCarousel,Autoplay}=await import('./vendor/project-carousel.js');
+    if(request!==carouselRequest||!host.isConnected||!panel.open||state.panel!=='projects')return;
+    projectCarousel=createProjectCarousel({root:host,EmblaCarousel,Autoplay,mediaFor,labels:carouselLabels(),initialId:state.spotlightId,onSelect:id=>selectSpotlight(id,{fromCarousel:true}),isActive:()=>panel.open&&state.panel==='projects'});
+  }catch(error){console.warn('Project carousel could not start.',error);}
+}
 function disposeShowcase() { ++showcaseRequest; panelShowcase?.dispose(); panelShowcase = null; }
 function disposeTopography(){++topographyRequest;topography?.dispose();topography=null;}
 async function mountPanelTopography(){
@@ -244,8 +258,9 @@ async function mountShowcase() {
     panelShowcase.setHeadlights(state.headlights);
   } catch { host.classList.remove('showcase-ready'); }
 }
-function selectSpotlight(id) {
+function selectSpotlight(id, {fromCarousel=false}={}) {
   const original = getProject(id); if (!original || state.panel !== 'projects') return;
+  if(!fromCarousel&&projectCarousel){projectCarousel.select(id);return;}
   state.spotlightId = id; state.showcaseTool = null; const project = stageProject(), story = getCaseStudy(id, state.language);
   const stage = $('#panel .panel-stage'); if (!stage) return;
   stage.querySelector('[data-stage-description]').textContent = story.teaser;
@@ -288,6 +303,7 @@ function selectShowcaseTool(name) {
   if(description)description.innerHTML=`<strong>${escapeText(name)}</strong> · ${getToolInfo(name,state.language)}`;
 }
 function seekDemo(seconds) {
+  if(state.panel==='projects'&&projectCarousel){void projectCarousel.play(seconds);return;}
   const video = $('#panel-content video[data-project-demo]'); if (!video || !Number.isFinite(seconds)) return;
   const seek = () => { if (!video.isConnected || !panel.open || document.hidden) return; video.currentTime = Number.isFinite(video.duration) ? Math.min(seconds, Math.max(0,video.duration-.1)) : seconds; playDemo(video); };
   if (video.readyState >= 1) seek(); else { video.addEventListener('loadedmetadata', seek, {once:true}); playDemo(video); }
@@ -333,9 +349,9 @@ function renderStage() {
 function renderIndex() {
   const items = projects.filter(project => state.filter === 'all' || (state.filter === 'web' ? isWebsite(project) : !isWebsite(project)));
   if (!items.some(project => project.id === state.spotlightId)) state.spotlightId = items[0]?.id || 'hr';
-  const spotlight=getProject(state.spotlightId);
+  const carousel=renderProjectCarousel({projects,mediaFor,localize:local,storyFor:id=>getCaseStudy(id,state.language),captionFor:renderDemoCaption,labels:carouselLabels(),initialId:state.spotlightId,language:state.language});
   return `<div class="panel-intro"><p class="panel-eyebrow">${t('selectedWork')} / 2025</p><h2 id="panel-title">${t('index')}</h2><p>${t('studioIntro')}</p></div>
-    <section class="spotlight-demo"><h3 id="spotlight-demo-title">${local(spotlight).title}</h3>${renderVideoPlayer(spotlight)}<div data-demo-caption>${renderDemoCaption(spotlight)}</div></section>
+    ${carousel}
     <div class="work-summary"><span><strong>${projectCount}</strong>${t('projectCount')}</span><span><strong>${applicationCount}</strong>${t('applicationCount')}</span><span><strong>${websiteCount}</strong>${t('websiteCount')}</span></div>
     <div class="project-filters" role="group" aria-label="${t('filtersAria')}">${[['all','all'],['apps','apps'],['web','web']].map(([value,label]) => `<button data-filter="${value}" aria-pressed="${state.filter===value}">${t(label)}</button>`).join('')}</div>
     <div class="project-list cards-count-${items.length}">${items.map(project => {
@@ -447,7 +463,7 @@ function syncSoundButton() {
   syncControls();
 }
 function renderPanel({ mount = true } = {}) {
-  disposeShowcase();disposeTopography();disposeFlyingAction();projectPlayer?.destroy();projectPlayer=null;
+  disposeShowcase();disposeTopography();disposeFlyingAction();disposeProjectCarousel();projectPlayer?.destroy();projectPlayer=null;
   // Pause an active demo before replacing its DOM, including language/filter changes.
   $('#panel-content').querySelectorAll('video').forEach(releaseDemo);
   const context = state.panel === 'project' ? `${getProject(state.projectId)?.number || '01'} / ${projectCount} · LONG D.` : state.panel === 'projects' ? `${t('selectedWork')} · LONG D.` : t('siteSubtitle');
@@ -456,8 +472,8 @@ function renderPanel({ mount = true } = {}) {
   const content = (renders[state.panel] || renderIndex)();
   panel.classList.add('portfolio-panel'); panel.dataset.view = state.panel || 'projects';
   $('#panel-content').innerHTML = `<div class="panel-layout">${['map','contact'].includes(state.panel)?'':renderStage()}<div class="panel-reader">${content}</div></div>`;
-  projectPlayer=createProjectPlayer({container:$('#panel .panel-reader'),label:playing=>t(playing?'videoPause':'videoPlay')});
-  startCurrentDemo();updateEnvironment(state.environment);applyTheme();if(mount&&panel.open){mountShowcase();mountPanelTopography();void mountFlyingAction();}
+  if(state.panel!=='projects')projectPlayer=createProjectPlayer({container:$('#panel .panel-reader'),label:playing=>t(playing?'videoPause':'videoPlay')});
+  startCurrentDemo();updateEnvironment(state.environment);applyTheme();if(mount&&panel.open){mountShowcase();mountPanelTopography();void mountFlyingAction();void mountProjectCarousel();}
 }
 
 function goHome() {
@@ -487,7 +503,7 @@ async function performAction(action) {
     catch { showToast(t('copiedFail'), 5000); }
   }
 }
-function spotlightFromCard(event) { if (state.panel !== 'projects') return; const card = event.target.closest?.('.project-card'); if (card && card.dataset.openProject !== state.spotlightId) selectSpotlight(card.dataset.openProject); }
+function spotlightFromCard(event) { if (state.panel !== 'projects'||projectCarousel?.getState().watching) return; const card = event.target.closest?.('.project-card'); if (card && card.dataset.openProject !== state.spotlightId) selectSpotlight(card.dataset.openProject); }
 document.addEventListener('pointerover', spotlightFromCard);
 document.addEventListener('focusin', spotlightFromCard);
 document.addEventListener('click', event => {
@@ -594,4 +610,4 @@ try {
   document.body.classList.add('loaded'); state.ready = true;
   $('#explore').innerHTML = `${icon('grid')}<span data-copy="browseProjects">${t('browseProjects')}</span>${icon('arrow')}`;
 }
-window.addEventListener('pagehide', event => { if (!event.persisted) { portfolioControls.dispose();projectPlayer?.destroy();disposeTopography();disposeFlyingAction();mobileGameplay.dispose();touchControls.dispose();explorationUI.dispose();engineUnlock.dispose();panelDrag.dispose();drivingHud.dispose();disposeShowcase(); world?.dispose(); engineAudio.dispose(); backgroundMusic.dispose(); brandTechText.dispose(); environmentAudio.dispose(); } });
+window.addEventListener('pagehide', event => { if (!event.persisted) { portfolioControls.dispose();disposeProjectCarousel();projectPlayer?.destroy();disposeTopography();disposeFlyingAction();mobileGameplay.dispose();touchControls.dispose();explorationUI.dispose();engineUnlock.dispose();panelDrag.dispose();drivingHud.dispose();disposeShowcase(); world?.dispose(); engineAudio.dispose(); backgroundMusic.dispose(); brandTechText.dispose(); environmentAudio.dispose(); } });

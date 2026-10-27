@@ -86,6 +86,7 @@ export const localizeProject = (project, language = 'en') => language === 'vi' ?
 export const copy = {
   en: {
     menuLabel:'Menu',closeMenuLabel:'Close',openMenuAria:'Open menu',closeMenuAria:'Close menu',socialLinks:'Find me',
+    carouselCarousel:'carousel',carouselSlide:'slide',carouselPreviews:'Project previews',carouselWatch:'Watch the full video',carouselPrevious:'Previous project',carouselNext:'Next project',carouselChoose:'Choose a project preview',carouselPause:'Pause previews',carouselResume:'Resume previews',carouselWatching:'Watching the full video · previews paused',carouselAutomatic:'Automatic previews · play a video to stay a while',carouselPaused:'Previews paused',
     videoPlay:'Play video', videoPause:'Pause video', switchLanguage:'Switch language: English / Tiếng Việt',
     movement:'Movement',steering:'Steering',driveForward:'Hold to drive forward',driveReverse:'Hold to reverse',steerLeft:'Hold to steer left',steerRight:'Hold to steer right',leaveDrive:'Exit drive',rotatePhone:'Rotate your phone for landscape driving.',touchControlsTitle:'Two thumbs. One little world.',
     touchDriveHelp:'Hold the left pad to go forward or reverse. Hold the right pad to steer at the same time. Release to coast and straighten the wheels. Changing direction brakes to a stop first.',
@@ -146,6 +147,7 @@ export const copy = {
   },
   vi: {
     menuLabel:'Menu',closeMenuLabel:'Đóng',openMenuAria:'Mở menu',closeMenuAria:'Đóng menu',socialLinks:'Kết nối',
+    carouselCarousel:'băng chuyền',carouselSlide:'trang chiếu',carouselPreviews:'Xem trước dự án',carouselWatch:'Xem toàn bộ video',carouselPrevious:'Dự án trước',carouselNext:'Dự án tiếp theo',carouselChoose:'Chọn dự án xem trước',carouselPause:'Tạm dừng xem trước',carouselResume:'Tiếp tục xem trước',carouselWatching:'Đang xem toàn bộ video · tạm dừng chuyển dự án',carouselAutomatic:'Tự động xem trước · phát video để xem lâu hơn',carouselPaused:'Đã tạm dừng xem trước',
     videoPlay:'Phát video', videoPause:'Tạm dừng video', switchLanguage:'Đổi ngôn ngữ: English / Tiếng Việt',
     movement:'Tiến / lùi',steering:'Điều hướng',driveForward:'Giữ để tiến',driveReverse:'Giữ để lùi',steerLeft:'Giữ để rẽ trái',steerRight:'Giữ để rẽ phải',leaveDrive:'Thoát lái xe',rotatePhone:'Xoay ngang điện thoại để lái xe thoải mái hơn.',touchControlsTitle:'Hai ngón tay. Một thế giới nhỏ.',
     touchDriveHelp:'Giữ bảng bên trái để tiến hoặc lùi, đồng thời giữ bảng bên phải để rẽ. Thả tay để xe giảm tốc và bánh xe trở về thẳng. Khi đổi hướng, xe sẽ dừng trước khi tiến hoặc lùi.',

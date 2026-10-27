@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createNavHoverQueue } from '../../src/nav-hover.js';
 
 import './GooeyNav.css';
 
@@ -291,6 +292,7 @@ const GooeyNav = ({
     let raf = 0;
     let last = 0;
     let disposed = false;
+    let targetQueue = null;
 
     const measure = () => {
       const box = stage.getBoundingClientRect();
@@ -630,6 +632,7 @@ const GooeyNav = ({
         host.velocity = 0;
         hover.alpha = hoverGoal;
         render();
+        targetQueue?.settled();
       }
     };
 
@@ -690,26 +693,36 @@ const GooeyNav = ({
       }
       pointerIndex = index;
       hover.index = index;
-      go(previewTarget(), true);
+      targetQueue.request(previewTarget(), reduced);
       wake();
     };
 
     const onLeave = () => {
       pointerIndex = -1;
       hover.index = -1;
-      go(previewTarget(), true);
+      targetQueue.request(previewTarget(), reduced);
       wake();
     };
     const focusItem = element => {
       const item = element?.closest?.('[data-gooey-index]');
       return item && list.contains(item) ? Number(item.dataset.gooeyIndex) : -1;
     };
-    const onFocus = event => { focusIndex = focusItem(event.target); go(previewTarget(), true); };
-    const onBlur = event => { focusIndex = focusItem(event.relatedTarget); go(previewTarget(), true); };
+    const onFocus = event => { focusIndex = focusItem(event.target); targetQueue.request(previewTarget(), reduced); };
+    const onBlur = event => { focusIndex = focusItem(event.relatedTarget); targetQueue.request(previewTarget(), reduced); };
     const onMotion = event => {
       reduced = event.matches;
-      if (reduced) { cancelAnimationFrame(raf); raf = 0; settle(previewTarget()); }
+      if (reduced) { targetQueue.cancel(); cancelAnimationFrame(raf); raf = 0; settle(previewTarget()); }
     };
+
+    targetQueue = createNavHoverQueue({
+      current: () => target,
+      moving: () => {
+        const host = pills.get(target);
+        return !reduced && (drops.length > 0 || pills.size > 1 ||
+          !!host && (Math.abs(host.mass - host.scale) >= 0.0008 || Math.abs(host.velocity) >= 0.004));
+      },
+      commit: index => go(index, true)
+    });
 
     const resizeObserver = new ResizeObserver(() => {
       measure();
@@ -734,7 +747,7 @@ const GooeyNav = ({
     });
 
     engineRef.current = {
-      go: () => go(previewTarget(), true),
+      go: () => targetQueue.request(previewTarget(), true),
       refresh: () => {
         render();
         wake();
@@ -743,6 +756,7 @@ const GooeyNav = ({
 
     return () => {
       disposed = true;
+      targetQueue.dispose();
       cancelAnimationFrame(raf);
       resizeObserver.disconnect();
       list.removeEventListener('pointerover', onOver);
