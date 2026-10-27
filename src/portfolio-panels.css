@@ -76,6 +76,20 @@ dialog#panel.portfolio-panel::backdrop {
   text-wrap: balance;
 }
 
+.portfolio-panel .stage-title:has(+ .stage-subtitle) {
+  margin-bottom: 8px;
+}
+
+.portfolio-panel .stage-subtitle {
+  flex: none;
+  max-width: 410px;
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .portfolio-panel .stage-description {
   display: -webkit-box;
   flex: none;
@@ -438,6 +452,28 @@ dialog#panel.portfolio-panel::backdrop {
 .portfolio-panel .stage-cta .secondary-button {
   min-height: 45px;
   font-size: 10px;
+}
+
+.portfolio-panel[data-view="project"] .stage-art {
+  min-height: 0;
+}
+
+.portfolio-panel[data-view="project"] .stage-cta {
+  justify-content: flex-start;
+  margin-top: 32px;
+}
+
+.portfolio-panel[data-view="project"] .stage-cta .primary-button,
+.portfolio-panel .project-actions .primary-button,
+.portfolio-panel .project-actions .secondary-button {
+  min-height: 44px;
+  padding: 0 22px;
+}
+
+.portfolio-panel[data-view="project"] .stage-cta .primary-button {
+  height: 44px;
+  font-size: 11px;
+  box-shadow: 0 4px 0 var(--accent-shadow);
 }
 
 .portfolio-panel .stage-map {
@@ -1210,12 +1246,6 @@ dialog#panel.portfolio-panel::backdrop {
   }
 }
 
-@media (min-width: 901px) and (max-height: 700px) {
-  .portfolio-panel .stage-has-screen .stage-title {
-    display: none;
-  }
-}
-
 @media (max-width: 720px) {
   dialog#panel.portfolio-panel {
     inset: 80px 12px 12px;
@@ -1552,6 +1582,7 @@ dialog#panel.portfolio-panel::backdrop {
   .portfolio-panel .panel-topbar{flex-basis:50px;min-height:50px;padding:8px 18px;}
   .portfolio-panel .panel-stage{display:flex;padding:14px 18px;}
   .portfolio-panel .stage-art{flex:0 0 170px;min-height:170px;margin:0 -8px;}
+  .portfolio-panel[data-view="project"] .stage-art{flex-basis:136px;min-height:0;}
   .portfolio-panel .screen-inspector{flex-shrink:0;}
 }
 @media(max-width:720px){.portfolio-panel .spotlight-demo{padding:0 22px 22px;}.portfolio-panel .stage-art{flex:0 0 220px;min-height:220px;}.portfolio-panel[data-view="map"] .panel-layout{height:auto;}}

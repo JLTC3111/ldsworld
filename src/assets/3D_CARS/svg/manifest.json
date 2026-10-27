@@ -1,0 +1,34 @@
+[
+  {
+    "model": "eight_ball_racer",
+    "glb": "/mnt/data/toy_car_3d_models/eight_ball_racer.glb",
+    "size_bytes": 1245188,
+    "mesh_nodes": 27,
+    "triangles": 80656,
+    "gltf_dir": "/mnt/data/toy_car_3d_models/eight_ball_racer_gltf"
+  },
+  {
+    "model": "crocodile_monster_truck",
+    "glb": "/mnt/data/toy_car_3d_models/crocodile_monster_truck.glb",
+    "size_bytes": 1944772,
+    "mesh_nodes": 35,
+    "triangles": 117542,
+    "gltf_dir": "/mnt/data/toy_car_3d_models/crocodile_monster_truck_gltf"
+  },
+  {
+    "model": "cowboy_pickup",
+    "glb": "/mnt/data/toy_car_3d_models/cowboy_pickup.glb",
+    "size_bytes": 688076,
+    "mesh_nodes": 33,
+    "triangles": 49760,
+    "gltf_dir": "/mnt/data/toy_car_3d_models/cowboy_pickup_gltf"
+  },
+  {
+    "model": "expedition_jeep",
+    "glb": "/mnt/data/toy_car_3d_models/expedition_jeep.glb",
+    "size_bytes": 1647820,
+    "mesh_nodes": 35,
+    "triangles": 100012,
+    "gltf_dir": "/mnt/data/toy_car_3d_models/expedition_jeep_gltf"
+  }
+]

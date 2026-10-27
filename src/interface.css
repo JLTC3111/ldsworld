@@ -145,7 +145,7 @@ dialog#panel[data-view="map"] .large-map.top-view-map { margin:0; }
 .atlas-zoom button:hover { background:var(--hover-bg); }
 dialog#panel.portfolio-panel::backdrop { background:#00000040; }
 
-/* Project pages have square surfaces, with just these two control exceptions. */
+/* Project pages have square surfaces, with these control exceptions. */
 dialog#panel[data-view="project"],
 dialog#panel[data-view="project"] * { border-radius:0 !important; }
 dialog#panel[data-view="project"] .language-switch,
@@ -219,6 +219,7 @@ body.mobile-layout .site-header { min-height:65px; padding:12px; }
 [data-flying-project] .project-flying-button { position:absolute; inset:0; z-index:1; width:100%; height:var(--project-flight-height,100%); min-height:0; background:transparent; pointer-events:none; }
 .project-flying-button .flying-button__smoke { background:transparent; }
 .project-flying-button .flying-button__label { display:inline-flex; align-items:center; gap:8px; font-size:11px; }
+.project-flying-button.flying-button[data-trigger='hover'] .flying-button__craft,
 .project-flying-button .flying-button__craft { cursor:pointer; pointer-events:auto; border-radius:999px; }
 .project-flying-button .flying-button__face { background:linear-gradient(180deg,#ffffff14,transparent 46%); }
 .project-flying-button .flying-button__craft:focus-visible { outline:3px solid var(--focus); outline-offset:3px; }
