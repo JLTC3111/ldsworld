@@ -629,6 +629,9 @@ function createEngine({ root, canvas, button, cursor, ramp, props }) {
   const s = {
     W: 0,
     H: 0,
+    anchorX:null,
+    anchorFloor:0,
+    drawElapsed:0,
     dpr: 1,
     bw: 0,
     bh: 0,
@@ -691,7 +694,7 @@ function createEngine({ root, canvas, button, cursor, ramp, props }) {
     const floatOk = gl.getExtension('EXT_color_buffer_float') || gl.getExtension('EXT_color_buffer_half_float');
     if (floatOk) {
       try {
-        sim = createSim(gl);
+        sim = createSim(gl,clamp(num(props.current.quality,1),.25,1));
       } catch (err) {
         sim = null;
       }
@@ -789,14 +792,14 @@ function createEngine({ root, canvas, button, cursor, ramp, props }) {
 
   const home = () => {
     const [lo, hi] = xLimits();
-    if (!rampOn()) return clamp(s.W / 2, lo, hi);
+    if (!rampOn()) return clamp(s.anchorX??s.W / 2, lo, hi);
     const g = rampGeo();
     return clamp(Math.min(g.foot * 0.5, g.x0 - 90, g.clear - s.bw / 2 - 40), lo, hi);
   };
 
   const craftCenter = () => ({
     x: s.x,
-    y: podH() + s.bh / 2 + s.y + REST
+    y: s.anchorFloor + podH() + s.bh / 2 + s.y + REST
   });
 
   const nozzles = () => {
@@ -1090,17 +1093,21 @@ function createEngine({ root, canvas, button, cursor, ramp, props }) {
     s.H = Math.max(1, r.height);
     s.bw = button.offsetWidth;
     s.bh = button.offsetHeight;
+    const anchor=props.current.anchorElement?.getBoundingClientRect();
+    s.anchorX=anchor?.width?anchor.left-r.left+anchor.width/2:null;
+    s.anchorFloor=anchor?.height?Math.max(0,r.bottom-anchor.bottom-podH()):0;
     if (!s.placed) {
       s.x = home();
       s.placed = true;
     } else if (W0 > 0 && W0 !== s.W) s.x *= s.W / W0;
+    if(s.phase==='rest'&&s.anchorX!==null)s.x=home();
     if (!riding()) {
       const [lo, hi] = xLimits();
       s.x = clamp(s.x, lo, hi);
     }
-    s.dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const cw = Math.round(s.W * s.dpr);
-    const ch = Math.round(s.H * s.dpr);
+    s.dpr = Math.min(window.devicePixelRatio || 1, num(props.current.maxDpr,2),Math.sqrt(Math.max(1,num(props.current.maxCanvasPixels,Infinity))/(s.W*s.H)));
+    const cw = Math.max(1,Math.floor(s.W * s.dpr));
+    const ch = Math.max(1,Math.floor(s.H * s.dpr));
     if (canvas.width !== cw || canvas.height !== ch) {
       canvas.width = cw;
       canvas.height = ch;
@@ -1138,7 +1145,7 @@ function createEngine({ root, canvas, button, cursor, ramp, props }) {
     begin();
     s.phase = 'ignite';
     s.delay = s.delay.map(() => Math.random() * 0.07);
-    const top = s.H - s.bh - podH() - 30 - REST;
+    const top = s.H - s.anchorFloor - s.bh - podH() - 30 - REST;
     s.alt = clamp(s.y + num(P.altitude, 170), s.y + 24, Math.max(s.y + 24, top));
     s.climbT = 1.15 + (s.alt - s.y) / 420;
     s.hold = Math.max(0, num(P.hoverTime, 2.4));
@@ -1505,7 +1512,8 @@ function createEngine({ root, canvas, button, cursor, ramp, props }) {
       s.fvy += (s.vy - s.fvy) * kf;
       updatePointer(dt);
       place();
-      draw(dt);
+      s.drawElapsed+=dt;
+      if(s.drawElapsed>=1/Math.max(1,num(props.current.maxFps,60))){draw(Math.min(1/30,s.drawElapsed));s.drawElapsed=0;}
       const thrust = totalThrust();
       s.quiet = thrust > 0.01 || s.phase !== 'rest' ? 0 : s.quiet + dt;
       const firing = thrust > 0.05 ? 1 : 0;
@@ -1699,7 +1707,7 @@ function createEngine({ root, canvas, button, cursor, ramp, props }) {
   };
 }
 
-function createSim(gl) {
+function createSim(gl,quality=1) {
   const compile = (type, src) => {
     const sh = gl.createShader(type);
     gl.shaderSource(sh, src);
@@ -1790,7 +1798,7 @@ function createSim(gl) {
   };
 
   const resize = (W, H) => {
-    const cell = Math.max(2, W / 520, H / 300);
+    const cell = Math.max(2, W / (520*quality), H / (300*quality));
     const vw = Math.max(16, Math.round(W / cell));
     const vh = Math.max(16, Math.round(H / cell));
     const dw = Math.max(16, Math.round(W / (cell / 2)));
@@ -2004,6 +2012,12 @@ export default function FlyingButton({
   children = 'Take off',
   onClick,
   buttonProps = {},
+  anchorElement,
+  controllerRef,
+  quality = 1,
+  maxDpr = 2,
+  maxFps = 60,
+  maxCanvasPixels = Infinity,
   theme = 'dark',
   size = 'medium',
   radius,
@@ -2048,6 +2062,7 @@ export default function FlyingButton({
     : [];
   propsRef.current = {
     size,
+    anchorElement,quality,maxDpr,maxFps,maxCanvasPixels,
     altitude,
     hoverTime,
     jets: jetCount,
@@ -2074,7 +2089,9 @@ export default function FlyingButton({
       props: propsRef
     });
     engineRef.current = engine;
+    if(controllerRef)controllerRef.current={refresh:()=>engine.refresh()};
     return () => {
+      if(controllerRef)controllerRef.current=null;
       engineRef.current = null;
       engine.destroy();
     };

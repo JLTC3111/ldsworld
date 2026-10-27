@@ -3,6 +3,10 @@
 export function createCarDetails({THREE:T,root,body,profile,id}){
   body.updateWorldMatrix(true,true);const bounds=new T.Box3().setFromObject(body),front=bounds.max.z+.055,rear=bounds.min.z-.055;
   const y=id==='monster-truck'?1.22:id==='toy-story'?1.04:.68;
+  // Project hood/rear markers onto the actual supplied body, once per model.
+  const surfaces=[];body.traverse(o=>{if(o.isMesh)surfaces.push(o);});
+  const ray=new T.Raycaster(),down=new T.Vector3(0,-1,0),origin=new T.Vector3();
+  const surfaceY=(x,z)=>{origin.set(x,bounds.max.y+2,z);ray.set(origin,down);return ray.intersectObjects(surfaces,false)[0]?.point.y??y+.14;};
   const geometries=new Set(),materials=new Set(),textures=new Set(),headLights=[],tailLights=[],indicators=[],reverseLights=[];
   const cube=new T.BoxGeometry(1,1,1);geometries.add(cube);
   const material=(color,options={})=>{const m=new T.MeshStandardMaterial({color,roughness:.35,...options});materials.add(m);return m;};
@@ -27,6 +31,25 @@ export function createCarDetails({THREE:T,root,body,profile,id}){
   try{const canvas=globalThis.document?.createElement('canvas'),ctx=canvas?.getContext('2d');if(ctx?.fillText){canvas.width=256;canvas.height=96;ctx.fillStyle='#f1efdf';ctx.fillRect(0,0,256,96);ctx.fillStyle='#1b3037';ctx.font='bold 51px monospace';ctx.textAlign='center';ctx.fillText('LD 3111',128,66);const texture=new T.CanvasTexture(canvas);texture.colorSpace=T.SRGBColorSpace;plateMaterial.map=texture;textures.add(texture);}}
   catch{}
   for(const z of [front+.085,rear-.075])box('Registration plate LD 3111',.35,.13,.018,plateMaterial,0,y-.075,z);
+  // A bright forward-pointing hood chevron reads from every camera heading.
+  const arrowShape=new T.Shape();arrowShape.moveTo(0,.32);arrowShape.lineTo(.34,-.08);arrowShape.lineTo(.19,-.18);arrowShape.lineTo(0,.03);arrowShape.lineTo(-.19,-.18);arrowShape.lineTo(-.34,-.08);arrowShape.closePath();
+  const arrowGeometry=new T.ShapeGeometry(arrowShape);geometries.add(arrowGeometry);
+  const vertices=arrowGeometry.attributes.position,hoodZ=front*.68;
+  for(let i=0;i<vertices.count;i++){const x=vertices.getX(i),z=hoodZ+vertices.getY(i);vertices.setXYZ(i,x,surfaceY(x,z)+.035,z);}arrowGeometry.computeVertexNormals();
+  const ivory=new T.MeshBasicMaterial({color:'#fff2cf',side:T.DoubleSide,toneMapped:false});materials.add(ivory);
+  const arrow=new T.Mesh(arrowGeometry,ivory);arrow.name='Front hood direction chevron';arrow.userData.direction='front';body.add(arrow);
+  // White top-facing headlamp caps and red rear markers stay visible from above.
+  for(const side of [-1,1]){
+    const x=side*Math.min(profile.halfWidth*.62,.68),fz=front-.12,rz=rear+.12;
+    const head=box('Top-facing front running light',.25,.045,.18,white,x,surfaceY(x,fz)+.045,fz);head.userData.direction='front';
+    const tail=box('Top-facing red tail marker',.25,.045,.18,red,x,surfaceY(x,rz)+.045,rz);tail.userData.direction='rear';
+  }
+  // The back has a raised dark wing/utility gate and a wide red light bar.
+  const rearZ=rear*.78,rearY=surfaceY(0,rearZ)+.19,rearWidth=profile.halfWidth*1.5;
+  for(const side of [-1,1])box('Rear marker support',.055,.22,.10,black,side*rearWidth*.34,rearY-.09,rearZ);
+  const wing=box(id==='8-ball'?'Rear spoiler':'Rear utility gate',rearWidth,.08,id==='8-ball'?.28:.16,black,0,rearY+.035,rearZ);wing.userData.direction='rear';
+  const bar=box('Raised rear red light bar',rearWidth*.86,.035,.085,red,0,rearY+.09,rearZ-.025);bar.userData.direction='rear';
+  profile.bodyTop=Math.max(profile.bodyTop,rearY+.13);
   profile.halfLength=Math.max(profile.halfLength,front+.14,-rear+.14);
   let lastSpeed=0;
   return {headLights,tailLights,update({driver,night=0,headlights='auto',braking=false,time=0}){

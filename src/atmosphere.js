@@ -1,4 +1,5 @@
 import { EnvironmentClock } from './environment-state.js';
+import { createPixelSnow } from './pixel-snow.js';
 
 /** A small, deterministic atmosphere. It owns no application theme or project state. */
 export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill, sea, coarse = false, reducedMotion = false }) {
@@ -70,12 +71,8 @@ export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill
   const rainMaterial = ownMaterial(new THREE.LineBasicMaterial({ color: '#b4d5df', transparent: true, opacity: 0, depthWrite: false, toneMapped: false }));
   const rain = new THREE.LineSegments(rainGeometry, rainMaterial); rain.name = 'atmosphere-rain'; rain.frustumCulled = false; root.add(rain);
 
-  const snowPositions = new Float32Array(counts.snow * 3);
-  const snowSeeds = Array.from({ length: counts.snow }, () => ({ x: (random() - .5) * 68, y: random() * 30, z: (random() - .5) * 56, speed: .8 + random() * 1.5, phase: random() * Math.PI * 2 }));
-  const snowGeometry = ownGeometry(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(snowPositions, 3)));
-  snowGeometry.attributes.position.setUsage(THREE.DynamicDrawUsage);
-  const snowMaterial = ownMaterial(new THREE.PointsMaterial({ color: '#f9fcfa', size: coarse ? 2.8 : 2.6, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false, toneMapped: false }));
-  const snow = new THREE.Points(snowGeometry, snowMaterial); snow.name = 'atmosphere-snow'; snow.frustumCulled = false; root.add(snow);
+  const pixelSnow=createPixelSnow({THREE,renderer,capacity:counts.snow,coarse,reducedMotion});
+  const snow=pixelSnow.object;root.add(snow);
 
   const splashMaterial = ownMaterial(new THREE.MeshBasicMaterial({ color: '#d7e9e8', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
   const splashes = new THREE.InstancedMesh(ownGeometry(new THREE.RingGeometry(.06, .085, 9)), splashMaterial, counts.splashes);
@@ -115,7 +112,7 @@ export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill
     sunMaterial.color.copy(colors.sunDay).lerp(colors.sunWarm, warmth); glowMaterial.opacity = (.08 + warmth * .14) * (1 - wet * .7 - white * .4);
     moonOrb.position.set(-Math.cos(sunAngle) * 48, -sunHeight * 40 + 3, -29); moonOrb.visible = night > .08;
   }
-  function paintWeather(dt) {
+  function paintWeather(dt,paused=false) {
     const wind = reducedMotion ? .15 : .8 + Math.sin(elapsedTime * .13) * .3;
     rain.visible = blend.rain > .01; snow.visible = blend.snow > .01; splashes.visible = rain.visible;
     // Dark daylight strokes and bright night strokes remain visible against the
@@ -128,27 +125,20 @@ export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill
       return (Math.max(rendered, skyLuminance) + .05) / (Math.min(rendered, skyLuminance) + .05);
     };
     rainMaterial.color.copy(strokeContrast(colors.rainDay) >= strokeContrast(colors.rainNight) ? colors.rainDay : colors.rainNight);
-    snowMaterial.opacity = blend.snow * .88; splashMaterial.opacity = blend.rain * .48;
+    pixelSnow.update(dt,{opacity:blend.snow*.88,time:elapsedTime,wind,paused});splashMaterial.opacity = blend.rain * .48;
     puddleMaterial.opacity = blend.rain * .32; snowPatchMaterial.opacity = blend.snow * .56;
-    for (let i = 0; i < rainSeeds.length; i++) {
+    if(rain.visible)for (let i = 0; i < rainSeeds.length; i++) {
       const particle = rainSeeds[i]; particle.y -= dt * particle.speed * (reducedMotion ? .3 : 1); particle.x += dt * wind;
       if (particle.y < .18) { particle.y += 32; particle.x = (random() - .5) * 68; particle.z = (random() - .5) * 56; }
       const offset = i * 6; rainPositions[offset] = particle.x; rainPositions[offset + 1] = particle.y; rainPositions[offset + 2] = particle.z;
       rainPositions[offset + 3] = particle.x - wind * (reducedMotion ? .12 : .33); rainPositions[offset + 4] = particle.y + (reducedMotion ? .72 : 1.85); rainPositions[offset + 5] = particle.z - (reducedMotion ? .025 : .08);
     }
-    for (let i = 0; i < snowSeeds.length; i++) {
-      const particle = snowSeeds[i]; particle.y -= dt * particle.speed * (reducedMotion ? .28 : 1);
-      particle.x += dt * (Math.sin(elapsedTime * .6 + particle.phase) * .4 + wind * .12);
-      particle.z += dt * Math.cos(elapsedTime * .45 + particle.phase) * .18;
-      if (particle.y < .18) { particle.y += 30; particle.x = (random() - .5) * 68; particle.z = (random() - .5) * 56; }
-      const offset = i * 3; snowPositions[offset] = particle.x; snowPositions[offset + 1] = particle.y; snowPositions[offset + 2] = particle.z;
-    }
-    rainGeometry.attributes.position.needsUpdate = true; snowGeometry.attributes.position.needsUpdate = true;
-    splashSeeds.forEach((splash, i) => {
+    if(rain.visible&&dt>0)rainGeometry.attributes.position.needsUpdate = true;
+    if(rain.visible)splashSeeds.forEach((splash, i) => {
       const progress = reducedMotion ? .35 : (splash.phase + elapsedTime * .9) % 1;
       dummy.position.set(splash.x, .18, splash.z); dummy.rotation.set(-Math.PI / 2, 0, 0); dummy.scale.setScalar(progress * 4.5 + .05); dummy.updateMatrix(); splashes.setMatrixAt(i, dummy.matrix);
     });
-    splashes.instanceMatrix.needsUpdate = true;
+    if(rain.visible&&dt>0)splashes.instanceMatrix.needsUpdate = true;
   }
   function snapshot() { return { ...state, particleCounts: { ...counts } }; }
   function update(elapsed = 0, { paused = false, focus } = {}) {
@@ -159,7 +149,7 @@ export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill
     const damping = 1 - Math.exp(-dt * 2);
     blend.rain += ((state.weather === 'rain' ? 1 : 0) - blend.rain) * damping;
     blend.snow += ((state.weather === 'snow' ? 1 : 0) - blend.snow) * damping;
-    paintLighting(state); paintWeather(dt); return snapshot();
+    paintLighting(state); paintWeather(dt,paused); return snapshot();
   }
   update(0);
   return {
@@ -170,8 +160,9 @@ export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill
       update(0); return snapshot();
     },
     getState: snapshot,
+    getSnowStats:pixelSnow.getStats,
     dispose() {
-      if (disposed) return; disposed = true; root.removeFromParent();groundDetails.removeFromParent();
+      if (disposed) return; disposed = true;pixelSnow.dispose();root.removeFromParent();groundDetails.removeFromParent();
       geometries.forEach(geometry => geometry.dispose()); materials.forEach(material => material.dispose());
       scene.background = initial.background;
       scene.fog = initial.fog || null; renderer.toneMappingExposure = initial.exposure;

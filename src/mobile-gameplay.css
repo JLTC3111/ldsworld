@@ -85,8 +85,6 @@ body.mobile-layout .portfolio-panel .panel-topbar {
 body.mobile-layout .portfolio-panel .panel-reader { padding-bottom:max(30px,env(safe-area-inset-bottom,0px)); }
 .touch-settings { margin:18px 0; padding:16px 0; border-bottom:1px solid var(--line); }
 @media(orientation:portrait) {
-  body.mobile-gameplay #control-dock { top:calc(env(safe-area-inset-top,0px) + 62px); bottom:auto; width:min(350px,calc(100vw - 24px)); height:65px; }
-  body.mobile-gameplay .minimap-wrap { top:calc(env(safe-area-inset-top,0px) + 130px); }
-  .rotate-phone-hint { top:calc(env(safe-area-inset-top,0px) + 230px); }
+  body.compact-navigation #control-dock { display:none; }
 }
 @media(prefers-reduced-motion:reduce) { .drive-pad button { transition:none; } }
