@@ -4,6 +4,14 @@
 import { useEffect, useRef } from 'react';
 import './FlyingButton.css';
 
+// Keep the soft density field and shadow reach, with fewer solver and lighting passes.
+export const FLYING_SMOKE_BUDGET = Object.freeze({
+  pressureIterations: 12,
+  shadowSteps: 5,
+  shadowStep: 6,
+  shadowGrowth: 1.85
+});
+
 const G = 1100;
 const SPRING = 380;
 const DAMP = 10;
@@ -499,12 +507,12 @@ void main() {
   vec2 ld = normalize(L.xy);
   float tau = 0.0;
   float dist = 2.0;
-  float stepLen = 3.0;
-  for (int i = 0; i < 9; i++) {
+  float stepLen = ${FLYING_SMOKE_BUDGET.shadowStep.toFixed(1)};
+  for (int i = 0; i < ${FLYING_SMOKE_BUDGET.shadowSteps}; i++) {
     float lod = max(log2(stepLen / texel), 0.0);
     tau += dens(p + ld * dist, lod) * stepLen;
     dist += stepLen;
-    stepLen *= 1.4;
+    stepLen *= ${FLYING_SMOKE_BUDGET.shadowGrowth};
   }
   float sun = mix(exp(-uLook.z * tau), 1.0, wC * 0.6);
   float ao = mix(exp(-uLook2.w * dens(p, 4.5)), 1.0, wC);
@@ -612,7 +620,7 @@ const SMOKE = {
   normalLod: -0.8,
   fine: 0.35,
   broad: 0.9,
-  iters: 28
+  iters: FLYING_SMOKE_BUDGET.pressureIterations
 };
 
 function createEngine({ root, canvas, button, cursor, ramp, props }) {

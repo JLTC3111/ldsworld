@@ -266,7 +266,8 @@ const GooeyNav = ({
     const fallback = fallbackRef.current;
     if (!stage || !canvas || !list || !overlay || !fallback) return;
 
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let reduced = motionQuery.matches;
     const gl = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: true, antialias: false });
     const pipeline = gl ? build(gl) : null;
     fallback.style.display = pipeline ? 'none' : 'block';
@@ -275,6 +276,11 @@ const GooeyNav = ({
     const view = { width: 0, height: 0 };
     let rects = [];
     let target = -1;
+    let pointerIndex = -1;
+    let focusIndex = -1;
+    const previewTarget = () => settingsRef.current.hoverEffect
+      ? (pointerIndex >= 0 ? pointerIndex : focusIndex >= 0 ? focusIndex : indexRef.current)
+      : indexRef.current;
     const pills = new Map();
     const drops = [];
     const hover = { x: 0, y: 0, w: 0, h: 0, alpha: 0, index: -1 };
@@ -672,6 +678,7 @@ const GooeyNav = ({
     const onOver = event => {
       const item = event.target.closest('[data-gooey-index]');
       if (!item || !list.contains(item)) return;
+      if (event.pointerType === 'touch') return;
       const index = Number(item.dataset.gooeyIndex);
       const rect = rects[index];
       if (!rect) return;
@@ -681,13 +688,27 @@ const GooeyNav = ({
         hover.w = rect.w;
         hover.h = rect.h;
       }
+      pointerIndex = index;
       hover.index = index;
+      go(previewTarget(), true);
       wake();
     };
 
     const onLeave = () => {
+      pointerIndex = -1;
       hover.index = -1;
+      go(previewTarget(), true);
       wake();
+    };
+    const focusItem = element => {
+      const item = element?.closest?.('[data-gooey-index]');
+      return item && list.contains(item) ? Number(item.dataset.gooeyIndex) : -1;
+    };
+    const onFocus = event => { focusIndex = focusItem(event.target); go(previewTarget(), true); };
+    const onBlur = event => { focusIndex = focusItem(event.relatedTarget); go(previewTarget(), true); };
+    const onMotion = event => {
+      reduced = event.matches;
+      if (reduced) { cancelAnimationFrame(raf); raf = 0; settle(previewTarget()); }
     };
 
     const resizeObserver = new ResizeObserver(() => {
@@ -700,6 +721,9 @@ const GooeyNav = ({
 
     list.addEventListener('pointerover', onOver);
     list.addEventListener('pointerleave', onLeave);
+    list.addEventListener('focusin', onFocus);
+    list.addEventListener('focusout', onBlur);
+    motionQuery.addEventListener?.('change', onMotion);
 
     measure();
     settle(indexRef.current);
@@ -710,7 +734,7 @@ const GooeyNav = ({
     });
 
     engineRef.current = {
-      go: index => go(index, true),
+      go: () => go(previewTarget(), true),
       refresh: () => {
         render();
         wake();
@@ -723,6 +747,9 @@ const GooeyNav = ({
       resizeObserver.disconnect();
       list.removeEventListener('pointerover', onOver);
       list.removeEventListener('pointerleave', onLeave);
+      list.removeEventListener('focusin', onFocus);
+      list.removeEventListener('focusout', onBlur);
+      motionQuery.removeEventListener?.('change', onMotion);
       if (gl && pipeline) {
         gl.deleteBuffer(pipeline.buffer);
         gl.deleteProgram(pipeline.program);

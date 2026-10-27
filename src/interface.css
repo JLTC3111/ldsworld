@@ -219,7 +219,7 @@ body.mobile-layout .site-header { min-height:65px; padding:12px; }
 [data-flying-project] .project-flying-button { position:absolute; inset:0; z-index:1; width:100%; height:var(--project-flight-height,100%); min-height:0; background:transparent; pointer-events:none; }
 .project-flying-button .flying-button__smoke { background:transparent; }
 .project-flying-button .flying-button__label { display:inline-flex; align-items:center; gap:8px; font-size:11px; }
-.project-flying-button .flying-button__craft { cursor:pointer; pointer-events:auto; border-radius:25%; }
+.project-flying-button .flying-button__craft { cursor:pointer; pointer-events:auto; border-radius:999px; }
 .project-flying-button .flying-button__face { background:linear-gradient(180deg,#ffffff14,transparent 46%); }
 .project-flying-button .flying-button__craft:focus-visible { outline:3px solid var(--focus); outline-offset:3px; }
-[data-flying-project] .project-action-fallback { pointer-events:auto; border-radius:25%; }
+[data-flying-project] .project-action-fallback { pointer-events:auto; border-radius:999px; }
