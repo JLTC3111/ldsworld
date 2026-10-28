@@ -96,7 +96,9 @@ test('road routing validates destinations and angle wrapping takes the short tur
 
 test('HTML offers accessible project navigation and a JavaScript-free fallback', async () => {
   const html = await readFile(new URL('../src/index.html', import.meta.url), 'utf8');
-  assert.match(html, /<html lang="en">/);
+  assert.match(html, /<html lang="en" translate="no" class="notranslate">/);
+  assert.match(html, /<meta name="google" content="notranslate">/);
+  assert.match(html, /<body translate="no" class="notranslate">/);
   assert.match(html, /<dialog id="panel" aria-labelledby="panel-title">/);
   assert.match(html, /class="skip-link"/);
   assert.match(html, /<noscript>/);
