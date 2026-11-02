@@ -90,20 +90,31 @@ export function createInstancedBodies({ THREE, object, idPrefix = 'rock', mass =
 const syncCaches = new WeakMap();
 export function syncPhysicsBodies(THREE, bodies) {
   let cache = syncCaches.get(THREE);
-  if (!cache) { cache = { matrix: new THREE.Matrix4(), rotation: new THREE.Quaternion(), euler: new THREE.Euler(), position: new THREE.Vector3(), zeroScale:new THREE.Vector3(),dirty: new Set() }; syncCaches.set(THREE, cache); }
+  if (!cache) { cache = { matrix: new THREE.Matrix4(), rotation: new THREE.Quaternion(), euler: new THREE.Euler(), position: new THREE.Vector3(), zeroScale:new THREE.Vector3(),dirty: new Set(), bodies:new WeakMap(), batches:new WeakMap() }; syncCaches.set(THREE, cache); }
   cache.dirty.clear();
   for (const body of bodies) {
     if (body.object) {
       if (body.active||body.destroyed) body.object.visible = !body.destroyed&&(!body.active||Boolean(body.active()));
       body.object.position.set(body.x, body.y, body.z);
-      if(body.quaternion)body.object.quaternion.fromArray(body.quaternion);
-      else body.object.rotation.set(body.tiltX || 0, body.rotation || 0, body.tiltZ || 0);
+      if(body.quaternion){const q=body.object.quaternion,v=body.quaternion;if(q.x!==v[0]||q.y!==v[1]||q.z!==v[2]||q.w!==v[3])q.fromArray(v);}
+      else {const r=body.object.rotation,x=body.tiltX||0,y=body.rotation||0,z=body.tiltZ||0;if(r.x!==x||r.y!==y||r.z!==z)r.set(x,y,z);}
     }
     if (!body.instance) continue;
     const { object, index, quaternion, scale } = body.instance;
+    let batch=cache.batches.get(object);
+    if(!batch){batch={world:new THREE.Matrix4(),inverse:new THREE.Matrix4(),revision:0};cache.batches.set(object,batch);}
+    if(!batch.revision||!batch.world.equals(object.matrixWorld)){batch.world.copy(object.matrixWorld);batch.inverse.copy(object.matrixWorld).invert();batch.revision++;}
+    let previous=cache.bodies.get(body);
+    // Sleeping shoreline rocks keep the exact same matrices for most frames.
+    // Avoid rewriting/uploading their whole instance batch and rescanning its
+    // bounds until a transform, visibility or parent transform actually changes.
+    const tiltX=body.tiltX||0,rotation=body.rotation||0,tiltZ=body.tiltZ||0,destroyed=Boolean(body.destroyed);
+    if(previous&&previous.object===object&&previous.index===index&&previous.x===body.x&&previous.y===body.y&&previous.z===body.z&&previous.tiltX===tiltX&&previous.rotation===rotation&&previous.tiltZ===tiltZ&&previous.destroyed===destroyed&&previous.qx===quaternion.x&&previous.qy===quaternion.y&&previous.qz===quaternion.z&&previous.qw===quaternion.w&&previous.sx===scale.x&&previous.sy===scale.y&&previous.sz===scale.z&&previous.revision===batch.revision)continue;
+    if(!previous){previous={};cache.bodies.set(body,previous);}
+    Object.assign(previous,{object,index,x:body.x,y:body.y,z:body.z,tiltX,rotation,tiltZ,destroyed,qx:quaternion.x,qy:quaternion.y,qz:quaternion.z,qw:quaternion.w,sx:scale.x,sy:scale.y,sz:scale.z,revision:batch.revision});
     cache.rotation.setFromEuler(cache.euler.set(body.tiltX || 0, body.rotation || 0, body.tiltZ || 0)).multiply(quaternion);
     cache.matrix.compose(cache.position.set(body.x, body.y, body.z), cache.rotation,body.destroyed?cache.zeroScale:scale);
-    cache.matrix.premultiply(object.matrixWorld.clone().invert()); object.setMatrixAt(index, cache.matrix); cache.dirty.add(object);
+    cache.matrix.premultiply(batch.inverse); object.setMatrixAt(index, cache.matrix); cache.dirty.add(object);
   }
   for (const object of cache.dirty) { object.instanceMatrix.needsUpdate = true; object.computeBoundingSphere(); }
 }

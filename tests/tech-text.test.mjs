@@ -19,14 +19,14 @@ function fixture({reduced=false,canvas=true}={}) {
     measureText(text){const size=Number(/([\d.]+)px/.exec(this.font)?.[1]||21),width=text.length*size*.52;return{width,actualBoundingBoxLeft:0,actualBoundingBoxRight:width,actualBoundingBoxAscent:size*.72,actualBoundingBoxDescent:/[gpqy]/.test(text)?size*.2:0};},
     fillText(){},strokeText(text){this.strokes.push({text,color:this.strokeStyle});},drawImage(image){this.draws.push(image);},rect(){this.rectangles++;},setTransform(){},setLineDash(){},clearRect(){},fillRect(){},strokeRect(){},save(){},restore(){},beginPath(){},moveTo(){},lineTo(){},stroke(){},fill(){},clip(){},getImageData(){return{data:new Uint8Array()};},createRadialGradient(){return{addColorStop(){}};}};}
   const anchor=new Element(),container=new Element();container.anchor=anchor;container.fallback=new Element();container.append(container.fallback);
-  const doc={body:new Element(),documentElement:new Element(),createElement(type){assert.equal(type,'canvas');const el=new Element();el.ctx=context();el.getContext=()=>canvas?el.ctx:null;canvases.push(el);return el;}};
+  const doc=Object.assign(new EventTarget(),{hidden:false,body:new Element(),documentElement:new Element(),createElement(type){assert.equal(type,'canvas');const el=new Element();el.ctx=context();el.getContext=()=>canvas?el.ctx:null;canvases.push(el);return el;}});
   class Observer{constructor(callback){this.callback=callback;this.disconnected=false;observers.push(this);}observe(){}disconnect(){this.disconnected=true;}}
   class Intersection extends Observer{observe(){this.callback([{isIntersecting:true}]);}}
   class Pointer extends Event{constructor(type,options={}){super(type);Object.assign(this,options);}}
   const values={window:{devicePixelRatio:2,matchMedia:()=>({matches:reduced,addEventListener(){},removeEventListener(){}})},document:doc,getComputedStyle:()=>({color:ink,fontFamily:'Arial'}),ResizeObserver:Observer,IntersectionObserver:Intersection,MutationObserver:Observer,requestAnimationFrame:callback=>{const id=++sequence;raf.set(id,callback);return id;},cancelAnimationFrame:id=>raf.delete(id),MouseEvent:Pointer};
   for(const [name,value]of Object.entries(values))Object.defineProperty(globalThis,name,{configurable:true,value,writable:true});
   function frames(n){for(let i=0;i<n;i++){const batch=[...raf.values()];raf.clear();tick+=1000/60;batch.forEach(callback=>callback(tick));}}
-  return{container,anchor,canvases,observers,raf,Pointer,frames,setInk(value){ink=value;},cleanup(){for(const[name,d]of descriptors){if(d)Object.defineProperty(globalThis,name,d);else delete globalThis[name];}}};
+  return{container,anchor,canvases,observers,raf,Pointer,frames,visibility(hidden){doc.hidden=hidden;doc.dispatchEvent(new Event('visibilitychange'));},setInk(value){ink=value;},cleanup(){for(const[name,d]of descriptors){if(d)Object.defineProperty(globalThis,name,d);else delete globalThis[name];}}};
 }
 const options={text:'long d.',fontSize:21,fontWeight:700,align:'left',sweep:false,draggable:false,clickKick:false,specks:0,labels:false};
 
@@ -46,6 +46,20 @@ test('the published Tech Text engine paints actual letter outlines on hover, upd
 test('keyboard focus reveals the effect without consuming the brand home-link click',()=>{
   const f=fixture();let controller;
   try{controller=createTechText(f.container,options);f.frames(3);let clicked=0;f.anchor.addEventListener('click',()=>clicked++);f.anchor.dispatchEvent(new Event('focusin'));f.frames(20);assert.ok(f.canvases[0].ctx.draws.some(c=>c.ctx.strokes.length));f.anchor.dispatchEvent(new Event('click'));assert.equal(clicked,1);f.anchor.dispatchEvent(new Event('focusout'));f.frames(180);assert.equal(f.raf.size,0);}finally{controller?.dispose();f.cleanup();}
+});
+
+test('hidden documents and offscreen wordmarks cancel active drawing until visible again',()=>{
+  const f=fixture();let controller;
+  try{
+    controller=createTechText(f.container,options);f.frames(3);
+    f.container.dispatchEvent(new f.Pointer('pointermove',{clientX:39,clientY:16}));f.frames(3);
+    assert.ok(f.raf.size>0);f.visibility(true);assert.equal(f.raf.size,0);
+    const draws=f.canvases[0].ctx.draws.length;controller.refresh();f.frames(4);assert.equal(f.canvases[0].ctx.draws.length,draws);
+    f.visibility(false);assert.equal(f.raf.size,1);f.frames(3);assert.ok(f.canvases[0].ctx.draws.length>draws);
+    const intersection=f.observers.find(observer=>observer.constructor.name==='Intersection');
+    intersection.callback([{isIntersecting:false}]);assert.equal(f.raf.size,0);controller.refresh();assert.equal(f.raf.size,0);
+    intersection.callback([{isIntersecting:true}]);assert.equal(f.raf.size,1);
+  }finally{controller?.dispose();f.cleanup();}
 });
 
 test('reduced motion and unavailable canvas leave the stable readable wordmark fallback',()=>{

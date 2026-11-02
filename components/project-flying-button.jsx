@@ -1,6 +1,7 @@
 import {createRoot} from 'react-dom/client';
 import {flushSync} from 'react-dom';
 import FlyingButton from './react-bits/FlyingButton.jsx';
+import {deviceBudget} from '../src/render-budget.js';
 
 /** Keep normal one-tap/keyboard navigation on touch and reduced-motion devices. */
 export function mountFlyingProjectAction({host,model,onOpen}){
@@ -21,7 +22,8 @@ export function mountFlyingProjectAction({host,model,onOpen}){
   const activate=event=>{event.stopPropagation();onOpen(current.projectId);};
   function update(next=current){
     if(disposed)return;current=next;const restoreFocus=host.contains(document.activeElement);
-    const flight=hover.matches&&!reduced.matches;
+    const budget=deviceBudget({hardwareConcurrency:navigator.hardwareConcurrency,deviceMemory:navigator.deviceMemory,saveData:navigator.connection?.saveData});
+    const flight=hover.matches&&!reduced.matches&&!budget.lowPower;
     host.dataset.flightMode=flight?'on':'off';measureStage();
     const attributes={'data-stage-open':'','data-open-project':current.projectId,'aria-label':current.ariaLabel};
     const content=<><span>{current.label}</span><svg className="icon small" aria-hidden="true"><use href="#i-up-right" /></svg></>;

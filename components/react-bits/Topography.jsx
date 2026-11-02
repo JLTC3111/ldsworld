@@ -699,6 +699,8 @@ const Topography = ({
   intro = true,
   lightMode = false,
   dpr,
+  maxCanvasPixels = Infinity,
+  maxFps = 60,
   className = '',
   style
 }) => {
@@ -735,7 +737,9 @@ const Topography = ({
     glitch: clamp(glitch, 0, 1),
     intro,
     lightMode,
-    dpr
+    dpr,
+    maxCanvasPixels,
+    maxFps
   };
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
@@ -750,7 +754,7 @@ const Topography = ({
       antialias: ratio < 1.5,
       depth: true,
       stencil: false,
-      powerPreference: 'high-performance'
+      powerPreference: 'low-power'
     });
     if (!container || !canvas || !gl) return undefined;
 
@@ -1004,6 +1008,7 @@ const Topography = ({
     };
 
     const render = () => {
+      if (!visible || document.hidden) return;
       const s = settingsRef.current;
       const cam = camera();
       viewProjection(cam, view.width / view.height, matrix);
@@ -1163,17 +1168,18 @@ const Topography = ({
 
       const bloom = s.glow > 0.001;
       if (bloom) {
-        const width = Math.max(1, Math.round(view.width / 2));
-        const targetHeight = Math.max(1, Math.round(view.height / 2));
+        const bloomRatio = Math.min(1, view.ratio);
+        const width = Math.max(1, Math.floor(view.width * bloomRatio / 2));
+        const targetHeight = Math.max(1, Math.floor(view.height * bloomRatio / 2));
         allocate(source, width, targetHeight, true);
         levels.forEach((pair, index) => {
-          const w = Math.max(1, Math.round(view.width / 2 ** (index + 2)));
-          const h = Math.max(1, Math.round(view.height / 2 ** (index + 2)));
+          const w = Math.max(1, Math.floor(view.width * bloomRatio / 2 ** (index + 2)));
+          const h = Math.max(1, Math.floor(view.height * bloomRatio / 2 ** (index + 2)));
           allocate(pair[0], w, h, false);
           allocate(pair[1], w, h, false);
         });
         gl.bindFramebuffer(gl.FRAMEBUFFER, source.framebuffer);
-        drawTerrain(0.5, width, targetHeight, 2);
+        drawTerrain(0.5 * bloomRatio, width, targetHeight, 2);
         let from = source;
         levels.forEach(([front, back]) => {
           gl.bindFramebuffer(gl.FRAMEBUFFER, front.framebuffer);
@@ -1272,9 +1278,9 @@ const Topography = ({
       sizedDpr = s.dpr;
       view.width = Math.max(1, container.clientWidth);
       view.height = Math.max(1, container.clientHeight);
-      view.ratio = Math.min(s.dpr || window.devicePixelRatio || 1, 2);
-      canvas.width = Math.max(1, Math.round(view.width * view.ratio));
-      canvas.height = Math.max(1, Math.round(view.height * view.ratio));
+      view.ratio = Math.min(s.dpr || window.devicePixelRatio || 1, 2, Math.sqrt(Math.max(1, s.maxCanvasPixels) / (view.width * view.height)));
+      canvas.width = Math.max(1, Math.floor(view.width * view.ratio));
+      canvas.height = Math.max(1, Math.floor(view.height * view.ratio));
       render();
       wake();
     };
@@ -1283,6 +1289,7 @@ const Topography = ({
       raf = 0;
       if (!visible || document.hidden) return;
       const s = settingsRef.current;
+      if (last && now - last < 1000 / Math.max(1, s.maxFps) - 0.5) { raf = requestAnimationFrame(frame); return; }
       if (s.dpr !== sizedDpr) resize();
       const dt = last ? clamp((now - last) / 1000, 0, 1 / 20) : 1 / 60;
       last = now;
@@ -1451,12 +1458,16 @@ const Topography = ({
       wake();
     };
 
-    const onVisibility = () => wake();
+    const onVisibility = () => {
+      if (document.hidden) { cancelAnimationFrame(raf); raf = 0; }
+      else wake();
+    };
 
     const resizeObserver = new ResizeObserver(resize);
     resizeObserver.observe(container);
     const intersection = new IntersectionObserver(entries => {
       visible = entries.some(entry => entry.isIntersecting);
+      if (!visible) { cancelAnimationFrame(raf); raf = 0; }
       if (visible) wake();
     });
     intersection.observe(container);

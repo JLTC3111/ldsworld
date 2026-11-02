@@ -12,15 +12,23 @@ export async function registerCarAsset(id,bytes){
 }
 export function getCarAsset(id){return assets.get(id)||null;}
 export function loadCarAssets(ids=CAR_ASSET_IDS){
-  const selected=ids.filter(id=>CAR_ASSET_IDS.includes(id)),key=selected.join(',');
-  if(loading.has(key))return loading.get(key);
-  const result=Promise.allSettled(selected.map(async id=>{
-    if(assets.has(id))return;
-    const url=new URL(`./assets/cars/${id}.glb`,import.meta.url),revision=new URL(import.meta.url).searchParams.get('v');if(revision)url.searchParams.set('v',revision);
-    const response=await fetch(url);if(!response.ok)throw new Error(`Car model ${id}: ${response.status}`);
-    await registerCarAsset(id,await response.arrayBuffer());
-  })).then(results=>{results.forEach((r,i)=>{if(r.status==='rejected')console.warn(`Using the local fallback for ${selected[i]}.`,r.reason);});return results.every(r=>r.status==='fulfilled');});
-  loading.set(key,result);return result;
+  const selected=[...new Set(ids.filter(id=>CAR_ASSET_IDS.includes(id)))];
+  return Promise.all(selected.map(id=>{
+    if(assets.has(id))return true;
+    if(loading.has(id))return loading.get(id);
+    // Share a request across overlapping selections, and permit retry after a
+    // transient failure instead of retaining a failed aggregate forever.
+    const request=(async()=>{
+      await Promise.resolve();
+      try{
+        const url=new URL(`./assets/cars/${id}.glb`,import.meta.url),revision=new URL(import.meta.url).searchParams.get('v');if(revision)url.searchParams.set('v',revision);
+        const response=await fetch(url);if(!response.ok)throw new Error(`Car model ${id}: ${response.status}`);
+        await registerCarAsset(id,await response.arrayBuffer());return true;
+      }catch(error){console.warn(`Using the local fallback for ${id}.`,error);return false;}
+      finally{loading.delete(id);}
+    })();
+    loading.set(id,request);return request;
+  })).then(results=>results.every(Boolean));
 }
 
 // Prepare in island coordinates (+Y up, +Z forward), retaining the source's

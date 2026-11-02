@@ -3,6 +3,14 @@ import { bridgeHeightAt, isWater, portals as islandPortals, ISLAND_BOUNDS } from
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 const floorAt = body => Math.max(.12,bridgeHeightAt(body.x,body.z)) + (isWater(body.x,body.z)?-.09:0) + body.height/2 + (body.floorOffset||0);
 const activeBody = body => !body.destroyed && (!body.active || body.active());
+function carContactFor(driver, contact = {}) {
+  const aerial=driver.attitude&&(driver.attitude.flying||driver.attitude.recovering),bounds=aerial?driver.attitude.bounds():null;
+  contact.bounds=bounds;contact.halfWidth=bounds?.halfX??driver.profile?.halfWidth??.84;contact.halfLength=bounds?.halfZ??driver.profile?.halfLength??1.33;
+  contact.radius=Math.hypot(contact.halfWidth,contact.halfLength);
+  contact.bottom=(driver.groundHeight||0)+(driver.hop||0)+(bounds?bounds.bottom+(driver.attitude.supportLift||0):.1);
+  contact.rightX=Math.cos(driver.heading||0);contact.rightZ=-Math.sin(driver.heading||0);contact.forwardX=-contact.rightZ;contact.forwardZ=contact.rightX;
+  return contact;
+}
 export function tipPin(body,speed,nx,nz){
   if(body.kind!=='bowling-pin'||speed<.3)return;
   if((body.tipAngle||0)<.15){body.tipAxisX=nz;body.tipAxisZ=-nx;}
@@ -36,6 +44,7 @@ export class PhysicsWorld {
   constructor({ bodies = [], colliders = [] } = {}) {
     this.colliders = colliders;
     this.colliderIndex = new ColliderIndex(colliders);
+    this.carContact = {};
     this.initial = bodies.map((definition, index) => {
       const body = { ...definition, id: definition.id || `prop-${index}`, radius: Math.max(.1, definition.radius || .4), mass: Math.max(.05, definition.mass || 1) };
       body.height = Math.max(.1, definition.height || body.radius * 2);
@@ -86,12 +95,14 @@ export class PhysicsWorld {
     if (!duration) return;
     const steps = Math.ceil(duration * 120), dt = duration / steps;
     const friction = weather === 'snow' ? .75 : weather === 'rain' ? 1.55 : 2.8;
+    const carContact = driver ? carContactFor(driver,this.carContact) : null;
     for(const body of this.bodies)body.impactSpeed=0;
     for (let step = 0; step < steps; step++) {
+      let moving = false;
       for (const body of this.bodies) {
         if (!activeBody(body)) continue;
         if (body.sleeping) {
-          if (driver) this.resolveCar(body, driver);
+          if (driver) this.resolveCar(body, driver, carContact);
           if (body.sleeping) continue;
         }
         body.previousY = body.y;
@@ -122,16 +133,20 @@ export class PhysicsWorld {
           const outward = body.vx * nx + body.vz * nz;
           if (outward > 0) { body.vx -= outward * nx * 1.35; body.vz -= outward * nz * 1.35; }
         }
-        if (driver) this.resolveCar(body, driver);
+        if (driver) this.resolveCar(body, driver, carContact);
         body.vx = clamp(body.vx, -22, 22); body.vz = clamp(body.vz, -22, 22); body.angularVelocity = clamp(body.angularVelocity, -20, 20);
         if (Math.hypot(body.vx, body.vz, body.vy) < .025 && Math.abs(body.angularVelocity) < .025 && Math.abs(body.tipVelocity||0)<.025) body.sleepTime += dt;
         else body.sleepTime = 0;
         if (body.sleepTime > .8) { body.sleeping = true; body.vx = 0; body.vz = 0; body.vy = 0; body.angularVelocity = 0; }
+        if(!body.sleeping)moving=true;
       }
-      const active = this.bodies.filter(activeBody), pairs = new ColliderIndex(active.map(body => ({ ...body, _body: body })));
+      // No body-body work is needed for an island full of sleeping props.
+      // Nearby car contacts above still wake bodies before taking this path.
+      if(!moving)continue;
+      const active = this.bodies.filter(activeBody), pairs = new ColliderIndex(active);
       const checked = new Set();
       for (const a of active) for (const entry of pairs.near(a.x, a.z, a.radius)) {
-        const b = entry._body; if (a === b || (a.sleeping && b.sleeping)) continue;
+        const b = entry; if (a === b || (a.sleeping && b.sleeping)) continue;
         const pair = a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
         if (checked.has(pair)) continue; checked.add(pair); this.resolvePair(a, b);
       }
@@ -175,13 +190,11 @@ export class PhysicsWorld {
       body.angularVelocity *= .75;
     }
   }
-  resolveCar(body, driver) {
-    const aerial=driver.attitude&&(driver.attitude.flying||driver.attitude.recovering),bounds=aerial?driver.attitude.bounds():null;
-    const halfWidth=bounds?.halfX??driver.profile?.halfWidth??.84,halfLength=bounds?.halfZ??driver.profile?.halfLength??1.33;
-    const bottom=(driver.groundHeight||0)+(driver.hop||0)+(bounds?bounds.bottom+(driver.attitude.supportLift||0):.1);
+  resolveCar(body, driver, contact = carContactFor(driver)) {
+    const {bounds,halfWidth,halfLength,bottom,rightX,rightZ,forwardX,forwardZ}=contact;
+    const dx=body.x-driver.x-(bounds?.offsetX||0),dz=body.z-driver.z-(bounds?.offsetZ||0),reach=body.radius+contact.radius;
+    if(dx*dx+dz*dz>reach*reach)return;
     if(body.y+body.height/2<bottom||body.y-body.height/2>bottom+(bounds?bounds.top-bounds.bottom:2.5))return;
-    const rightX = Math.cos(driver.heading || 0), rightZ = -Math.sin(driver.heading || 0), forwardX = Math.sin(driver.heading || 0), forwardZ = Math.cos(driver.heading || 0);
-    const dx=body.x-driver.x-(bounds?.offsetX||0),dz=body.z-driver.z-(bounds?.offsetZ||0);
     const side = bounds?dx:dx * rightX + dz * rightZ, along = bounds?dz:dx * forwardX + dz * forwardZ;
     let sideDelta = side-clamp(side,-halfWidth,halfWidth),alongDelta=along-clamp(along,-halfLength,halfLength);
     const distance = Math.hypot(sideDelta, alongDelta);

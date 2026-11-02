@@ -1,3 +1,4 @@
+import { deviceBudget } from './render-budget.js';
 import { loadCarAssets } from './car-assets.js';
 import { roadSvgPath,ROAD_COLOR,ROAD_SHOULDER_COLOR } from './road-style.js';
 import { VEHICLE_MODELS,vehicleModel } from './vehicle-models.js';
@@ -64,7 +65,7 @@ const panelDrag=createDialogDrag({dialog:panel,handle:$('.panel-topbar'),keyboar
 const drivingHud=createDrivingHud();
 const explorationUI=createExplorationUI({hero:$('.hero'),badge:$('#explore-status'),focusSurface:()=>$('#island-canvas')?.focus({preventScroll:true})});
 let portfolioControls=null;
-let world = null, previousFocus = null, toastTimer = null, speedValue = -1;
+let world = null, previousFocus = null, toastTimer = null, speedValue = -1, carSelectionRequest = 0;
 let projectPlayer=null,projectCarousel=null,carouselRequest=0,topography=null,topographyRequest=0,flyingAction=null,flyingRequest=0;
 const touchControls=createTouchDriving({root:$('#mobile-driving-controls'),onInput:input=>world?.setDriveInput(input)});
 const mobileGameplay=createMobileGameplay({onChange:status=>{state.mobileGameplay=status.active;state.portrait=status.portrait;document.body.classList.toggle('mobile-gameplay',state.mobile&&status.active);syncControls();syncMobileControls();}});
@@ -78,6 +79,7 @@ backgroundMusic = createBackgroundMusic({enabled:state.music,muted:!state.sound,
 backgroundMusic.start();
 let panelShowcase = null, showcaseRequest = 0;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+document.body.classList.toggle('low-power',deviceBudget({hardwareConcurrency:navigator.hardwareConcurrency,deviceMemory:navigator.deviceMemory,saveData:navigator.connection?.saveData}).lowPower);
 const brandTechText = createTechText($('#brand-wordmark'), { text:'long d.', fontSize:21, fontWeight:700, letterSpacing:-.025, align:'left', reach:36, dashLength:2.2, dashGap:1.5, strokeWidth:.65, specks:3, labels:false, draggable:false, clickKick:false, sweep:false, intro:'none' });
 function controlsModel() {
   const musicPlaying=state.musicPlaying??state.music;
@@ -512,13 +514,20 @@ async function performAction(action) {
 function spotlightFromCard(event) { if (state.panel !== 'projects'||projectCarousel?.getState().watching) return; const card = event.target.closest?.('.project-card'); if (card && card.dataset.openProject !== state.spotlightId) selectSpotlight(card.dataset.openProject); }
 document.addEventListener('pointerover', spotlightFromCard);
 document.addEventListener('focusin', spotlightFromCard);
-document.addEventListener('click', event => {
+document.addEventListener('click', async event => {
   const button = event.target.closest('[data-map-category], [data-map-zoom], [data-teleport], [data-car-model], [data-screen-mode], [data-stack-tool], [data-spotlight], [data-demo-time], [data-time-mode], [data-weather], [data-headlights], [data-zoom], [data-go-portal], [data-go-playground], [data-language], [data-action], [data-open-project], [data-drive-project], [data-next-project], [data-filter]');
   if (!button) return;
   if(button.dataset.mapCategory){state.mapCategory=button.dataset.mapCategory==='objects'?'objects':'buildings';state.mapZoom=1;renderPanel();return;}
   if(button.dataset.mapZoom){state.mapZoom=button.dataset.mapZoom==='fit'?1:Math.max(1,Math.min(6,state.mapZoom*(button.dataset.mapZoom==='in'?1.5:1/1.5)));renderPanel();return;}
   if(button.dataset.teleport){const location=mapLocations(state.language).find(l=>l.id===button.dataset.teleport);if(world?.teleportTo(button.dataset.teleport)){closePanel();drivingHud.reveal();engineAudio.update({...engineAudio.motion,paused:false});engineAudio.impact?.('teleport',3);showToast(`${t('teleported')} ${location?.name||''}`);}return;}
-  if(button.dataset.carModel){state.carModel=world?.setCarModel(button.dataset.carModel)||vehicleModel(button.dataset.carModel).id;storage.set('car',state.carModel);closeCarPicker();syncControls();return;}
+  if(button.dataset.carModel){
+    const id=vehicleModel(button.dataset.carModel).id,request=++carSelectionRequest;
+    button.setAttribute('aria-busy','true');
+    await loadCarAssets([id]);
+    button.removeAttribute('aria-busy');
+    if(request!==carSelectionRequest)return;
+    state.carModel=world?.setCarModel(id)||id;storage.set('car',state.carModel);closeCarPicker();syncControls();return;
+  }
   if (button.dataset.screenMode) setShowcaseScreen(button.dataset.screenMode);
   else if (button.dataset.stackTool) selectShowcaseTool(button.dataset.stackTool);
   else if (button.dataset.spotlight) selectSpotlight(button.dataset.spotlight);
@@ -583,7 +592,7 @@ $('#minimap-svg').setAttribute('viewBox',MAP_VIEWBOX);$('#minimap-svg').innerHTM
 
 try {
   const { createWorld } = await import('./world.js');
-  await loadCarAssets();
+  await loadCarAssets([state.carModel]);
   world = createWorld({
     container: $('#world'), carModel:state.carModel, reducedMotion,
     onStart: startExploring,

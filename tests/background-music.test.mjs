@@ -21,11 +21,24 @@ test('late playback cannot restart music after disposal and disabled preferences
 
 test('the default soundtrack is the exact requested local Christmas recording',async()=>{
   let selectedSource;
-  const audio={pause(){},removeAttribute(){},load(){}};
+  const audio={play(){return Promise.resolve();},pause(){},removeAttribute(){},load(){}};
   const player=createBackgroundMusic({enabled:false,audioFactory:source=>{selectedSource=source;return audio;},eventTarget:new Target(),documentTarget:new Target()});
+  assert.equal(selectedSource,undefined,'disabled music does not create a media resource');
+  player.setEnabled(true);await flush();
   assert.equal(selectedSource,'./assets/audio/mixkit-a-very-happy-christmas-897.mp3');
   assert.equal(audio.volume,.16);assert.equal(audio.loop,true);player.dispose();
   const bytes=await readFile(new URL('../src/assets/audio/mixkit-a-very-happy-christmas-897.mp3',import.meta.url));
   assert.equal(bytes.length,4164589);
   assert.equal(createHash('sha256').update(bytes).digest('hex'),'714baa43f1c04e8ca77a8268825ea7e68e958917f5f5fe4c656d83811e1d0c98');
+});
+
+test('initial playback waits for activation without constructing or fetching the soundtrack',async()=>{
+  const events=new Target(),doc=new Target(),activation={hasBeenActive:false,isActive:false};let created=0;
+  const audio={play(){return Promise.resolve();},pause(){},removeAttribute(){},load(){}};
+  const player=createBackgroundMusic({eventTarget:events,documentTarget:doc,activationTarget:activation,audioFactory:()=>{created++;return audio;}});
+  assert.equal(await player.start(),false);assert.equal(created,0);assert.equal(player.getState().blocked,true);
+  doc.fire('visibilitychange');await flush();assert.equal(created,0);
+  events.fire('pointerdown');await flush();assert.equal(created,1);assert.equal(player.getState().playing,true);assert.equal(audio.preload,'none');
+  activation.hasBeenActive=true;doc.hidden=true;doc.fire('visibilitychange');doc.hidden=false;doc.fire('visibilitychange');await flush();assert.equal(created,1);assert.equal(player.getState().playing,true);
+  player.dispose();
 });

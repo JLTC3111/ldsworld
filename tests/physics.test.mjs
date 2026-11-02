@@ -84,6 +84,15 @@ test('moving props collide with each other instead of overlapping', () => {
   assert.ok(world.bodies.every(body => Number.isFinite(body.x + body.y + body.z + body.rotation)));
 });
 
+test('sleeping props skip pair solving until contact wakes them and aerial bounds are shared for the update',()=>{
+  const world=new PhysicsWorld({bodies:[{id:'a',x:0,z:-8,radius:.5,mass:1,initialSleeping:true},{id:'b',x:1.02,z:-8,radius:.5,mass:1,initialSleeping:true}]});
+  let groundChecks=0;const resolve=world.resolveGround.bind(world);world.resolveGround=body=>{groundChecks++;resolve(body);};
+  let boundsChecks=0;const driver={x:80,z:80,heading:0,hop:0,attitude:{flying:true,bounds(){boundsChecks++;return {halfX:1,halfZ:2,bottom:.1,top:2.5};}}};
+  world.update(1/30,driver);assert.equal(groundChecks,0);assert.equal(boundsChecks,1);assert.ok(world.bodies.every(b=>b.sleeping));
+  world.kick('a',{x:-1,z:-8,strength:5});world.update(1/30,driver);
+  assert.ok(world.bodies[1].vx>0);assert.equal(world.bodies[1].sleeping,false);assert.ok(groundChecks>0);
+});
+
 test('solid scenery reflects a moving prop before it crosses the wall', () => {
   const world = new PhysicsWorld({ bodies: [{ x: .4, z: -10, radius: .4, mass: 1 }], colliders: [{ x: 2, z: -10, width: 1, depth: 4 }] });
   world.bodies[0].vx = 5; let reflected = false;

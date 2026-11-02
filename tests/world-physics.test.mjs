@@ -52,6 +52,22 @@ test('instanced shoreline rocks retain their authored depth, scale and shoreline
   world.reset(); syncPhysicsBodies(THREE, world.bodies); rocks.getMatrixAt(0, rendered); assert.ok(rendered.elements.every((value, index) => Math.abs(value - original.elements[index]) < .000001));
 });
 
+test('unchanged instanced props avoid buffer uploads and bounds scans, while movement and parent transforms still sync', () => {
+  const scene=new THREE.Scene(),rocks=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),material,2);scene.add(rocks);
+  rocks.setMatrixAt(0,new THREE.Matrix4().makeTranslation(-8,.62,-8));rocks.setMatrixAt(1,new THREE.Matrix4().makeTranslation(-4,.62,-8));scene.updateMatrixWorld(true);
+  const world=new PhysicsWorld({bodies:createInstancedBodies({THREE,object:rocks})});
+  let scans=0;const compute=rocks.computeBoundingSphere.bind(rocks);rocks.computeBoundingSphere=()=>{scans++;compute();};
+  syncPhysicsBodies(THREE,world.bodies);const version=rocks.instanceMatrix.version;
+  for(let i=0;i<60;i++)syncPhysicsBodies(THREE,world.bodies);
+  assert.equal(rocks.instanceMatrix.version,version);assert.equal(scans,1);
+  world.bodies[0].x+=2;syncPhysicsBodies(THREE,world.bodies);assert.equal(rocks.instanceMatrix.version,version+1);assert.equal(scans,2);
+  const matrix=new THREE.Matrix4();rocks.getMatrixAt(0,matrix);assert.equal(matrix.elements[12],world.bodies[0].x);
+  rocks.position.x=4;scene.updateMatrixWorld(true);syncPhysicsBodies(THREE,world.bodies);assert.equal(scans,3);
+  rocks.getMatrixAt(0,matrix);matrix.premultiply(rocks.matrixWorld);assert.equal(matrix.elements[12],world.bodies[0].x);
+  world.bodies[0].destroyed=true;syncPhysicsBodies(THREE,world.bodies);rocks.getMatrixAt(0,matrix);assert.equal(matrix.determinant(),0);
+  world.restoreBody(world.bodies[0].id);syncPhysicsBodies(THREE,world.bodies);rocks.getMatrixAt(0,matrix);assert.notEqual(matrix.determinant(),0);
+});
+
 test('snow-only objects neither move nor collide when hidden and wake for visible interactions', () => {
   let snow = false;
   const world = new PhysicsWorld({ bodies: [{ id: 'snowman', x: .8, z: -8, radius: .6, height: 2.2, mass: 2, active: () => snow }] });

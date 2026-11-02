@@ -32,6 +32,21 @@ test('residual fires burn for several seconds, freeze on pause, and leave charre
   const flames=f.damage.root.getObjectByName('Residual orange flames'),matrix=new THREE.Matrix4();flames.getMatrixAt(0,matrix);assert.ok(matrix.determinant()>0);
   for(let i=0;i<30;i++)f.damage.update(.1);flames.getMatrixAt(0,matrix);assert.equal(matrix.determinant(),0);f.damage.root.getObjectByName('Charred blast fragments').getMatrixAt(0,matrix);assert.ok(Math.abs(matrix.determinant())>0);f.damage.dispose();
 });
+
+test('idle and settled blast effects stop uploading buffers and reused sites resume animation',()=>{
+  const scene=new THREE.Scene(),physics=new PhysicsWorld(),damage=createBlastDamage({THREE,scene,physics,coarse:true});
+  const buffers=[];damage.root.traverse(object=>{if(object.instanceMatrix)buffers.push(object.instanceMatrix);});
+  const initial=buffers.map(buffer=>buffer.version);damage.update(.1);assert.deepEqual(buffers.map(buffer=>buffer.version),initial);assert.equal(damage.root.visible,false);
+  damage.blast({x:0,z:0});damage.update(.1);assert.ok(buffers.every((buffer,i)=>buffer.version>initial[i]));assert.equal(damage.root.visible,true);
+  for(let i=0;i<80;i++)damage.update(.1);
+  const settled=buffers.map(buffer=>buffer.version),debris=damage.root.getObjectByName('Charred blast fragments'),colorVersion=debris.instanceColor.version;
+  for(let i=0;i<30;i++)damage.update(.1);
+  assert.deepEqual(buffers.map(buffer=>buffer.version),settled);assert.equal(debris.instanceColor.version,colorVersion);
+  assert.equal(debris.visible,true);for(const name of ['Residual orange flames','Residual yellow flame cores','Residual fire embers','Lingering fire smoke'])assert.equal(damage.root.getObjectByName(name).visible,false);
+  // Fill the site pool to reuse an expired site as well as a previously empty one.
+  for(let i=0;i<12;i++)damage.blast({x:i*20,z:0});damage.update(.1);
+  assert.ok(buffers.every((buffer,i)=>buffer.version>settled[i]));damage.dispose();
+});
 test('reset restores exact tree instances and contacts, revives props, and releases effect resources once',()=>{
   const f=fixture(),original=new THREE.Matrix4();f.trunks.getMatrixAt(0,original);f.damage.blast({x:0,z:0});f.damage.reset();f.physics.reset();syncPhysicsBodies(THREE,f.physics.bodies);
   const restored=new THREE.Matrix4();f.trunks.getMatrixAt(0,restored);assert.deepEqual(restored.elements,original.elements);assert.equal(colliderActive(f.colliders[0]),true);assert.equal(f.prop.visible,true);assert.equal(f.physics.kick('crate'),true);assert.equal(f.damage.destroyed.size,0);

@@ -224,3 +224,13 @@ body.mobile-layout .site-header { min-height:65px; padding:12px; }
 .project-flying-button .flying-button__face { background:linear-gradient(180deg,#ffffff14,transparent 46%); }
 .project-flying-button .flying-button__craft:focus-visible { outline:3px solid var(--focus); outline-offset:3px; }
 [data-flying-project] .project-action-fallback { pointer-events:auto; border-radius:999px; }
+
+/* Avoid repeatedly filtering the live canvas on constrained devices. */
+body.low-power :is(.explore-status,.nearby-project,.minimap,.world-settings-button,.panel-topbar,.video-toggle) {
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}
+body.low-power dialog#panel.portfolio-panel::backdrop {
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}

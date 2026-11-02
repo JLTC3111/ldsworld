@@ -681,6 +681,7 @@ export function createTechText(container, {
 
     const tick = now => {
       raf = 0;
+      if (!visible || !alive || document.hidden) return;
       const s = settingsRef.current;
       if (!s) return;
       const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
@@ -872,7 +873,7 @@ export function createTechText(container, {
     };
 
     const wake = () => {
-      if (raf || !visible || !alive) return;
+      if (raf || !visible || !alive || document.hidden) return;
       last = performance.now();
       raf = requestAnimationFrame(tick);
     };
@@ -954,6 +955,7 @@ export function createTechText(container, {
     resizeObserver.observe(container);
     const intersectionObserver = new IntersectionObserver(([entry]) => {
       visible = entry.isIntersecting;
+      if (!visible) { cancelAnimationFrame(raf); raf = 0; }
       wake();
     });
     intersectionObserver.observe(container);
@@ -963,6 +965,11 @@ export function createTechText(container, {
     }
     const schemeQuery = window.matchMedia?.('(prefers-color-scheme: dark)');
     schemeQuery?.addEventListener?.('change', wake);
+    const visibility = () => {
+      if (document.hidden) { cancelAnimationFrame(raf); raf = 0; }
+      else wake();
+    };
+    document.addEventListener?.('visibilitychange', visibility);
     if (document.fonts) document.fonts.ready.then(fontsLoaded, fontsLoaded);
 
     resize();
@@ -975,6 +982,7 @@ export function createTechText(container, {
       intersectionObserver.disconnect();
       themeObserver.disconnect();
       schemeQuery?.removeEventListener?.('change', wake);
+      document.removeEventListener?.('visibilitychange', visibility);
       container.style.cursor = '';
       container.removeEventListener('pointermove', onMove);
       container.removeEventListener('pointerenter', onMove);

@@ -225,6 +225,7 @@ test('clicking the real monitor cycles only configured modes while default calle
   const source=(await readFile(new URL('../src/showcase.js',import.meta.url),'utf8'))
     .replace("import * as THREE from './vendor/three.module.js';",`import * as VENDOR from '${new URL('../src/vendor/three.module.js',import.meta.url).href}';const THREE={...VENDOR,WebGLRenderer:globalThis.__showcaseScreenTestRenderer};`)
     .replace("from './vehicle.js'",`from '${new URL('../src/vehicle.js',import.meta.url).href}'`)
+    .replace("from './render-budget.js'",`from '${new URL('../src/render-budget.js',import.meta.url).href}'`)
     .replaceAll('import.meta.url',JSON.stringify(new URL('../src/showcase.js',import.meta.url).href));
   const runtime=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
   if(rendererDescriptor)Object.defineProperty(globalThis,'__showcaseScreenTestRenderer',rendererDescriptor);else delete globalThis.__showcaseScreenTestRenderer;
@@ -247,4 +248,51 @@ test('clicking the real monitor cycles only configured modes while default calle
     if(originalRaf)Object.defineProperty(globalThis,'requestAnimationFrame',originalRaf);else delete globalThis.requestAnimationFrame;
     if(originalCancel)Object.defineProperty(globalThis,'cancelAnimationFrame',originalCancel);else delete globalThis.cancelAnimationFrame;
   }
+});
+
+test('showcase budgets bound pixels and frame rate, and low-power/reduced-motion displays sleep after a drag',async()=>{
+  const saved=new Map(['__showcaseBudgetRenderer','__showcaseBudgetLoader','navigator','devicePixelRatio','requestAnimationFrame','cancelAnimationFrame'].map(name=>[name,Object.getOwnPropertyDescriptor(globalThis,name)]));
+  let latest,posterLoads=0,sequence=0,tick=performance.now();const frames=new Map();
+  class Renderer {
+    constructor(options){this.options=options;this.shadowMap={};this.domElement={style:{},setAttribute(){},remove(){}};this.draws=0;latest=this;}
+    setPixelRatio(value){this.ratio=value;}setSize(){}dispose(){}forceContextLoss(){this.lost=true;}
+    render(scene,camera){this.draws++;scene.updateMatrixWorld(true);camera.updateMatrixWorld();}
+  }
+  class Loader {load(){posterLoads++;}}
+  const define=(name,value)=>Object.defineProperty(globalThis,name,{configurable:true,value,writable:true});
+  define('__showcaseBudgetRenderer',Renderer);define('__showcaseBudgetLoader',Loader);
+  define('devicePixelRatio',3);define('requestAnimationFrame',callback=>{const id=++sequence;frames.set(id,callback);return id;});define('cancelAnimationFrame',id=>frames.delete(id));
+  const source=(await readFile(new URL('../src/showcase.js',import.meta.url),'utf8'))
+    .replace("import * as THREE from './vendor/three.module.js';",`import * as VENDOR from '${new URL('../src/vendor/three.module.js',import.meta.url).href}';const THREE={...VENDOR,WebGLRenderer:globalThis.__showcaseBudgetRenderer,TextureLoader:globalThis.__showcaseBudgetLoader};`)
+    .replace("from './vehicle.js'",`from '${new URL('../src/vehicle.js',import.meta.url).href}'`)
+    .replace("from './render-budget.js'",`from '${new URL('../src/render-budget.js',import.meta.url).href}'`)
+    .replaceAll('import.meta.url',JSON.stringify(new URL('../src/showcase.js',import.meta.url).href));
+  const runFrames=(count,hz)=>{for(let i=0;i<count;i++){const batch=[...frames.values()];frames.clear();tick+=1000/hz;batch.forEach(callback=>callback(tick));}};
+  let controller;
+  try{
+    const runtime=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
+    withScreenCanvas(()=>{
+      for(const config of [{cores:2,reducedMotion:false},{cores:8,reducedMotion:true},{cores:8,reducedMotion:false}]){
+        define('navigator',{hardwareConcurrency:config.cores,deviceMemory:8});
+        const container=new Container();container.clientWidth=1200;container.clientHeight=1000;container.append=()=>{};container.getBoundingClientRect=()=>({left:0,top:0,width:1200,height:1000});
+        tick=performance.now();controller=runtime.createShowcase({container,project:projects[0],screenModes:['project','stack'],reducedMotion:config.reducedMotion});
+        const renderer=latest;assert.ok(1200*1000*renderer.ratio**2<=600001,'The complete canvas respects its pixel budget');
+        assert.equal(renderer.shadowMap.enabled,config.cores>4);assert.equal(posterLoads,0,'Information screens do not fetch unused poster textures');
+        const still=config.cores<=4||config.reducedMotion;
+        assert.equal(frames.size,still?0:1);
+        if(still){
+          const before=renderer.draws;
+          for(const [type,x]of [['pointerdown',100],['pointermove',150],['pointerup',150]]){const event=new Event(type,{cancelable:true});for(const[key,value]of Object.entries({button:0,pointerId:1,clientX:x,clientY:100}))Object.defineProperty(event,key,{value});container.dispatchEvent(event);}
+          assert.equal(frames.size,1,'Dragging wakes a static display');runFrames(240,60);
+          assert.ok(renderer.draws>before,'Dragging renders the changed model');assert.equal(frames.size,0,'Settled displays release their frame loop');
+          const settled=renderer.draws;controller.setScreen('stack');assert.equal(renderer.draws,settled+1,'Screen changes render while the animation loop sleeps');
+        }else{
+          const before=renderer.draws;runFrames(240,120);
+          assert.ok(renderer.draws-before<=61,'A high refresh display still renders at most 30fps');
+          assert.ok(renderer.draws-before>=50,'The animated display continues to update');
+        }
+        controller.dispose();assert.equal(frames.size,0);assert.equal(renderer.lost,true);controller=null;
+      }
+    });
+  }finally{controller?.dispose();for(const[name,descriptor]of saved){if(descriptor)Object.defineProperty(globalThis,name,descriptor);else delete globalThis[name];}}
 });

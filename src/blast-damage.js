@@ -21,7 +21,7 @@ export function treeBlastTargets({THREE:T,trees,objects}){
 // Registered scenery and loose physics props break and return on individual
 // timers. Buildings and the terrain remain outside the destruction registry.
 export function createBlastDamage({THREE:T,scene,physics,targets=[],coarse=false,reducedMotion=false,onRespawn,onBreak}){
-  const root=new T.Group();root.name='Blast debris and residual fires';root.userData.physicsIgnore=true;scene.add(root);
+  const root=new T.Group();root.name='Blast debris and residual fires';root.userData.physicsIgnore=true;root.visible=false;scene.add(root);
   const count=coarse?12:24,sites=Array.from({length:count},()=>({age:100,used:false}));
   const destroyed=new Set(),snapshots=new Map(),respawns=new Map(),targetById=new Map(targets.map(t=>[t.id,t])),geometries=new Set(),materials=new Set();let disposed=false,clock=0;
   const initialById=new Map(physics.initial.map(body=>[body.id,body]));
@@ -50,7 +50,7 @@ export function createBlastDamage({THREE:T,scene,physics,targets=[],coarse=false
   }
   function ignite({x,z,scale=1,burn=true,kind='wood',ownerId=null}){
     const site=sites.find(s=>!s.used)||sites.reduce((a,b)=>a.age>b.age?a:b);
-    Object.assign(site,{x,z,y:Math.max(.12,driveHeightAt(x,z)),scale:clamp(scale,.5,2.2),age:0,used:true,burn,kind,ownerId});
+    Object.assign(site,{x,z,y:Math.max(.12,driveHeightAt(x,z)),scale:clamp(scale,.5,2.2),age:0,used:true,burn,kind,ownerId,effectsExpired:false,debrisSettled:false});
     return site;
   }
   function destroyBody(body,{burn=false,force=false}={}){
@@ -125,9 +125,10 @@ export function createBlastDamage({THREE:T,scene,physics,targets=[],coarse=false
       });
     });
   }
-  const put=(object,index,x,y,z,sx,sy,sz,rx=0,ry=0,rz=0)=>{dummy.position.set(x,y,z);dummy.rotation.set(rx,ry,rz);dummy.scale.set(sx,sy,sz);dummy.updateMatrix();object.setMatrixAt(index,dummy.matrix);};
+  const dirty=new Set();let debrisColorDirty=false;
+  const put=(object,index,x,y,z,sx,sy,sz,rx=0,ry=0,rz=0)=>{dummy.position.set(x,y,z);dummy.rotation.set(rx,ry,rz);dummy.scale.set(sx,sy,sz);dummy.updateMatrix();object.setMatrixAt(index,dummy.matrix);dirty.add(object);};
   function update(dt,{paused=false,focus={x:0,z:0}}={}){
-    if(disposed||paused)return;dt=clamp(Number(dt)||0,0,.1);clock+=dt;let nearest=Infinity;light.intensity=0;
+    if(disposed||paused)return;dt=clamp(Number(dt)||0,0,.1);clock+=dt;let nearest=Infinity,activeFire=false,activeSmoke=false,activeDebris=false;light.intensity=0;dirty.clear();debrisColorDirty=false;
     // Fallen or displaced props can occupy each other's starting spots. Resolve
     // a ready group together, so those objects cannot permanently block each
     // other's return. Anything blocked by the car stays out of the group.
@@ -137,7 +138,8 @@ export function createBlastDamage({THREE:T,scene,physics,targets=[],coarse=false
     sites.forEach((site,index)=>{
       if(!site.used)return;site.age+=dt;
       const fade=clamp(((site.burn?BLAST_BURN_SECONDS:1.2)-site.age)/1.2,0,1),fire=site.burn?fade:0,base=site.y,age=site.age,s=site.scale;
-      for(let j=0;j<3;j++){
+      activeDebris=true;activeFire||=fire>0;activeSmoke||=fade>0;
+      if(!site.effectsExpired){for(let j=0;j<3;j++){
         const a=j*2.39996+index,h=(.8+Math.sin(clock*9+index+j)*.22)*s*fire,x=site.x+Math.sin(a)*s*.38,z=site.z+Math.cos(a)*s*.38;
         put(outer,index*3+j,x,base+h*.52,z,.4*s*fire,h,.4*s*fire,Math.sin(clock*6+j)*.12,0,Math.cos(clock*7+j)*.12);
         put(inner,index*3+j,x,base+h*.3,z,.21*s*fire,h*.65,.21*s*fire);
@@ -148,16 +150,21 @@ export function createBlastDamage({THREE:T,scene,physics,targets=[],coarse=false
         const rise=(clock*(1+j*.04)+j*.9)%2.5;
         put(embers,index*4+j,site.x+Math.sin(index+j*3+rise)*rise*.3,base+.35+rise*1.5,site.z+Math.cos(index+j*3)*rise*.3,.035*fire,.07*fire,.035*fire,0,j,0);
       }
-      for(let j=0;j<8;j++){
+      site.effectsExpired=fade===0;}
+      // Fragments stay until their owner respawns, but their resting matrices
+      // and colors are static once the short ballistic animation ends.
+      if(!site.debrisSettled){for(let j=0;j<8;j++){
         const a=j*2.39996+index,t=reducedMotion?Math.min(age,.25):Math.min(age,1.1),flight=Math.max(0,(2+j%3)*t-4.5*t*t),r=(.5+j%3)*s*t;
         put(debris,index*8+j,site.x+Math.sin(a)*r,base+.08+flight,site.z+Math.cos(a)*r,(.18+j%2*.13)*s,(site.kind==='tree'?.22:.12)*s,(site.kind==='tree'?.8:.28)*s,t*3+j,j*.7,t*2);
         color.set(['rock','stone','sculpture','portal'].includes(site.kind)?'#686962':site.burn?j%3?'#302a23':'#5b3f29':j%3?'#9a704b':'#bc9365');debris.setColorAt(index*8+j,color);
       }
+      debrisColorDirty=true;site.debrisSettled=age>=(reducedMotion?.25:1.1);}
       const distance=Math.hypot(site.x-focus.x,site.z-focus.z);
       if(fire&&distance<nearest){nearest=distance;light.position.set(site.x,base+1,site.z);light.intensity=(reducedMotion?7:8+Math.sin(clock*11)*1.5)*fire;}
     });
-    for(const object of [outer,inner,smoke,embers,debris])object.instanceMatrix.needsUpdate=true;
-    if(debris.instanceColor)debris.instanceColor.needsUpdate=true;
+    for(const object of dirty)object.instanceMatrix.needsUpdate=true;
+    if(debrisColorDirty&&debris.instanceColor)debris.instanceColor.needsUpdate=true;
+    root.visible=activeDebris;debris.visible=activeDebris;outer.visible=inner.visible=embers.visible=activeFire;smoke.visible=activeSmoke;
     light.intensity=nearest<35?light.intensity:0;
   }
   function reset(){
@@ -169,7 +176,7 @@ export function createBlastDamage({THREE:T,scene,physics,targets=[],coarse=false
     snapshots.clear();for(const body of physics.bodies){if(body.destroyed){body.destroyed=false;if(body.object)body.object.visible=!body.active||body.active();}}
     sites.forEach(s=>{s.used=false;s.age=100;});
     for(const object of [outer,inner,smoke,embers,debris]){for(let i=0;i<object.count;i++)object.setMatrixAt(i,zero);object.instanceMatrix.needsUpdate=true;}
-    light.intensity=0;
+    light.intensity=0;root.visible=false;
   }
   return {root,destroyed,sites,respawns,blast,impact,processImpacts,restore,update,reset,dispose(){if(disposed)return;reset();disposed=true;root.removeFromParent();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());}};
 }

@@ -1,3 +1,4 @@
+import { deviceBudget, pixelRatioFor, createAdaptiveBudget, createRenderLoop } from './render-budget.js';
 import { createCarEnvironment } from './car-lighting.js';
 import { vehicleModel } from './vehicle-models.js';
 import { mapLocations } from './locations.js';
@@ -29,8 +30,9 @@ const rand = (() => { let seed = 8137; return () => { seed = (seed * 16807) % 21
 
 export function createWorld({ container, onStart, onProject, onArrival, onCancelRoute, onStop, onNearby, onFrame, onPortal, onEnvironment, onExplosion, onImpact, carModel='8-ball', reducedMotion = false }) {
   const coarse = matchMedia('(pointer: coarse)').matches;
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, coarse ? 1.5 : 1.8));
+  const quality = createAdaptiveBudget(deviceBudget({hardwareConcurrency:navigator.hardwareConcurrency,deviceMemory:navigator.deviceMemory,saveData:navigator.connection?.saveData,coarse,reducedMotion}));
+  const renderer = new THREE.WebGLRenderer({ antialias: !quality.current.lowPower, alpha: true, powerPreference: quality.current.lowPower?'low-power':'high-performance' });
+  renderer.setPixelRatio(pixelRatioFor(innerWidth,innerHeight,devicePixelRatio,quality.current));
   renderer.setSize(innerWidth, innerHeight);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -55,14 +57,14 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   const panOffset = new THREE.Vector3();
   const lookAt = new THREE.Vector3(-9, 0, -3);
   let viewHeight = 47, exploring = false, night = false, paused = false, wasVisible = true;
-  let animationId, lastTime = performance.now(), nearestId = null, updateFrame = 0;
+  let nearestId = null, updateFrame = 0;
   let language = 'en', smoothedSpeed = 0, headlightsMode = 'auto', winterAmount = 0;
   const hemisphere = new THREE.HemisphereLight('#fff8e8', '#94a184', 1.8);
   scene.add(hemisphere);
   const sun = new THREE.DirectionalLight('#fff4da', 2.3);
   sun.position.set(-26, 48, 24);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(coarse ? 1024 : 2048, coarse ? 1024 : 2048);
+  sun.shadow.mapSize.set(quality.current.shadowSize,quality.current.shadowSize);
   Object.assign(sun.shadow.camera, { left: -43, right: 43, top: 40, bottom: -38, near: 1, far: 120 });
   sun.shadow.normalBias = .035;
   sun.shadow.bias = -.00015;
@@ -533,7 +535,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     if(free(x,z))return [x,z];for(const radius of [2,4,6,8,11])for(let i=0;i<16;i++){const px=x+Math.cos(i/16*Math.PI*2)*radius,pz=z+Math.sin(i/16*Math.PI*2)*radius;if(free(px,pz))return[px,pz];}return null;
   }
   function setCarModel(id){
-    const config=vehicleModel(id);if(vehicle.modelId===config.id)return config.id;stopDriving();driver.settle();const index=interactiveGroups.indexOf(car);vehicle.dispose();vehicle=createVehicle({THREE,scene,reducedMotion,model:config.id,environmentMap:carEnvironment.texture});car=vehicle.root;car.userData.vehicleId=vehicle.modelId;interactiveGroups[index]=car;driver.setVehicleProfile(vehicle.profile);const spot=safeArrival(driver.x,driver.z);if(spot)driver.teleport(...spot);vehicle.update(0,{driver,night:environment.night,headlights:headlightsMode});return config.id;
+    renderLoop.invalidate();const config=vehicleModel(id);if(vehicle.modelId===config.id)return config.id;stopDriving();driver.settle();const index=interactiveGroups.indexOf(car);vehicle.dispose();vehicle=createVehicle({THREE,scene,reducedMotion,model:config.id,environmentMap:carEnvironment.texture});car=vehicle.root;car.userData.vehicleId=vehicle.modelId;interactiveGroups[index]=car;driver.setVehicleProfile(vehicle.profile);const spot=safeArrival(driver.x,driver.z);if(spot)driver.teleport(...spot);vehicle.update(0,{driver,night:environment.night,headlights:headlightsMode});return config.id;
   }
   function teleportTo(id){
     const location=mapLocations(language).find(location=>location.id===id);if(!location)return false;const heading=driver.heading;driver.heading=location.heading??Math.PI/2;const spot=safeArrival(...location.spawn);if(!spot){driver.heading=heading;return false;}
@@ -607,9 +609,9 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     const framing = islandFrame(aspect, orbitYaw, orbitPitch, zoomScale);
     return { aspect, small: innerWidth < 800, targetHeight: framing.height, framing };
   }
-  function resize() { renderer.setSize(innerWidth, innerHeight); }
+  function resize() { renderer.setPixelRatio(pixelRatioFor(innerWidth,innerHeight,devicePixelRatio,quality.current));renderer.setSize(innerWidth, innerHeight);renderLoop.invalidate(); }
   window.addEventListener('resize', resize);
-  const visibility = () => { wasVisible = !document.hidden; if (!wasVisible) navigation.clear(); else lastTime = performance.now(); };
+  const visibility = () => { wasVisible = !document.hidden; if (!wasVisible) navigation.clear();quality.reset();renderLoop.setVisible(wasVisible); };
   document.addEventListener('visibilitychange', visibility);
   function updateCamera(dt) {
     const { aspect, targetHeight, framing } = dimensions();
@@ -641,10 +643,11 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     }
     if (!driver.route.length) targetRing.visible = false;
   }
-  function animate(now) {
-    animationId = requestAnimationFrame(animate);
-    if (!wasVisible) { lastTime = now; return; }
-    const elapsed = Math.min((now - lastTime) / 1000, .05); lastTime = now;
+  function animate(now, elapsed, frameMilliseconds) {
+    if (!paused && quality.sample(frameMilliseconds)) {
+      resize();
+      if(sun.shadow.mapSize.x!==quality.current.shadowSize){sun.shadow.mapSize.set(quality.current.shadowSize,quality.current.shadowSize);sun.shadow.map?.dispose();sun.shadow.map=null;sun.shadow.needsUpdate=true;}
+    }
     const simulationElapsed=elapsed*playground.timeScale();
     const time = now / 1000;
     environment = atmosphere.update(elapsed, { paused, focus:driver });
@@ -689,7 +692,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     }
     // Driving leaves only the physical scene, with no navigation paint over the road.
     if(Math.abs(driver.speed)>.18||driver.hop>.05){routeLine.visible=false;targetRing.visible=false;}
-    updateCamera(elapsed);
+    updateCamera(paused?1:elapsed);
     if (++updateFrame % 5 === 0) {
       updateRoute();
       const nearest = exploring ? projects.reduce((best, project) => Math.hypot(driver.x - project.position[0], driver.z - project.position[1]) < Math.hypot(driver.x - best.position[0], driver.z - best.position[1]) ? project : best, projects[0]) : null;
@@ -704,15 +707,16 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   // Set the final overview before the first paint; avoid a camera fly-in at load.
   viewHeight = dimensions().targetHeight;
   lookAt.set(driver.x * .35, 0, driver.z * .35);
-  updateCamera(1); renderer.render(scene, camera); animationId = requestAnimationFrame(animate);
+  const renderLoop=createRenderLoop({frame:animate,maxFps:()=>quality.current.maxFps});
+  updateCamera(1); renderer.render(scene, camera);renderLoop.setVisible(!document.hidden);
 
   return {
     captureMap,teleportTo,setCarModel,getCarModel:()=>vehicle.modelId,
     start() { begin(); renderer.domElement.focus({ preventScroll: true }); },
-    reset() { impactTimes.clear();driver.reset();driver.setVehicleProfile(vehicle.profile); navigation.clear(); resetView();blastDamage.reset();playground.reset(); physics.reset(); portalSystem.reset(); syncProps(); scenery.reset(); updateRoute(); onCancelRoute?.(); },
-    overview() { exploring = false; driver.cancelRoute(); navigation.clear(); resetView(); driver.speed = 0; driver.hop = 0; driver.hopVelocity = 0; driver.jumpPending=false;driver.jumpCharge=0;driver.hydraulicOffset=0;driver.hydraulicVelocity=0;driver.hydraulicPhase='idle';driver.jumpCooldown=0;driver.landingTime=0;driver.groundHeight = Math.max(0, bridgeHeightAt(driver.x, driver.z) - .1); driver.groundVelocity = 0;driver.settle(); nearestId = null; onNearby?.(null); },
-    setPaused(value) { paused = value; driveInput={throttleAxis:0,steerAxis:0};navigation.clear(); driver.speed = 0;driver.vx=0;driver.vz=0;driver.boosting=false; dust.forEach(p => { p.age = 1; p.object.position.y = -10; }); },
-    setLanguage(value) { language = value === 'vi' ? 'vi' : 'en';projectLabels.setLanguage(language);wayfinding.setLanguage(language); renderer.domElement.setAttribute('aria-label', copy[language].canvasAria); translatedBoards.forEach(board => board.draw(copy[language][board.key])); },
+    reset() { renderLoop.invalidate();impactTimes.clear();driver.reset();driver.setVehicleProfile(vehicle.profile); navigation.clear(); resetView();blastDamage.reset();playground.reset(); physics.reset(); portalSystem.reset(); syncProps(); scenery.reset(); updateRoute(); onCancelRoute?.(); },
+    overview() { renderLoop.invalidate();exploring = false; driver.cancelRoute(); navigation.clear(); resetView(); driver.speed = 0; driver.hop = 0; driver.hopVelocity = 0; driver.jumpPending=false;driver.jumpCharge=0;driver.hydraulicOffset=0;driver.hydraulicVelocity=0;driver.hydraulicPhase='idle';driver.jumpCooldown=0;driver.landingTime=0;driver.groundHeight = Math.max(0, bridgeHeightAt(driver.x, driver.z) - .1); driver.groundVelocity = 0;driver.settle(); nearestId = null; onNearby?.(null); },
+    setPaused(value) { if(paused===!!value)return;paused = !!value;quality.reset();renderLoop.setPaused(paused); driveInput={throttleAxis:0,steerAxis:0};navigation.clear(); driver.speed = 0;driver.vx=0;driver.vz=0;driver.boosting=false; dust.forEach(p => { p.age = 1; p.object.position.y = -10; }); },
+    setLanguage(value) { language = value === 'vi' ? 'vi' : 'en';projectLabels.setLanguage(language);wayfinding.setLanguage(language);renderLoop.invalidate(); renderer.domElement.setAttribute('aria-label', copy[language].canvasAria); translatedBoards.forEach(board => board.draw(copy[language][board.key])); },
     setKey(key, pressed) { if (paused) return; begin(); pressed ? keys.add(key) : keys.delete(key); },
     setDriveInput({throttle=0,steer=0,smoothDrive=false}={}){driveInput=paused?{throttleAxis:0,steerAxis:0}:{throttleAxis:THREE.MathUtils.clamp(Number(throttle)||0,-1,1),steerAxis:THREE.MathUtils.clamp(Number(steer)||0,-1,1),smoothDrive};if(!paused&&(Math.abs(throttle)>.01||Math.abs(steer)>.01))begin();},
     setTiltInput(input){this.setDriveInput(input);},
@@ -721,17 +725,17 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     hydraulics(){if(!paused)return driver.toggleHydraulics();},
     jump() { if(!paused){begin();return driver.jump();}return false; },
     stopDriving,
-    setNight(value) { environment = atmosphere.setTimeMode(value ? 'night' : 'day'); },
-    setTimeMode(mode) { environment = atmosphere.setTimeMode(mode); return environment; },
-    setWeather(mode) { environment = atmosphere.setWeather(mode); return environment; },
-    setHeadlightsMode(mode) { if (['auto', 'on', 'off'].includes(mode)) headlightsMode = mode; },
+    setNight(value) { environment = atmosphere.setTimeMode(value ? 'night' : 'day');renderLoop.invalidate(); },
+    setTimeMode(mode) { environment = atmosphere.setTimeMode(mode);renderLoop.invalidate(); return environment; },
+    setWeather(mode) { environment = atmosphere.setWeather(mode);renderLoop.invalidate(); return environment; },
+    setHeadlightsMode(mode) { if (['auto', 'on', 'off'].includes(mode)) {headlightsMode = mode;renderLoop.invalidate();} },
     getEnvironment() { return atmosphere.getState(); },
     goToPlayground(id){const approach=PLAYGROUND_APPROACHES[id];if(!approach)return;begin();driver.navigate(approach.stop,null);driver.route.push(...approach.points.slice(1).map(point=>[...point]));driver.routeDurationLimit=driver.routeBudget();onCancelRoute?.();updateRoute();},
     goToPortal,
-    zoomBy(amount) { zoomScale = clampZoom(zoomScale * Math.exp(amount)); },
-    resetCamera: resetView,
+    zoomBy(amount) { zoomScale = clampZoom(zoomScale * Math.exp(amount));updateCamera(1);renderLoop.invalidate(); },
+    resetCamera() { resetView();updateCamera(1);renderLoop.invalidate(); },
     dispose() {
-      cancelAnimationFrame(animationId); clearKeys();
+      renderLoop.dispose(); clearKeys();
       navigation.dispose(); window.removeEventListener('resize', resize); document.removeEventListener('visibilitychange', visibility);
       for (const [event, listener] of Object.entries(hoverListeners)) surface.removeEventListener(event, listener);
       // Snowman geometry is owned by islandLife even after its bodies are reparented.
