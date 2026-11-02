@@ -1,10 +1,11 @@
+import { createMapAtlas, encodeMapBitmap } from './map-atlas.js';
 import { deviceBudget, pixelRatioFor, createAdaptiveBudget, createRenderLoop } from './render-budget.js';
 import { createCarEnvironment } from './car-lighting.js';
 import { vehicleModel } from './vehicle-models.js';
 import { mapLocations } from './locations.js';
 import * as THREE from './vendor/three.module.js';
 import { projects, copy } from './data.js';
-import { Driver, roadLoop, outerRoadLoop, roadNodes, connectorPaths, drivingSurfaceAt } from './driving.js';
+import { Driver, roadLoop, outerRoadLoop, roadNodes, connectorPaths, projectPaths, drivingSurfaceAt } from './driving.js';
 import { bindNavigation } from './controls.js';
 import { createProjectLabels } from './project-labels.js';
 import { ROAD_COLOR,ROAD_SHOULDER_COLOR,createRoadCurve,createRoadGeometry } from './road-style.js';
@@ -20,7 +21,7 @@ import { createTreeDetails, collectTreeInstances } from './tree-details.js';
 import { createSuppliedScenery } from './supplied-scenery.js';
 import { PortalSystem } from './physics.js';
 import { createVehicle } from './vehicle.js';
-import { bridges, bridgeHeightAt, isRiver, houses, portals, ROAD_WIDTHS, WORLD_SCALE, ISLAND_BOUNDS, islandRadius, LANDMARKS, isWater, MAP_BOUNDS } from './world-layout.js';
+import { bridges, bridgeHeightAt, isRiver, houses, portals, ROAD_WIDTHS, PROJECT_DRIVEWAY_WIDTH, WORLD_SCALE, ISLAND_BOUNDS, islandRadius, LANDMARKS, isWater, MAP_BOUNDS } from './world-layout.js';
 import { islandFrame, constrainIslandFocus, keepVehicleVisible, clampZoom } from './camera-framing.js';
 
 const colors = { grass: '#b7c49c', sand: '#e0d3b0', road: ROAD_COLOR, sea: '#e2e8dc', cream: '#eae4cb', dark: '#3d5146', leaf: '#7a9365', pine: '#698264', trunk: '#94785a', glass: '#8da9a1', yellow: '#d8b45d' };
@@ -152,7 +153,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   const island = mesh(shoreGeo, [mat(colors.grass), mat(colors.sand)], land, 0, -1.5, 0);
   island.rotation.x = -Math.PI / 2; island.scale.set(WORLD_SCALE,WORLD_SCALE,1); island.name='Expanded island terrain';
   const sea = mesh(new THREE.PlaneGeometry(MAP_BOUNDS.x*4,MAP_BOUNDS.z*4), mat(colors.sea), scene, 0, -1.5, 0, false); sea.rotation.x = -Math.PI / 2;
-  const atmosphere = createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill, sea, coarse, reducedMotion });
+  const atmosphere = createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill, sea, camera, coarse, reducedMotion });
   const weatherOverlay=createWeatherOverlay({container,reducedMotion});
   const flyover = createFlyover({ THREE, scene, reducedMotion, coarse });
   let environment = atmosphere.getState();
@@ -175,6 +176,9 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   road(outerRoadLoop,ROAD_WIDTHS.shoulder,true,ROAD_SHOULDER_COLOR,.055);
   road(outerRoadLoop,ROAD_WIDTHS.ring,true);
   for(const path of connectorPaths)road(path.map(key=>roadNodes[key]),ROAD_WIDTHS.spine);
+  for(const path of projectPaths){
+    const points=path.map(key=>roadNodes[key]);road(points,PROJECT_DRIVEWAY_WIDTH+1,false,ROAD_SHOULDER_COLOR,.055);road(points,PROJECT_DRIVEWAY_WIDTH);
+  }
   road([roadNodes.r2, [-.75, -9], [-.75, -6.8], [0, -3], roadNodes.c0, [0, 6], roadNodes.r8], ROAD_WIDTHS.spine, false);
   road([roadNodes.r11, [-10, 0], roadNodes.c0, [10, 0], roadNodes.r5], ROAD_WIDTHS.spine, false);
   for(let i=0;i<68;i++){
@@ -305,14 +309,14 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / (dx * dx + dz * dz)));
     return Math.hypot(x - a[0] - dx * t, z - a[1] - dz * t);
   };
-  const onRoad = (x, z) => roadLoop.some((p, i) => segmentDistance(x, z, p, roadLoop[(i + 1) % roadLoop.length]) < 10) || (Math.abs(x)<10&&Math.abs(z)<20) || (Math.abs(z)<10&&Math.abs(x)<27) || outerRoadLoop.some((p,i)=>segmentDistance(x,z,p,outerRoadLoop[(i+1)%12])<10) || connectorPaths.some(path=>path.slice(1).some((key,i)=>segmentDistance(x,z,roadNodes[path[i]],roadNodes[key])<10));
+  const onRoad = (x, z) => roadLoop.some((p, i) => segmentDistance(x, z, p, roadLoop[(i + 1) % roadLoop.length]) < 10) || (Math.abs(x)<10&&Math.abs(z)<20) || (Math.abs(z)<10&&Math.abs(x)<27) || outerRoadLoop.some((p,i)=>segmentDistance(x,z,p,outerRoadLoop[(i+1)%12])<10) || connectorPaths.some(path=>path.slice(1).some((key,i)=>segmentDistance(x,z,roadNodes[path[i]],roadNodes[key])<10)) || projectPaths.some(([a,b])=>segmentDistance(x,z,roadNodes[a],roadNodes[b])<7);
   const nearBridge=(x,z)=>bridges.some(b=>{const dx=x-b.x,dz=z-b.z;return Math.abs(dx*Math.cos(b.heading)-dz*Math.sin(b.heading))<b.width/2+3.5&&Math.abs(dx*Math.sin(b.heading)+dz*Math.cos(b.heading))<b.length/2+7;});
   for (let i = 0; i < 1600 && treePositions.length < (coarse ? 4 : 6); i++) {
     const x = (rand() - .5) * 54, z = (rand() - .5) * 40;
     if (Math.hypot(x / 27, z / 20) > .97 || onRoad(x, z) || nearBridge(x,z) || isRiver(x, z, 2)) continue;
     if (reservesIslandLifeSpace(x,z)) continue;
     if (houses.some(h => Math.abs(x - h.x) < 3.2*(h.scale||1) && Math.abs(z - h.z) < 3*(h.scale||1))) continue;
-    if (portals.some(p => Math.hypot(x - p.x, z - p.z) < 3 || Math.hypot(x - p.exitX, z - p.exitZ) < 2.5)) continue;
+    if (portals.some(p => Math.hypot(x - p.x, z - p.z) < 3*p.scale || Math.hypot(x - p.exitX, z - p.exitZ) < 2.5)) continue;
     if (projects.some(p => Math.abs(x - p.position[0]) < p.footprint[0] / 2 + 1.8 && Math.abs(z - p.position[1]) < p.footprint[1] / 2 + 1.8)) continue;
     if (Math.hypot(x - 22, z + 12) < 3 || Math.hypot(x + 21, z - 12) < 4) continue;
     if (treePositions.some(p => Math.hypot(x - p.x, z - p.z) < 5)) continue;
@@ -323,8 +327,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   for(let i=0;i<5000&&treePositions.length<forestTarget;i++){
     const x=(rand()-.5)*(ISLAND_BOUNDS.x-5)*2,z=(rand()-.5)*(ISLAND_BOUNDS.z-5)*2;
     if(Math.hypot(x/30,z/24)<1.15||islandRadius(x,z,5)>.97||nearBridge(x,z)||isRiver(x,z,2))continue;
-    if(outerRoadLoop.some((a,j)=>segmentDistance(x,z,a,outerRoadLoop[(j+1)%12])<10))continue;
-    if(connectorPaths.some(path=>path.slice(1).some((key,i)=>segmentDistance(x,z,roadNodes[path[i]],roadNodes[key])<10)))continue;
+    if(onRoad(x,z))continue;
     if(houses.some(h=>Math.hypot(x-h.x,z-h.z)<7)||projects.some(p=>Math.abs(x-p.position[0])<p.footprint[0]/2+4&&Math.abs(z-p.position[1])<p.footprint[1]/2+4))continue;
     if(treePositions.some(t=>Math.hypot(x-t.x,z-t.z)<10))continue;
     treePositions.push({x,z,scale:1.4+rand()*.8,round:rand()>.72});
@@ -336,6 +339,14 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   const sparseTrees=treePositions.filter(tree=>tree.round||pineSerial++%4===0);
   // Broadleaf trees frame the western woodland.
   sparseTrees.push({x:-57,z:23,scale:1.5,round:true,rotation:.3},{x:-51,z:35,scale:1.6,round:true,rotation:.8});
+  // Small mixed groves frame the inner project plots without filling their
+  // entrances, neighboring cottages, river banks or the new access lanes.
+  for(const [x,z]of [[-16,-43],[-33,-53],[44,-43],[22,-39],[76,-11],[51,41],[30,36],[-50,32],[-29,40],[-70,-7],[-67,-20]]){
+    if(onRoad(x,z)||isRiver(x,z,3)||nearBridge(x,z))continue;
+    if(projects.some(p=>Math.abs(x-p.position[0])<p.footprint[0]/2+3&&Math.abs(z-p.position[1])<p.footprint[1]/2+3))continue;
+    if(houses.some(h=>Math.abs(x-h.x)<6&&Math.abs(z-h.z)<6)||sparseTrees.some(tree=>Math.hypot(tree.x-x,tree.z-z)<6))continue;
+    sparseTrees.push({x,z,scale:1.4+rand()*.5,round:true,rotation:rand()*Math.PI*2,landscaped:true});
+  }
   treePositions.splice(0,treePositions.length,...sparseTrees);
   const pineCount = treePositions.filter(t => !t.round).length;
   const roundCount = treePositions.length - pineCount;
@@ -454,8 +465,9 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   const pointerPoint = new THREE.Vector3();
   const surface = renderer.domElement, hoverPointers = new Set();
   const interactiveGroups = [...landmarkGroups,projectLabels.root,...scenery.portalGroups,car];
+  const mapAtlas=createMapAtlas({capture:captureMapBitmap});
   const suppliedScenery=createSuppliedScenery({THREE,scene,trees:treePositions,treeTargets,scenery,islandLife,lowPower:quality.current.lowPower,reducedMotion,
-    onReady:()=>renderLoop.invalidate()});
+    onReady:()=>{mapAtlas.invalidate();renderLoop.invalidate();}});
   function begin() {
     if (!exploring) { exploring = true; onStart?.(); }
   }
@@ -510,36 +522,42 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     const location=mapLocations(language).find(location=>location.id===id);if(!location)return false;const heading=driver.heading;driver.heading=location.heading??Math.PI/2;const spot=safeArrival(...location.spawn);if(!spot){driver.heading=heading;return false;}
     begin();navigation.clear();driver.teleport(...spot,location.heading??Math.PI/2);portalSystem.cooldown=2;portalSystem.armed=false;panOffset.set(0,0,0);nearestId=null;onNearby?.(null);onCancelRoute?.();updateRoute();vehicle.update(0,{driver,night:environment.night,headlights:headlightsMode});updateCamera(1);return true;
   }
-  function captureMap({x=0,z=0,halfWidth=MAP_BOUNDS.x,halfHeight=MAP_BOUNDS.z}={}){
-    const altitude=Math.max(halfWidth,halfHeight)*2+100;
-    const mapCamera=new THREE.OrthographicCamera(-halfWidth,halfWidth,halfHeight,-halfHeight,.1,altitude+500);mapCamera.up.set(0,0,-1);mapCamera.position.set(x,altitude,z);mapCamera.lookAt(x,0,z);mapCamera.updateMatrixWorld();
-    const fog=scene.fog,background=scene.background,sky=hemisphere.intensity,sunlight=sun.intensity,fillLight=fill.intensity,hidden=[],savedColors=[],savedUniforms=[];
-    const sunPosition=sun.position.clone(),sunTarget=sun.target.position.clone(),shadowCamera=sun.shadow.camera,shadow={left:shadowCamera.left,right:shadowCamera.right,top:shadowCamera.top,bottom:shadowCamera.bottom,near:shadowCamera.near,far:shadowCamera.far};
-    const oldSize=renderer.getSize?.(new THREE.Vector2()),oldRatio=renderer.getPixelRatio?.();
+  async function captureMapBitmap(){
+    if(typeof globalThis.createImageBitmap!=='function')return null;
+    const halfWidth=MAP_BOUNDS.x,halfHeight=MAP_BOUNDS.z,altitude=Math.max(halfWidth,halfHeight)*2+100;
+    const mapCamera=new THREE.OrthographicCamera(-halfWidth,halfWidth,halfHeight,-halfHeight,.1,altitude+500);mapCamera.up.set(0,0,-1);mapCamera.position.set(0,altitude,0);mapCamera.lookAt(0,0,0);mapCamera.updateMatrixWorld();
+    const background=scene.background,sky=hemisphere.intensity,sunlight=sun.intensity,fillLight=fill.intensity,exposure=renderer.toneMappingExposure;
+    const fog=scene.fog,fogNear=fog?.near,fogFar=fog?.far,hidden=[],savedColors=[],savedUniforms=[];
+    const autoShadow=renderer.shadowMap.autoUpdate,dirtyShadow=renderer.shadowMap.needsUpdate;
     const clearAlpha=renderer.getClearAlpha(),clearColor=renderer.getClearColor(new THREE.Color()).clone();
     const tint=(color,value)=>{savedColors.push([color,color.clone()]);color.set(value);};
+    const excluded=new Set([car,carShadow,routeLine,targetRing,...dust.map(p=>p.object)]);
     scene.traverse(object=>{
-      if(['island-atmosphere','island-flyover','Project rooftop typography','Frosted canopy tips','Vehicle studio lights'].includes(object.name)||object.material===winterMaterial||object.userData.atlasSnow){hidden.push([object,object.visible]);object.visible=false;}
+      if(excluded.has(object)||['island-atmosphere','island-flyover','Project rooftop typography','Frosted canopy tips','Vehicle studio lights','Weather ground patches'].includes(object.name)||object.material===winterMaterial||object.userData.atlasSnow){hidden.push([object,object.visible]);object.visible=false;}
       const uniforms=object.material?.uniforms;
       if(uniforms?.uDaylight){savedUniforms.push([uniforms.uDaylight,uniforms.uDaylight.value]);uniforms.uDaylight.value=1;}
       if(uniforms?.uRain){savedUniforms.push([uniforms.uRain,uniforms.uRain.value]);uniforms.uRain.value=0;}
       if(uniforms?.uSky){savedColors.push([uniforms.uSky.value,uniforms.uSky.value.clone()]);uniforms.uSky.value.set('#b9dedc');}
     });
+    let bitmap;
     try{
-      scene.fog=null;scene.background=null;renderer.setClearColor(0x000000,0);
+      // Reuse the existing drawing buffer and shader variants. Moving the fog
+      // out of range avoids recompiling every material without fog.
+      if(fog){fog.near=10000;fog.far=20000;}
+      scene.background=null;renderer.setClearColor(0x000000,0);renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=false;
       hidden.push([sea,sea.visible]);sea.visible=false;
       tint(island.material[0].color,'#91a765');tint(island.material[1].color,'#dcb985');tint(pond.material.color,'#63b7bb');tint(hemisphere.color,'#fff5df');tint(hemisphere.groundColor,'#788a61');tint(sun.color,'#fff1d2');
-      hemisphere.intensity=2;sun.intensity=2.7;fill.intensity=.9;sun.position.set(-90,140,100);sun.target.position.set(0,0,0);
-      Object.assign(shadowCamera,{left:-195,right:195,top:170,bottom:-170,near:1,far:400});shadowCamera.updateProjectionMatrix();sun.shadow.needsUpdate=true;
-      if(oldSize&&Number.isFinite(oldRatio)){renderer.setPixelRatio(1);renderer.setSize(1536,Math.round(1536*halfHeight/halfWidth),false);}
-      renderer.render(scene,mapCamera);const picture=renderer.domElement.toDataURL?.('image/png');return typeof picture==='string'&&picture.startsWith('data:image/png')?picture:'';
-    }catch{return '';}finally{
-      scene.fog=fog;scene.background=background;renderer.setClearColor(clearColor,clearAlpha);hemisphere.intensity=sky;sun.intensity=sunlight;fill.intensity=fillLight;
+      hemisphere.intensity=2;sun.intensity=2.7;fill.intensity=.9;renderer.toneMappingExposure=1.05;
+      renderer.render(scene,mapCamera);bitmap=globalThis.createImageBitmap(renderer.domElement);
+    }finally{
+      scene.background=background;if(fog){fog.near=fogNear;fog.far=fogFar;}
+      renderer.setClearColor(clearColor,clearAlpha);renderer.shadowMap.autoUpdate=autoShadow;renderer.shadowMap.needsUpdate=dirtyShadow;
+      hemisphere.intensity=sky;sun.intensity=sunlight;fill.intensity=fillLight;renderer.toneMappingExposure=exposure;
       savedColors.forEach(([color,value])=>color.copy(value));savedUniforms.forEach(([uniform,value])=>uniform.value=value);hidden.forEach(([object,visible])=>object.visible=visible);
-      sun.position.copy(sunPosition);sun.target.position.copy(sunTarget);Object.assign(shadowCamera,shadow);shadowCamera.updateProjectionMatrix();sun.shadow.needsUpdate=true;
-      if(oldSize&&Number.isFinite(oldRatio)){renderer.setPixelRatio(oldRatio);renderer.setSize(oldSize.x,oldSize.y,false);}
       renderer.render(scene,camera);
     }
+    const width=coarse?768:1024;
+    return encodeMapBitmap(await bitmap,{width,height:Math.round(width*halfHeight/halfWidth)});
   }
   function resetView() { orbitYaw = defaultYaw; orbitPitch = defaultPitch; zoomScale = 1; panOffset.set(0, 0, 0); }
   let driveInput={throttleAxis:0,steerAxis:0};
@@ -598,7 +616,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     lookAt.set(safeFocus.x, 0, safeFocus.z);
     cameraOffset.set(Math.sin(orbitYaw) * Math.cos(orbitPitch), Math.sin(orbitPitch), Math.cos(orbitYaw) * Math.cos(orbitPitch)).multiplyScalar(cameraDistance);
     camera.left = -viewHeight * aspect / 2; camera.right = viewHeight * aspect / 2; camera.top = viewHeight / 2; camera.bottom = -viewHeight / 2;
-    camera.position.copy(lookAt).add(cameraOffset); camera.lookAt(lookAt); camera.updateProjectionMatrix(); camera.updateMatrixWorld();
+    camera.position.copy(lookAt).add(cameraOffset); camera.lookAt(lookAt); camera.updateProjectionMatrix(); camera.updateMatrixWorld();atmosphere.updateSky(camera);
   }
   function updateRoute() {
     routeLine.visible = driver.route.length > 0 && Math.abs(driver.speed)<=.18 && driver.hop<=.05;
@@ -674,7 +692,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
   updateCamera(1); renderer.render(scene, camera);renderLoop.setVisible(!document.hidden);
 
   return {
-    captureMap,teleportTo,setCarModel,getCarModel:()=>vehicle.modelId,
+    captureMap:mapAtlas.capture,getMapImage:mapAtlas.getImage,teleportTo,setCarModel,getCarModel:()=>vehicle.modelId,
     start() { begin(); renderer.domElement.focus({ preventScroll: true }); },
     reset() { renderLoop.invalidate();driver.reset();driver.setVehicleProfile(vehicle.profile); navigation.clear(); resetView();portalSystem.reset();scenery.reset(); updateRoute(); onCancelRoute?.(); },
     overview() { renderLoop.invalidate();exploring = false; driver.cancelRoute(); navigation.clear(); resetView(); driver.speed = 0; driver.hop = 0; driver.hopVelocity = 0; driver.jumpPending=false;driver.jumpCharge=0;driver.hydraulicOffset=0;driver.hydraulicVelocity=0;driver.hydraulicPhase='idle';driver.jumpCooldown=0;driver.landingTime=0;driver.groundHeight = Math.max(0, bridgeHeightAt(driver.x, driver.z) - .1); driver.groundVelocity = 0;driver.settle(); nearestId = null; onNearby?.(null); },
@@ -699,7 +717,7 @@ export function createWorld({ container, onStart, onProject, onArrival, onCancel
     dispose() {
       renderLoop.dispose(); clearKeys();
       suppliedScenery.dispose();
-      weatherOverlay.dispose();
+      weatherOverlay.dispose();mapAtlas.dispose();
       navigation.dispose(); window.removeEventListener('resize', resize); document.removeEventListener('visibilitychange', visibility);
       for (const [event, listener] of Object.entries(hoverListeners)) surface.removeEventListener(event, listener);
       projectLabels.dispose();scenery.bridgeGroups.forEach(({bridge})=>delete bridge.active);boundary.dispose();wayfinding.dispose();nightFires.dispose();scenery.dispose(); atmosphere.dispose(); flyover.dispose(); vehicle.dispose();carEnvironment.dispose(); islandLife.dispose(); detailedTrees.dispose();

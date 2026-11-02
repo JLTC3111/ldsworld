@@ -15,13 +15,14 @@ class Surface extends EventTarget {
 }
 
 test('the live world keeps scenery static, supports navigation, and suspends paused or hidden frames',async t=>{
-  let renderer,clock=0,serial=0,world;const queue=new Map(),frames=[],impacts=[],arrivals=[],portals=[],opened=[];
+  let renderer,clock=0,serial=0,world,bitmapReads=0,bitmapCloses=0;const queue=new Map(),frames=[],impacts=[],arrivals=[],portals=[],opened=[];
   class Renderer {
-    constructor(options){renderer=this;this.options=options;this.shadowMap={};this.domElement=new Surface();this.renders=0;}
+    constructor(options){renderer=this;this.options=options;this.shadowMap={autoUpdate:true,needsUpdate:false};this.domElement=new Surface();this.renders=0;this.mapRenders=0;this.sizes=0;this.color=new THREE.Color('#123456');this.alpha=.4;}
     setPixelRatio(value){this.ratio=value;}getPixelRatio(){return this.ratio;}
-    setSize(width,height){this.width=width;this.height=height;}
+    setSize(width,height){this.width=width;this.height=height;this.sizes++;}
     getSize(target){return target.set(this.width,this.height);}
-    render(scene,camera){scene.updateMatrixWorld(true);camera.updateMatrixWorld();this.scene=scene;this.camera=camera;this.renders++;}
+    getClearAlpha(){return this.alpha;}getClearColor(color){return color.copy(this.color);}setClearColor(color,alpha){this.color.set(color);this.alpha=alpha;}
+    render(scene,camera){scene.updateMatrixWorld(true);camera.updateMatrixWorld();this.scene=scene;this.camera=camera;this.renders++;if(camera.up.z===-1){this.mapRenders++;assert.equal(scene.background,null);assert.equal(scene.fog.near,10000);assert.equal(this.shadowMap.autoUpdate,false);assert.equal(scene.children.find(object=>object.userData.vehicleId).visible,false);}}
     dispose(){this.disposed=true;}
   }
   const windowTarget=new EventTarget(),documentTarget=new EventTarget();
@@ -31,7 +32,9 @@ test('the live world keeps scenery static, supports navigation, and suspends pau
     navigator:{hardwareConcurrency:4,deviceMemory:4},innerWidth:1920,innerHeight:1080,devicePixelRatio:2,
     matchMedia:()=>({matches:false}),performance:{now:()=>clock},
     requestAnimationFrame:callback=>{queue.set(++serial,callback);return serial;},
-    cancelAnimationFrame:id=>queue.delete(id)
+    cancelAnimationFrame:id=>queue.delete(id),
+    createImageBitmap:()=>{bitmapReads++;return Promise.resolve({close(){bitmapCloses++;}});},
+    OffscreenCanvas:class{getContext(){return {drawImage(){}};}async convertToBlob(){return new Blob(['atlas'],{type:'image/webp'});}}
   };
   const originals=new Map(Object.keys(globals).map(key=>[key,Object.getOwnPropertyDescriptor(globalThis,key)]));
   for(const [key,value]of Object.entries(globals))Object.defineProperty(globalThis,key,{configurable:true,writable:true,value});
@@ -114,6 +117,13 @@ test('the live world keeps scenery static, supports navigation, and suspends pau
       world.driveToProject(project.id);for(let frame=0;frame<1800&&!arrivals.includes(project.id);frame++)tick();assert.ok(arrivals.includes(project.id),'guided project tours arrive');
       world.reset();world.goToPortal('west-gate');for(let frame=0;frame<1800&&!portals.length;frame++)tick();assert.ok(portals.includes('west-gate'),'portals still transport the car');
       for(const location of mapLocations())assert.equal(world.teleportTo(location.id),true,location.id);
+    }
+    { // Background atlas capture never resizes the live canvas and restores all scene state.
+      const sky=renderer.scene.background.clone(),fog=renderer.scene.fog.clone(),size=renderer.sizes,ratio=renderer.ratio,exposure=renderer.toneMappingExposure,mainCamera=renderer.camera;
+      const car=renderer.scene.children.find(object=>object.userData.vehicleId),visibility=car.visible;
+      const first=world.captureMap();assert.equal(first,world.captureMap());const image=await first;assert.match(image,/^blob:/);
+      assert.equal(world.getMapImage(),image);assert.equal(await world.captureMap(),image);assert.equal(renderer.mapRenders,1);assert.equal(bitmapReads,1);assert.equal(bitmapCloses,1);
+      assert.equal(renderer.sizes,size);assert.equal(renderer.ratio,ratio);assert.equal(renderer.camera,mainCamera);assert.equal(renderer.scene.background.getHex(),sky.getHex());assert.equal(renderer.scene.fog.near,fog.near);assert.equal(renderer.scene.fog.far,fog.far);assert.equal(renderer.toneMappingExposure,exposure);assert.equal(car.visible,visibility);assert.equal(renderer.shadowMap.autoUpdate,true);assert.equal(renderer.color.getHexString(),'123456');assert.equal(renderer.alpha,.4);
     }
     world.dispose();world=null;assert.equal(overlays[0].removed,true);assert.equal(queue.size,0);assert.equal(renderer.disposed,true);assert.equal(renderer.domElement.removed,true);
     windowTarget.dispatchEvent(new Event('resize'));visibility(false);assert.equal(queue.size,0,'disposal removes frame-producing listeners');

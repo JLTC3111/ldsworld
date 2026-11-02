@@ -1,5 +1,4 @@
-import { ROAD_WIDTHS,DISTRICT_SCALE } from './world-layout.js';
-import { roadNodes } from './driving.js';
+import { PROJECT_PLOTS } from './world-layout.js';
 // Project facts, links and demos are from the existing longd.tech portfolio.
 // Source: full-stack-course/1.web-portfolio-en/index.html (and its VN counterpart).
 export const projects = [
@@ -10,7 +9,7 @@ export const projects = [
     highlights: ['Time Clock records for salary calculations', 'Leave management & approvals', 'Multilingual PDF, CSV & Excel reports'],
     tech: ['React', 'Tailwind CSS', 'Chart.js', 'PostgreSQL'],
     live: 'https://hr.icue.vn', github: 'https://github.com/JLTC3111/hr_software',
-    position: [-62, -73], stop: 'o1', scale:1.7, rotation:0, footprint: [5.4, 4], labelHeight: 5.9,
+    scale:1.7, footprint: [5.4, 4], labelHeight: 5.9,
     vi: { title: 'Nền tảng Quản trị Nhân sự', short: 'Quản trị Nhân sự', category: 'Nhân sự & năng suất', description: 'Nền tảng nhân sự tập trung vào báo cáo PDF, CSV và Excel bằng nhiều ngôn ngữ, quản lý yêu cầu nghỉ phép và phê duyệt, cùng dữ liệu Time Clock hỗ trợ tính lương. Hồ sơ nhân viên, công việc và hiệu suất kết nối trong cùng hệ thống.', highlights: ['Dữ liệu Time Clock hỗ trợ tính lương', 'Quản lý và phê duyệt nghỉ phép', 'Báo cáo PDF, CSV, Excel đa ngôn ngữ'] }
   },
   {
@@ -20,7 +19,7 @@ export const projects = [
     highlights: ['Market data & portfolio tracking', 'Risk measures & asset correlations', 'Historical charts & liquidity monitoring'],
     tech: ['Python', 'Streamlit', 'Plotly', 'NumPy', 'Supabase'],
     live: 'https://jltc3111-crypto-dashboard-home-7grwzp.streamlit.app/', github: 'https://github.com/JLTC3111/crypto-dashboard',
-    position: [56, -72], stop: 'o3', scale:1.55, rotation:0, footprint: [4.8, 3.6], labelHeight: 7.2,
+    scale:1.55, footprint: [4.8, 3.6], labelHeight: 7.2,
     vi: { title: 'Quản lý Đầu tư Cá nhân', short: 'Quản lý Đầu tư', category: 'Dữ liệu & phân tích', description: 'Dashboard phân tích bằng tiếng Anh để so sánh tài sản tiền mã hóa, xem lịch sử giá và đánh giá rủi ro đầu tư. Biểu đồ tương tác, chỉ số lợi nhuận và tương quan hỗ trợ khám phá dữ liệu thị trường.', highlights: ['Dữ liệu thị trường & danh mục đầu tư', 'Chỉ số rủi ro & tương quan tài sản', 'Biểu đồ lịch sử & thanh khoản'] }
   },
   {
@@ -30,7 +29,7 @@ export const projects = [
     highlights: ['Contract records, stages & approvals', 'Collaboration & granular permissions', 'Version control & multilingual support'],
     tech: ['React', 'Next.js', 'Supabase', 'Tailwind CSS', 'GSAP'],
     live: 'https://contract.icue.vn/', github: 'https://github.com/JLTC3111/contract-management-app',
-    position: [108, -29], stop: 'o4', scale:1.8, rotation:Math.PI/4, footprint: [4.6, 3.6], labelHeight: 6.2,
+    scale:1.8, footprint: [4.6, 3.6], labelHeight: 6.2,
     vi: { title: 'Quản lý Hợp đồng', short: 'Quản lý Hợp đồng', category: 'Phần mềm doanh nghiệp', description: 'Không gian làm việc song ngữ cho hồ sơ hợp đồng, giai đoạn xử lý, phê duyệt và tài liệu đính kèm. Bảng dữ liệu và Kanban tổng hợp giá trị, trạng thái và thời hạn; phân tích cùng lịch sử hoạt động giúp theo dõi thay đổi.', highlights: ['Hồ sơ, giai đoạn & phê duyệt hợp đồng', 'Cộng tác & phân quyền chi tiết', 'Quản lý phiên bản & đa ngôn ngữ'] }
   },
   {
@@ -40,7 +39,7 @@ export const projects = [
     highlights: ['Drag-and-drop documents & images', 'Batch compression', 'Offline processing & no tracking'],
     tech: ['Python', 'Tkinter', 'PyInstaller'],
     live: null, github: 'https://github.com/JLTC3111/file_compressor',
-    position: [101, 40], stop: 'o6', scale:1.65, rotation:Math.PI/4, footprint: [4.4, 3.6], labelHeight: 6.7,
+    scale:1.65, footprint: [4.4, 3.6], labelHeight: 6.7,
     vi: { title: 'Ứng dụng Nén File', short: 'Nén File', category: 'Tiện ích máy tính', description: 'Tiện ích máy tính ngoại tuyến để nén PDF, Word, Excel, PowerPoint và hình ảnh. Hỗ trợ kéo thả nhiều tệp, điều chỉnh chất lượng, chọn thư mục đầu ra và giao diện với bảy ngôn ngữ.', highlights: ['Kéo thả tài liệu & hình ảnh', 'Nén tệp hàng loạt', 'Hoạt động ngoại tuyến & không theo dõi'] }
   },
   {
@@ -51,7 +50,7 @@ export const projects = [
     tech: ['JavaScript', 'HTML5', 'CSS'],
     live: 'https://gizen.longd.tech', github: 'https://github.com/JLTC3111/ICUE-GIZ-Ceremony-EN',
     liveVi: 'https://gizvn.longd.tech', githubVi: 'https://github.com/JLTC3111/ICUE-GIZ-Ceremony-VN',
-    position: [4, 77], stop: 'o8', scale:1.36, rotation:0, footprint: [6, 3.6], labelHeight: 5.8,
+    scale:1.36, footprint: [6, 3.6], labelHeight: 5.8,
     vi: { title: 'Lễ Khánh thành & Bàn giao', short: 'Sự kiện Hội An', category: 'Microsite tương tác', description: 'Microsite sự kiện song ngữ giới thiệu sự hợp tác giữa IKI, GIZ và ICUE tại Hội An. Hình ảnh dự án, nhận diện các đối tác và phần trình bày tương tác ghi lại hoạt động cộng đồng.', highlights: ['Phát triển cộng đồng tại Hội An', 'Hợp tác giữa IKI, GIZ & ICUE', 'Trình bày sự kiện tương tác'] }
   },
   {
@@ -62,7 +61,7 @@ export const projects = [
     tech: ['Vite', 'JavaScript', 'Tailwind CSS', 'GSAP', 'AOS'],
     live: 'https://en.icue.vn/', github: 'https://github.com/JLTC3111/ICUE-mainsite-en',
     liveVi: 'https://icue.vn', githubVi: 'https://github.com/JLTC3111/ICUE-mainsite-vn',
-    position: [-104, 38], stop: 'o10', scale:1.55, rotation:Math.PI/4, footprint: [6, 4], labelHeight: 7.8,
+    scale:1.55, footprint: [6, 4], labelHeight: 7.8,
     vi: { title: 'Viện Nghiên cứu Đô thị & Kinh tế', short: 'Website ICUE', category: 'Website tổ chức', description: 'Website tiếng Anh và tiếng Việt của ICUE — Viện Nghiên cứu Kinh tế Xây dựng và Đô thị. Giới thiệu nghiên cứu, dự án, tin tức, cơ cấu tổ chức và các kênh liên hệ với Viện.', highlights: ['Tin tức & dự án của Viện', 'Kết nối chuyên gia & cộng đồng', 'Website tiếng Việt & tiếng Anh'] }
   },
 
@@ -70,14 +69,11 @@ export const projects = [
 
 // Keep local model dimensions separate from rotated world-space collision bounds.
 for(const project of projects){
-  project.position=project.position.map((value,i)=>roadNodes[project.stop][i]+value-roadNodes[project.stop][i]/DISTRICT_SCALE);
+  const plot=PROJECT_PLOTS[project.id];project.position=[...plot.position];project.stop=`project-${project.id}`;project.rotation=plot.rotation;
   project.baseFootprint=[...project.footprint];
   const [width,depth]=project.baseFootprint,c=Math.abs(Math.cos(project.rotation)),s=Math.abs(Math.sin(project.rotation));
   project.footprint=[((width+1.1)*c+(depth+1.1)*s)*project.scale,((width+1.1)*s+(depth+1.1)*c)*project.scale];
   project.labelHeight*=project.scale;
-  const stop=roadNodes[project.stop],dx=project.position[0]-stop[0],dz=project.position[1]-stop[1],distance=Math.hypot(dx,dz),nx=dx/distance,nz=dz/distance;
-  const clearance=ROAD_WIDTHS.shoulder/2+(Math.abs(nx)*project.footprint[0]+Math.abs(nz)*project.footprint[1])/2+2.5;
-  if(distance<clearance){project.position[0]+=nx*(clearance-distance);project.position[1]+=nz*(clearance-distance);}
 }
 
 export const getProject = id => projects.find(project => project.id === id);

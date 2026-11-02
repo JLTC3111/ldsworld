@@ -368,8 +368,8 @@ export function createShowcase({ container, project = {}, mode = 'device', carMo
   }
   function rebuild(){
     if(!scene||disposed)return;++assetGeneration;removeReady();stop();model?.dispose();model=null;
-    // Keep the real project poster visible until the CRT is loaded. Building
-    // the old monitor here exposes it for a frame before the model arrives.
+    // Keep the stage neutral until the CRT is loaded. A project poster here
+    // looks like another monitor flashing before the real computer arrives.
     if(currentMode==='device'&&!computerAsset){resize();return;}
     const computer=currentMode==='device'&&computerAsset?assetModule.fitModelAsset(computerAsset,SUPPLIED_COMPUTER_FIT):null;
     model=buildShowcaseModel({project:currentProject,carModel,mode:currentMode,screen:currentScreen,language:currentLanguage,computer,computerScreen:computer?SUPPLIED_COMPUTER_SCREEN:null});
@@ -386,7 +386,7 @@ export function createShowcase({ container, project = {}, mode = 'device', carMo
       const asset=await assetPending;
       if(!asset||disposed||generation!==assetGeneration||currentMode!=='device'||!canPresent())return;
       computerAsset=asset;rebuild();
-    }catch{assetPending=null;assetFailed=true;/* Keep the project poster on load failure. */}
+    }catch{assetPending=null;assetFailed=true;/* Project notes remain available beside the neutral stage. */}
     finally{if(requestedGeneration===generation&&!computerAsset)requestedGeneration=-1;}
   }
   function fit(){frameShowcaseCamera({model,camera,width:container.clientWidth,height:container.clientHeight});}

@@ -7,7 +7,7 @@ import { drivingSurfaceAt } from '../src/driving.js';
 import { collectWorldColliders } from '../src/world-physics.js';
 import { createNodeModelLoader } from './helpers/model-node-loader.mjs';
 
-function fixture({ lowPower = false, reducedMotion = false, failed = '', count = 10, load, cottages = false } = {}) {
+function fixture({ lowPower = false, reducedMotion = false, failed = '', count = 32, load, cottages = false } = {}) {
   const scene = new THREE.Scene(), material = new THREE.MeshStandardMaterial(), geometry = new THREE.BoxGeometry(.3, 2, .3);
   const original = new THREE.InstancedMesh(geometry, material, count); scene.add(original);
   const trees = Array.from({ length: count }, (_, index) => ({ x: -70 + index * 5, z: -40, scale: 1.5, rotation: .2, round: true }));
@@ -23,6 +23,13 @@ function fixture({ lowPower = false, reducedMotion = false, failed = '', count =
   const requests = [], sourceResources = new Set(), mixers = [], handles = [], invalidations = [], interactive = [];
   function asset(id) {
     const group = new THREE.Group(); group.name = id;
+    if(id==='woodland'){
+      for(const [name,bark]of [['Object_2668',true],['Object_2669',false],['Object_0',true],['Object_2671',false]]){
+        const geometry=new THREE.BoxGeometry(bark?.2:1,1,2),material=new THREE.MeshStandardMaterial();material.name=bark?'Bark':'Leaves';sourceResources.add(geometry);sourceResources.add(material);
+        const mesh=new THREE.Mesh(geometry,material);mesh.name=name;mesh.position.z=-1;group.add(mesh);
+      }
+      return {scene:group,animations:[]};
+    }
     const geometry = new THREE.BoxGeometry(id === 'tree' ? 2 : .5, 2, .5), material = new THREE.MeshStandardMaterial(); sourceResources.add(geometry); sourceResources.add(material);
     const object = new THREE.Mesh(geometry, material); object.name = id === 'city' ? SUPPLIED_SHOP_NODE : `${id}-mesh`; object.position.y = 1; group.add(object);
     const animations = ['bird', 'pedestrian'].includes(id) ? [new THREE.AnimationClip('idle', 1, [new THREE.NumberKeyframeTrack(`${object.name}.rotation[y]`, [0, 1], [0, .2])])] : [];
@@ -42,14 +49,16 @@ function fixture({ lowPower = false, reducedMotion = false, failed = '', count =
 }
 
 test('supplied scenery selects real catalog assets, instances bounded trees, and keeps original contacts while replacing visual foliage', async () => {
-  assert.deepEqual(SUPPLIED_SCENERY_IDS, ['tree', 'pony', 'bird', 'pedestrian', 'staircase', 'city']);
+  assert.deepEqual(SUPPLIED_SCENERY_IDS, ['tree', 'woodland', 'pony', 'bird', 'pedestrian', 'staircase', 'city']);
   for (const id of SUPPLIED_SCENERY_IDS) assert.ok(MODEL_ASSETS[id]?.file.endsWith('.glb'));
   for (const lowPower of [false, true]) {
     const f = fixture({ lowPower }); const result = await f.manager.ready;
-    assert.deepEqual(result.loaded, [...SUPPLIED_SCENERY_IDS.slice(0, 4)]); assert.deepEqual(result.failed, []); assert.deepEqual(f.requests, [...SUPPLIED_SCENERY_IDS.slice(0, 4)]); assert.deepEqual(f.invalidations, f.requests);
-    const batch = f.manager.root.getObjectByName('Supplied broadleaf tree instances'), count = lowPower ? 4 : 8;
+    assert.deepEqual(result.loaded, [...SUPPLIED_SCENERY_IDS.slice(0, 5)]); assert.deepEqual(result.failed, []); assert.deepEqual(f.requests, [...SUPPLIED_SCENERY_IDS.slice(0, 5)]); assert.deepEqual(f.invalidations, f.requests);
+    const batch = f.manager.root.getObjectByName('Supplied Roundleaf tree instances'), count = lowPower ? 3 : 4;
+    const variants=f.manager.root.children.filter(object=>object.isInstancedMesh);assert.deepEqual(new Set(variants.map(object=>object.userData.treeVariant)),new Set(['roundleaf','wildwood','meadow']));assert.equal(variants.length,5,'Three fake source variants share five draw batches');
     assert.ok(batch.isInstancedMesh); assert.equal(batch.count, count); assert.equal(batch.castShadow, !lowPower); assert.equal(batch.userData.breakableInstances.get(0), 'tree-1');
-    const matrix = new THREE.Matrix4(); f.original.getMatrixAt(0, matrix); assert.equal(matrix.determinant(), 0); f.original.getMatrixAt(count, matrix); assert.notEqual(matrix.determinant(), 0);
+    const matrix = new THREE.Matrix4(); f.original.getMatrixAt(0, matrix); assert.equal(matrix.determinant(), 0); f.original.getMatrixAt(count+(lowPower?8:16), matrix); assert.notEqual(matrix.determinant(), 0);
+    for(let index=0;index<count+(lowPower?8:16);index++){f.original.getMatrixAt(index,matrix);assert.equal(matrix.determinant(),0,'Every imported variant masks its procedural counterpart');}
     assert.ok(f.colliders.every(collider => collider.active()), 'Visual masking must not deactivate physical trunk contacts');
     const version = f.original.instanceMatrix.version, importedVersion = batch.instanceMatrix.version;
     for (let i = 0; i < 60; i++) f.manager.update(1 / 60, { paused: true });
@@ -77,7 +86,7 @@ test('selected buildings replace cottage visuals without changing protected root
 
 test('tree instances track destruction, same-frame respawn/reset rehide procedural matrices, and late loading handles destroyed trees', async () => {
   const f = fixture(); f.blastDamage.destroyed.add('tree-1'); await f.manager.ready;
-  const batch = f.manager.root.getObjectByName('Supplied broadleaf tree instances'), matrix = new THREE.Matrix4(); batch.getMatrixAt(0, matrix); assert.equal(matrix.determinant(), 0);
+  const batch = f.manager.root.getObjectByName('Supplied Roundleaf tree instances'), matrix = new THREE.Matrix4(); batch.getMatrixAt(0, matrix); assert.equal(matrix.determinant(), 0);
   f.blastDamage.destroyed.delete('tree-1'); f.original.setMatrixAt(0, new THREE.Matrix4().makeTranslation(-70, 1.12, -40)); f.original.instanceMatrix.needsUpdate = true;
   f.manager.update(0, { paused: true }); batch.getMatrixAt(0, matrix); assert.notEqual(matrix.determinant(), 0); f.original.getMatrixAt(0, matrix); assert.equal(matrix.determinant(), 0);
   // The destroyed ID can be added and cleared before update sees it. A source
@@ -118,7 +127,7 @@ test('disposing during a pending background load prevents late scene insertion a
 });
 
 test('actual supplied GLBs decode, keep human-scale animation bounds, remove the Pony studio floor, and select a standalone city shop', async () => {
-  const f = fixture({ load: await createNodeModelLoader(), cottages: true, count: 2 });
+  const f = fixture({ load: await createNodeModelLoader(), cottages: true, count: 24 });
   const result = await f.manager.ready; assert.deepEqual(result.failed, []); assert.deepEqual(result.loaded, [...SUPPLIED_SCENERY_IDS]);
   f.scene.updateMatrixWorld(true);
   const pedestrian = f.scene.getObjectByName('Supplied market pedestrian'), personSize = new THREE.Box3().setFromObject(pedestrian, true).getSize(new THREE.Vector3());
@@ -129,7 +138,8 @@ test('actual supplied GLBs decode, keep human-scale animation bounds, remove the
     let meshes = 0; shop.traverse(object => { if (object.isMesh) { meshes++; assert.equal(object.name, SUPPLIED_SHOP_NODE); } });
     assert.equal(meshes, 1); assert.ok(size.x <= 2.65 * 1.5 + .001); assert.ok(size.z <= 2.45 * 1.5 + .001);
   }
-  const batches = f.manager.root.children.filter(object => object.isInstancedMesh); assert.equal(batches.length, 3); assert.ok(batches.every(batch => batch.count === 2));
+  const batches = f.manager.root.children.filter(object => object.isInstancedMesh); assert.equal(batches.length, 7); assert.ok(batches.filter(batch=>batch.userData.treeVariant==='roundleaf').every(batch=>batch.count===4));assert.ok(batches.filter(batch=>batch.userData.treeVariant!=='roundleaf').every(batch=>batch.count===8));
+  const triangles=batches.reduce((sum,batch)=>sum+(batch.geometry.index?.count||batch.geometry.attributes.position.count)/3*batch.count,0);assert.ok(triangles<160000,'Twenty imported trees stay below 160k rendered triangles without source grass or ground');assert.ok(batches.every(batch=>batch.material.name!=='Grass_C'));
   f.manager.update(1 / 30, { focus: { x: -30, z: 0 } }); assert.ok(f.mixers.every(mixer => mixer.updates === 1));
   for(let frame=0;frame<150;frame++){
     f.manager.update(1/30,{focus:{x:-10.5,z:22.5}});f.scene.updateMatrixWorld(true);

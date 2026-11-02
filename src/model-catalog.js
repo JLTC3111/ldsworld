@@ -1,6 +1,7 @@
 // Source credits are embedded in the supplied GLBs; missing fields stay explicit.
 export const MODEL_ASSETS=Object.freeze({
   tree:{file:'tree.glb',author:'farhad.Guli',license:'CC-BY-4.0',source:'https://sketchfab.com/3d-models/tree-7016d1d32fe748f0a8b3f5eb39374bc4'},
+  woodland:{file:'low_poly_tree_scene_free.glb',author:'Nicholas-3D',license:'CC-BY-4.0',source:'https://sketchfab.com/3d-models/low-poly-tree-scene-free-89daa5e21f0d4f08a59dba0d566e88bd'},
   pony:{file:'pony_cartoon.glb',author:'Slava Z.',license:'CC-BY-4.0',source:'https://sketchfab.com/3d-models/pony-cartoon-885d9f60b3a9429bb4077cfac5653cf9'},
   bird:{file:'bird_orange.glb',author:'Wen Yeh',license:'CC-BY-NC-SA-4.0',source:'https://sketchfab.com/3d-models/bird-orange-0d31748606c2499fb652c0c1052b7cfa'},
   pedestrian:{file:'russian_girl_east_animated.glb',author:null,license:null,source:null},

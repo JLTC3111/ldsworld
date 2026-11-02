@@ -359,7 +359,7 @@ test('computer loading upgrades only the latest visible device and disposes clon
     controller=createShowcase({container,project:projects[0],reducedMotion:true,modelAssets});intersection.show(true);controller.dispose();controller=null;
     resolveAsset({scene:shellScene,animations:[]});await settle();assert.equal(fits,3,'Disposed stages ignore late model results');assert.equal(libraryDisposals,3);
     controller=createShowcase({container,project:projects[0],reducedMotion:true,modelAssets});intersection.show(true);const beforeFailure=rendered.length;rejectAsset(new Error('Model unavailable'));await settle();
-    controller.resetView();controller.setProject(projects[1]);intersection.show(true);await settle();assert.equal(container.dataset.ready,'false');assert.equal(rendered.length,beforeFailure,'Load failure keeps the poster instead of reviving the old computer');controller.dispose();controller=null;
+    controller.resetView();controller.setProject(projects[1]);intersection.show(true);await settle();assert.equal(container.dataset.ready,'false');assert.equal(rendered.length,beforeFailure,'Load failure leaves the stage neutral instead of reviving the old computer');controller.dispose();controller=null;
   }finally{controller?.dispose();shellScene.traverse(object=>{object.geometry?.dispose();object.material?.dispose();});for(const[name,descriptor]of saved){if(descriptor)Object.defineProperty(globalThis,name,descriptor);else delete globalThis[name];}}
 });
 

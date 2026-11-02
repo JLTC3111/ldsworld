@@ -1,7 +1,8 @@
 import { createModelAssetLibrary, fitModelAsset } from './model-assets.js';
 import { LANDMARKS, driveHeightAt } from './world-layout.js';
+import { WOODLAND_VARIANTS,woodlandTreeAsset } from './tree-variants.js';
 
-export const SUPPLIED_SCENERY_IDS = Object.freeze(['tree', 'pony', 'bird', 'pedestrian', 'staircase', 'city']);
+export const SUPPLIED_SCENERY_IDS = Object.freeze(['tree', 'woodland', 'pony', 'bird', 'pedestrian', 'staircase', 'city']);
 export const SUPPLIED_SHOP_NODE = 'pasted__pPlane94_Laundrymat_0';
 
 /** Supplied scenery shares the world renderer, simulation clock and asset cache. */
@@ -34,7 +35,7 @@ export function createSuppliedScenery({ THREE: T, scene, trees = [], treeTargets
       if (part.index === undefined || !part.object.isInstancedMesh) continue;
       let batch = sourceBatches.get(part.object);
       if (!batch) { batch = { entries: new Map(), version: -1 }; sourceBatches.set(part.object, batch); }
-      if (!batch.entries.has(part.index)) batch.entries.set(part.index, { target, original: null });
+      if (!batch.entries.has(part.index)) {batch.entries.set(part.index, { target, original: null });batch.version=-1;}
     }
   }
   function hideSourceInstances() {
@@ -78,37 +79,45 @@ export function createSuppliedScenery({ THREE: T, scene, trees = [], treeTargets
     if (!handle.mixer || !asset.animations?.length || reducedMotion) return;
     handle.mixer.clipAction(asset.animations[0]).play(); animated.push({ handle, elapsed: 0 });
   }
-  const selectedTrees = trees.map((tree, index) => ({ tree, target: treeTargets.find(target => target.id === `tree-${index + 1}`) }))
-    .filter(entry => entry.tree.round && entry.target && entry.target.parts.some(part => part.index !== undefined))
-    .slice(0, lowPower ? 4 : 8);
+  const treeCandidates = trees.map((tree, index) => ({ tree, target: treeTargets.find(target => target.id === `tree-${index + 1}`) }))
+    .filter(entry => entry.target && entry.target.parts.some(part => part.index !== undefined))
+    .sort((a,b)=>Number(!!b.tree.landscaped)-Number(!!a.tree.landscaped));
+  const selectedTrees=treeCandidates.filter(entry=>entry.tree.round).slice(0,lowPower?3:4),selectedIds=new Set(selectedTrees.map(entry=>entry.target.id));
+  const woodlandTrees=treeCandidates.filter(entry=>!selectedIds.has(entry.target.id)).slice(0,lowPower?8:16);
   const cottages = Array.from({ length: lowPower ? 2 : 4 }, (_, index) => scenery?.root?.getObjectByName(`Riverside cottage ${index + 1}`)).filter(Boolean);
 
-  function installTrees(asset) {
-    if (!selectedTrees.length) return;
+  function installTreeVariant(asset,slots,{id='roundleaf',name='Roundleaf',heightScale=3.3}={}) {
+    if (!slots.length) return;
     const handle = fit(asset, { height: 1 });
     handle.root.updateWorldMatrix(true, true);
     const primitives = [];
     handle.root.traverse(object => { if (object.isMesh && !object.isSkinnedMesh && object.geometry && object.material) primitives.push(object); });
     if (!primitives.length) { handle.dispose(); handles.delete(handle); throw new Error('Supplied tree has no static mesh'); }
-    const transform = new T.Object3D();
+    const transform = new T.Object3D(),variantBatches=[];
     for (const primitive of primitives) {
-      const batch = new T.InstancedMesh(primitive.geometry, primitive.material, selectedTrees.length);
-      batch.name = 'Supplied broadleaf tree instances'; batch.castShadow = !lowPower; batch.receiveShadow = true;
+      const batch = new T.InstancedMesh(primitive.geometry, primitive.material, slots.length);
+      batch.name = `Supplied ${name} tree instances`; batch.userData.treeVariant=id;batch.castShadow = !lowPower; batch.receiveShadow = true;
       batch.userData.physicsIgnore = true;
-      batch.userData.breakableInstances = new Map(selectedTrees.map(({ target }, index) => [index, target.id]));
-      for (const [index, { tree }] of selectedTrees.entries()) {
-        transform.position.set(tree.x, .12 + driveHeightAt(tree.x, tree.z), tree.z); transform.rotation.set(0, tree.rotation || 0, 0); transform.scale.setScalar(tree.scale * 3.3); transform.updateMatrix();
+      batch.userData.breakableInstances = new Map(slots.map(({ target }, index) => [index, target.id]));
+      for (const [index, { tree }] of slots.entries()) {
+        transform.position.set(tree.x, .12 + driveHeightAt(tree.x, tree.z), tree.z); transform.rotation.set(0, tree.rotation || 0, 0); transform.scale.setScalar(tree.scale * heightScale); transform.updateMatrix();
         batch.setMatrixAt(index, scratch.multiplyMatrices(transform.matrix, primitive.matrixWorld));
       }
       // Keep bounds covering every authored position, including trees that are
       // currently destroyed, so respawning never needs another bounds scan.
-      batch.computeBoundingSphere(); root.add(batch); batches.push(batch);
+      batch.computeBoundingSphere(); root.add(batch); batches.push(batch);variantBatches.push(batch);
     }
-    for (const [index, { tree, target }] of selectedTrees.entries()) {
-      const instances = batches.map(object => { object.getMatrixAt(index, scratch); return { object, matrix: scratch.clone() }; });
+    for (const [index, { tree, target }] of slots.entries()) {
+      const instances = variantBatches.map(object => { object.getMatrixAt(index, scratch); return { object, matrix: scratch.clone() }; });
       treeSlots.push({ tree, target, index, instances, destroyed: null }); rememberSourceParts(target);
     }
     handle.dispose(); handles.delete(handle); syncTrees(); onInteractive(root);
+  }
+  function installWoodland(asset){
+    for(const [index,variant]of WOODLAND_VARIANTS.entries()){
+      const slots=woodlandTrees.filter((_,slot)=>slot%WOODLAND_VARIANTS.length===index);
+      if(slots.length)installTreeVariant(woodlandTreeAsset({THREE:T,asset,variant}),slots,variant);
+    }
   }
   function installPony(asset) {
     // The source includes a wide transparent studio floor, which belongs to its
@@ -117,7 +126,7 @@ export function createSuppliedScenery({ THREE: T, scene, trees = [], treeTargets
     display.traverse(object => { if (object.isMesh && (Array.isArray(object.material) ? object.material : [object.material]).some(material => material?.name === 'Ground_SG')) remove.push(object); });
     remove.forEach(object => object.removeFromParent());
     const handle = fit({ ...asset, scene: display }, { height: 1.8, width: 2.8, depth: 3.2 });
-    handle.root.name = 'Supplied Pony model beside the pond'; handle.root.position.set(LANDMARKS.pond.x - 7, .12, LANDMARKS.pond.z - 5); handle.root.rotation.y = -.65; root.add(handle.root);
+    handle.root.name = 'Supplied Pony model beside the pond'; handle.root.position.set(LANDMARKS.pond.x - 7, .12, LANDMARKS.pond.z + 5); handle.root.rotation.y = -.65; root.add(handle.root);
   }
   function installBird(asset) {
     const handle = fit(asset, { height: .48, width: .8, depth: .8 });
@@ -137,7 +146,7 @@ export function createSuppliedScenery({ THREE: T, scene, trees = [], treeTargets
       hideOriginalMaterials(home); home.add(handle.root);
     }
   }
-  const installers = [['tree', installTrees], ['pony', installPony], ['bird', installBird], ['pedestrian', installPedestrian],
+  const installers = [['tree', asset=>installTreeVariant(asset,selectedTrees)], ['woodland',installWoodland], ['pony', installPony], ['bird', installBird], ['pedestrian', installPedestrian],
     ['staircase', asset => installCottages(asset, 0, 2)], ['city', asset => installCottages(asset, 2, 4, SUPPLIED_SHOP_NODE)]];
   const ready = (async () => {
     // Sequential, background requests bound decoding and upload pressure. A
@@ -145,6 +154,7 @@ export function createSuppliedScenery({ THREE: T, scene, trees = [], treeTargets
     for (const [id, install] of installers) {
       if (disposed) break;
       if (id === 'tree' && !selectedTrees.length || id === 'pedestrian' && !islandLife?.vendors?.length) continue;
+      if(id==='woodland'&&!woodlandTrees.length)continue;
       if (id === 'staircase' && !cottages.length || id === 'city' && cottages.length < 3) continue;
       try {
         const asset = await library.load(id);

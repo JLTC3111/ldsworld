@@ -44,11 +44,11 @@ test('weather can be pinned or automatically cycle between clear skies, rain, an
   assert.throws(() => clock.setWeather('hail'), /Unknown weather/);
 });
 
-test('sunlight, sky colors, stars and moon respond to the chosen phase', () => {
+test('sunlight, sky colors and stars respond to the chosen phase without a moon', () => {
   const f = fixture(); f.atmosphere.setTimeMode('day'); const daySky = f.scene.background.getHexString(), dayIntensity = f.sun.intensity;
   assert.equal(f.scene.getObjectByName('atmosphere-stars').visible, false);
   f.atmosphere.setTimeMode('night'); assert.notEqual(f.scene.background.getHexString(), daySky); assert.ok(f.sun.intensity < dayIntensity);
-  assert.equal(f.scene.getObjectByName('atmosphere-stars').visible, true); assert.equal(f.scene.getObjectByName('atmosphere-moon').visible, true);
+  assert.equal(f.scene.getObjectByName('atmosphere-stars').visible, true); assert.equal(f.scene.getObjectByName('atmosphere-moon'), undefined);
   f.atmosphere.setTimeMode('sunrise'); const morningX = f.sun.position.x;
   f.atmosphere.setTimeMode('sunset'); assert.ok(morningX * f.sun.position.x < 0, 'Shadows should change direction between sunrise and sunset');
   assert.ok(f.scene.fog.far > f.scene.fog.near); f.cleanup();
@@ -64,6 +64,19 @@ test('precipitation stays outside WebGL while weather styling and pause remain a
   }
   const phase = f.atmosphere.getState().phase; f.atmosphere.update(.05, {paused:true});
   assert.equal(f.atmosphere.getState().phase, phase); assert.deepEqual([...positions.array], initial); assert.equal(positions.version, version);
+  f.cleanup();
+});
+
+test('the sun stays behind the island at a stable sky position through driving, orbit and zoom',()=>{
+  const camera=new THREE.OrthographicCamera(-40,40,25,-25,.1,350),f=fixture({camera});f.atmosphere.setTimeMode('day');
+  const sun=f.scene.getObjectByName('atmosphere-sun');
+  for(const [x,z,yaw,zoom]of [[0,13,0,1],[110,-70,Math.PI/2,2],[-100,60,Math.PI,4]]){
+    camera.zoom=zoom;camera.position.set(x+Math.sin(yaw)*70,60,z+Math.cos(yaw)*70);camera.lookAt(x,0,z);camera.updateProjectionMatrix();camera.updateMatrixWorld();
+    f.atmosphere.update(0,{focus:{x,z}});f.atmosphere.updateSky(camera);f.scene.updateMatrixWorld(true);
+    const world=sun.getWorldPosition(new THREE.Vector3()),view=world.clone().applyMatrix4(camera.matrixWorldInverse),screen=world.clone().project(camera);
+    assert.ok(-view.z>250&&-view.z<camera.far,'The sun is farther away than the island');assert.ok(Math.abs(screen.x+.64)<1e-8&&Math.abs(screen.y-.68)<1e-8);
+    assert.ok(Math.abs(sun.scale.x/((camera.top-camera.bottom)/zoom)-.032)<1e-8,'Zoom does not enlarge the sun');
+  }
   f.cleanup();
 });
 

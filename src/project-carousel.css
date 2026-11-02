@@ -2,6 +2,8 @@
 .carousel-heading { display:flex; justify-content:space-between; gap:16px; margin-bottom:14px; color:var(--muted); font:9px var(--mono); letter-spacing:1px; text-transform:uppercase; }
 .carousel-viewport { overflow:hidden; touch-action:pan-y pinch-zoom; outline-offset:4px; }
 .carousel-container { display:flex; }
+/* Preserve layout measurements while the selected slide is being initialized. */
+.project-carousel:not([data-ready]) .carousel-container { visibility:hidden; }
 .carousel-slide { flex:0 0 100%; min-width:0; margin:0; position:relative; }
 .portfolio-panel .carousel-media { aspect-ratio:16/10; margin:0; border-radius:0; border:1px solid var(--line); background:var(--media-bg); }
 .carousel-parallax { position:absolute; inset:0; will-change:transform; }

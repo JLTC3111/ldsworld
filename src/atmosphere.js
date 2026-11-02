@@ -1,7 +1,7 @@
 import { EnvironmentClock } from './environment-state.js';
 
 /** A small, deterministic atmosphere. It owns no application theme or project state. */
-export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill, sea, coarse = false, reducedMotion = false }) {
+export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill, sea, camera:skyCamera, coarse = false, reducedMotion = false }) {
   const clock = new EnvironmentClock();
   const root = new THREE.Group(); root.name = 'island-atmosphere'; scene.add(root);
   const groundDetails=new THREE.Group();groundDetails.name='Weather ground patches';scene.add(groundDetails);
@@ -28,7 +28,7 @@ export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill
   const colors = {
     day: new THREE.Color('#dce8e3'), night: new THREE.Color('#182d3c'), dawn: new THREE.Color('#f4d3ad'), dusk: new THREE.Color('#dba899'),
     seaDay: new THREE.Color('#cbded8'), seaNight: new THREE.Color('#172e38'), rain: new THREE.Color('#91a7af'), snow: new THREE.Color('#dce6e8'),
-    sunDay: new THREE.Color('#fff2ce'), sunWarm: new THREE.Color('#ffb16a'), moon: new THREE.Color('#a8bfd4')
+    sunDay: new THREE.Color('#fff2ce'), sunWarm: new THREE.Color('#ffb16a'), nightFill: new THREE.Color('#a8bfd4')
   };
   const skyColor = new THREE.Color(), seaColor = new THREE.Color(), lightColor = new THREE.Color();
   if (!scene.background?.isColor) scene.background = new THREE.Color('#dce8e3');
@@ -47,17 +47,28 @@ export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill
 
   const orbGeometry = ownGeometry(new THREE.IcosahedronGeometry(1, 2));
   const sunMaterial = ownMaterial(new THREE.MeshBasicMaterial({ color: '#ffe1a3', toneMapped: false }));
-  const moonMaterial = ownMaterial(new THREE.MeshBasicMaterial({ color: '#d7e0de', toneMapped: false }));
   const glowMaterial = ownMaterial(new THREE.MeshBasicMaterial({ color: '#ffd69a', transparent: true, opacity: .12, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
   const sunOrb = new THREE.Mesh(orbGeometry, sunMaterial); sunOrb.name = 'atmosphere-sun'; sunOrb.scale.setScalar(2.15);
-  const moonOrb = new THREE.Mesh(orbGeometry, moonMaterial); moonOrb.name = 'atmosphere-moon'; moonOrb.scale.setScalar(1.45);
   const sunGlow = new THREE.Mesh(orbGeometry, glowMaterial); sunGlow.scale.setScalar(3.8);
-  root.add(sunOrb, moonOrb, sunGlow);
-  // Small surface details make the moon read as a moon at a glance.
-  const craterMaterial = ownMaterial(new THREE.MeshBasicMaterial({ color: '#a9bec1', toneMapped: false }));
-  for (let i = 0; i < 4; i++) {
-    const crater = new THREE.Mesh(orbGeometry, craterMaterial); crater.scale.setScalar(.1 + random() * .1);
-    crater.position.set((random() - .5) * .8, (random() - .5) * .8, .9); moonOrb.add(crater);
+  root.add(sunOrb, sunGlow);
+  const skyRight=new THREE.Vector3(),skyUp=new THREE.Vector3(),skyForward=new THREE.Vector3();
+  function updateSky(camera=skyCamera){
+    if(camera)skyCamera=camera;
+    if(!camera?.isOrthographicCamera){
+      sunOrb.position.set(Math.cos(state.sunAngle)*160,140+Math.max(0,state.sunHeight)*30,-180);
+      sunGlow.position.copy(sunOrb.position);return;
+    }
+    camera.updateWorldMatrix(true,false);
+    const height=(camera.top-camera.bottom)/camera.zoom,width=(camera.right-camera.left)/camera.zoom;
+    // The sun stays behind the island at a stable screen size, clear of the
+    // driving plane even when the view zooms in.
+    const depth=camera.far*.82;
+    skyRight.setFromMatrixColumn(camera.matrixWorld,0);skyUp.setFromMatrixColumn(camera.matrixWorld,1);camera.getWorldDirection(skyForward);
+    const place=(object,x,y,radius)=>{
+      object.position.copy(camera.position).addScaledVector(skyForward,depth).addScaledVector(skyRight,width*x).addScaledVector(skyUp,height*y).sub(root.position);
+      object.scale.setScalar(height*radius);
+    };
+    place(sunOrb,-.32,.34,.032);place(sunGlow,-.32,.34,.052);
   }
 
   const puddleMaterial = ownMaterial(new THREE.MeshStandardMaterial({ color: '#7fadb2', roughness: .12, metalness: .45, transparent: true, opacity: 0, depthWrite: false }));
@@ -80,19 +91,18 @@ export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill
     if (sea?.material?.color) sea.material.color.copy(seaColor);
     sun.position.set(root.position.x+Math.cos(sunAngle)*53,Math.max(4,sunHeight*58),root.position.z+15+Math.sin(sunAngle)*22);
     sun.target.position.set(root.position.x,0,root.position.z);sun.target.updateMatrixWorld();
-    lightColor.copy(colors.sunDay).lerp(colors.sunWarm, warmth).lerp(colors.moon, night);
+    lightColor.copy(colors.sunDay).lerp(colors.sunWarm, warmth).lerp(colors.nightFill, night);
     sun.color.copy(lightColor); sun.intensity = .06 + daylight * 2.35 * (1 - wet * .48 - white * .18); sun.castShadow = daylight > .12;
-    hemisphere.color.copy(colors.moon).lerp(colors.sunDay, daylight).lerp(colors.sunWarm, warmth * .28);
+    hemisphere.color.copy(colors.nightFill).lerp(colors.sunDay, daylight).lerp(colors.sunWarm, warmth * .28);
     hemisphere.groundColor.set(night > .5 ? '#425f60' : '#91a381');
     hemisphere.intensity = .78 + daylight * 1.03 - wet * .2;
-    fill.color.copy(colors.moon).lerp(colors.day, daylight); fill.intensity = .42 + night * .24 + wet * .06;
+    fill.color.copy(colors.nightFill).lerp(colors.day, daylight); fill.intensity = .42 + night * .24 + wet * .06;
     renderer.toneMappingExposure = 1.02 + night * .13 + warmth * .025;
     starsMaterial.opacity = night * .82 * (1 - wet * .82 - white * .65);
     stars.visible = starsMaterial.opacity > .01;
-    sunOrb.position.set(Math.cos(sunAngle) * 50, sunHeight * 39 + 4, -27);
-    sunGlow.position.copy(sunOrb.position); sunOrb.visible = sunHeight > -.17; sunGlow.visible = sunOrb.visible;
+    sunOrb.visible = sunHeight > -.17; sunGlow.visible = sunOrb.visible;
     sunMaterial.color.copy(colors.sunDay).lerp(colors.sunWarm, warmth); glowMaterial.opacity = (.08 + warmth * .14) * (1 - wet * .7 - white * .4);
-    moonOrb.position.set(-Math.cos(sunAngle) * 48, -sunHeight * 40 + 3, -29); moonOrb.visible = night > .08;
+    updateSky();
   }
   // Precipitation is a CSS overlay; only the anchored ground styling lives here.
   function paintWeather() {
@@ -112,7 +122,7 @@ export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill
   }
   update(0);
   return {
-    update,
+    update,updateSky,
     setTimeMode(mode) { Object.assign(state, clock.setTimeMode(mode)); update(0); return snapshot(); },
     setWeather(mode) {
       Object.assign(state, clock.setWeather(mode)); blend.rain = state.weather === 'rain' ? 1 : 0; blend.snow = state.weather === 'snow' ? 1 : 0;

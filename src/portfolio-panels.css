@@ -128,20 +128,6 @@ dialog#panel.portfolio-panel::backdrop {
   content: "";
 }
 
-.portfolio-panel .stage-poster {
-  display: block;
-  width: 86%;
-  height: auto;
-  max-height: 90%;
-  border: 7px solid var(--surface);
-  border-radius: 12px;
-  object-fit: contain;
-  background: var(--media-bg);
-  box-shadow: 0 20px 40px var(--shadow-color);
-  transform: perspective(900px) rotateY(-9deg) rotateX(5deg) rotateZ(-3deg);
-  transition: opacity .3s ease;
-}
-
 .portfolio-panel .stage-art [data-showcase] {
   position: absolute;
   z-index: 2;
@@ -159,7 +145,6 @@ dialog#panel.portfolio-panel::backdrop {
   touch-action: none;
 }
 
-.portfolio-panel .stage-art:has([data-showcase].showcase-ready) > .stage-poster,
 .portfolio-panel .stage-art:has([data-showcase].showcase-ready) > .stage-fallback,
 .portfolio-panel .stage-art:has([data-showcase].showcase-ready) > .stage-symbol,
 .portfolio-panel .stage-art [data-showcase].showcase-ready ~ .stage-fallback {
@@ -1551,7 +1536,6 @@ dialog#panel.portfolio-panel::backdrop {
 
 @media (prefers-reduced-motion: reduce) {
   .portfolio-panel .stage-art [data-showcase],
-  .portfolio-panel .stage-poster,
   .portfolio-panel .related-work > button,
   .portfolio-panel .contact-projects > button {
     transition: none;

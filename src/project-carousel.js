@@ -221,9 +221,9 @@ export function createProjectCarousel({
   const reinit = () => { clock.hold('layout', api.scrollSnapList().length < 2); selection(); clock.restart(); tween(); };
   api.on('select', selection).on('scroll', tween).on('reInit', reinit)
     .on('pointerDown', down).on('pointerUp', up).on('autoplay:timerset', timerStarted);
-  root.dataset.ready = '';
   selection();
   clock.hold('initializing', false);
+  root.dataset.ready = '';
   return {
     select(id) { const index = entries.findIndex(entry => entry.id === id); if (index < 0) return false; api.scrollTo(index, reduced); return true; },
     play: seconds => watch(entries[current], seconds),

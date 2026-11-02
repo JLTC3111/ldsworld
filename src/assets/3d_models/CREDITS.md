@@ -1,6 +1,6 @@
 # Supplied 3D model credits
 
-The 19 original GLBs were supplied by the site owner. This record transcribes their embedded attribution metadata; absent metadata is stated explicitly. All originals remain in this source folder. The production build includes only the seven models in `src/model-catalog.js`.
+The 19 original GLBs were supplied by the site owner. This record transcribes their embedded attribution metadata; absent metadata is stated explicitly. All originals remain in this source folder. The production build includes only the eight models in `src/model-catalog.js`.
 
 The original files are unchanged. In the site, selected artwork is resized and positioned; trees are instanced, the Pony car preview floor is omitted, a shop is selected from CCity, and an information screen is added to the computer display. Supplied bird and pedestrian animation clips are reused.
 
@@ -9,11 +9,20 @@ The original files are unchanged. In the site, selected artwork is resized and p
 ### Tree
 
 - File: `tree.glb`
-- Role: Trees around the island.
+- Role: Roundleaf trees around the inner project plots and island.
 - Author: [farhad.Guli](https://sketchfab.com/farhad.Guli)
 - License: [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/)
 - Source: [Tree](https://sketchfab.com/3d-models/tree-7016d1d32fe748f0a8b3f5eb39374bc4)
 - Geometry: 25,464 triangles in the full source scene; 177,268 bytes on disk.
+
+### Low Poly Tree Scene Free
+
+- File: `low_poly_tree_scene_free.glb`
+- Role: Wildwood and Meadow tree variants. Only the two trunk/canopy pairs are extracted; grass, ground and the source scene layout are omitted.
+- Geometry: Wildwood uses 4,374 triangles per tree; Meadow uses 1,806. Each variant shares two instanced draw batches. Source file: 3,606,228 bytes.
+- Author: [Nicholas-3D](https://sketchfab.com/Nicholas01)
+- License: [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/)
+- Source: [Low Poly Tree Scene Free](https://sketchfab.com/3d-models/low-poly-tree-scene-free-89daa5e21f0d4f08a59dba0d566e88bd)
 
 ### Pony Cartoon
 
@@ -119,13 +128,6 @@ These files remain available for future work and are excluded from the productio
 - Author: [腱鞘炎の人](https://sketchfab.com/Kensyouen)
 - License: [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/)
 - Source: [Just a girl](https://sketchfab.com/3d-models/just-a-girl-b2359160a4f54e76b5ae427a55d9594d)
-
-### Low Poly Tree Scene Free — `low_poly_tree_scene_free.glb`
-
-- Reserved because: The complete scene draws 252,219 triangles across 2,712 instances; ground cover dominates the repeated instances.
-- Author: [Nicholas-3D](https://sketchfab.com/Nicholas01)
-- License: [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/)
-- Source: [Low Poly Tree Scene Free](https://sketchfab.com/3d-models/low-poly-tree-scene-free-89daa5e21f0d4f08a59dba0d566e88bd)
 
 ### Platano Tree — `platano_tree.glb`
 

@@ -1,7 +1,7 @@
 import { vehicleModel } from './vehicle-models.js';
 import { powertrainState } from './powertrain.js';
 import { AerialDynamics, DRIVE_TUNING } from './aerial-dynamics.js';
-import { bridges, bridgeHeightAt, driveHeightAt, isWater, WORLD_SCALE, ISLAND_BOUNDS, islandRadius, ROAD_WIDTHS, bridgeAt } from './world-layout.js';
+import { bridges, bridgeHeightAt, driveHeightAt, isWater, WORLD_SCALE, ISLAND_BOUNDS, islandRadius, ROAD_WIDTHS, bridgeAt, PROJECT_PLOTS,PROJECT_DRIVEWAY_WIDTH } from './world-layout.js';
 import { ColliderIndex, colliderActive } from './physics.js';
 
 export const roadNodes = {
@@ -16,6 +16,9 @@ export const roadLoop = Array.from({ length: 12 }, (_, i) => roadNodes[`r${i}`])
 for(let i=0;i<12;i++) roadNodes[`o${i}`]=roadLoop[i].map(value=>value*WORLD_SCALE);
 export const outerRoadLoop=Array.from({length:12},(_,i)=>roadNodes[`o${i}`]);
 export const connectorPaths=[['r2','o2'],['r8','o8'],['r0','link-west-1','link-west-2','o0'],['r4','o4']];
+export const projectPaths=Object.entries(PROJECT_PLOTS).map(([id,plot])=>{
+  const stop=`project-${id}`;roadNodes[stop]=[...plot.parking];return [plot.approach,stop];
+});
 for (const bridge of bridges) {
   roadNodes[`bridge-${bridge.id}-north`] = [bridge.x - Math.sin(bridge.heading) * 2.7, bridge.z - Math.cos(bridge.heading) * 2.7];
   roadNodes[`bridge-${bridge.id}-south`] = [bridge.x + Math.sin(bridge.heading) * 2.7, bridge.z + Math.cos(bridge.heading) * 2.7];
@@ -23,6 +26,7 @@ for (const bridge of bridges) {
 const edges = Array.from({ length: 12 }, (_, i) => [`r${i}`, `r${(i + 1) % 12}`]).filter(([a, b]) => !(['r5', 'r6'].includes(a) && ['r5', 'r6'].includes(b)) && !(['r10', 'r11'].includes(a) && ['r10', 'r11'].includes(b)));
 edges.push(...Array.from({length:12},(_,i)=>[`o${i}`,`o${(i+1)%12}`]).filter(([a,b])=>!(['o5','o6'].includes(a)&&['o5','o6'].includes(b))&&!(['o10','o11'].includes(a)&&['o10','o11'].includes(b))));
 for(const route of connectorPaths)for(let i=1;i<route.length;i++)edges.push([route[i-1],route[i]]);
+edges.push(...projectPaths);
 edges.push(['r2', 'c0'], ['r11', 'c1'], ['c1', 'c0'], ['c0', 'c2'], ['c2', 'r5']);
 for (const [id, a, b] of [['west', 'r11', 'r10'], ['village', 'c0', 'r8'], ['east', 'r5', 'r6'],['outer-west','o11','o10'],['outer-east','o5','o6']]) edges.push([a, `bridge-${id}-north`], [`bridge-${id}-north`, `bridge-${id}-south`], [`bridge-${id}-south`, b]);
 const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
@@ -343,5 +347,5 @@ const distanceToSegment=(x,z,a,b)=>{const dx=b[0]-a[0],dz=b[1]-a[1],t=Math.max(0
 export function drivingSurfaceAt(x,z){
   if(isWater(x,z))return 'water';if(bridgeAt(x,z))return 'bridge';
   if([roadLoop,outerRoadLoop].some(loop=>loop.some((p,i)=>distanceToSegment(x,z,p,loop[(i+1)%loop.length])<ROAD_WIDTHS.ring/2)))return 'road';
-  if(connectorPaths.some(path=>path.slice(1).some((key,i)=>distanceToSegment(x,z,roadNodes[path[i]],roadNodes[key])<ROAD_WIDTHS.spine/2))||Math.abs(x)<ROAD_WIDTHS.spine/2&&Math.abs(z)<14||Math.abs(z)<ROAD_WIDTHS.spine/2&&Math.abs(x)<21)return 'road';return 'grass';
+  if(projectPaths.some(([a,b])=>distanceToSegment(x,z,roadNodes[a],roadNodes[b])<PROJECT_DRIVEWAY_WIDTH/2)||connectorPaths.some(path=>path.slice(1).some((key,i)=>distanceToSegment(x,z,roadNodes[path[i]],roadNodes[key])<ROAD_WIDTHS.spine/2))||Math.abs(x)<ROAD_WIDTHS.spine/2&&Math.abs(z)<14||Math.abs(z)<ROAD_WIDTHS.spine/2&&Math.abs(x)<21)return 'road';return 'grass';
 }

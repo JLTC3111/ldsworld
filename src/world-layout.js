@@ -7,6 +7,16 @@ export const MAP_BOUNDS = Object.freeze({ x:33*WORLD_SCALE, z:25*WORLD_SCALE });
 export const MAP_VIEWBOX = `${-MAP_BOUNDS.x} ${-MAP_BOUNDS.z} ${MAP_BOUNDS.x*2} ${MAP_BOUNDS.z*2}`;
 export const islandRadius = (x,z,margin=0) => Math.hypot(x/(ISLAND_BOUNDS.x-margin),z/(ISLAND_BOUNDS.z-margin));
 export const ROAD_WIDTHS = Object.freeze({ring:12.25,shoulder:13.75,spine:10.5});
+export const PROJECT_DRIVEWAY_WIDTH=4.2;
+// Clockwise around the six inner plots marked in the owner's map reference.
+export const PROJECT_PLOTS=Object.freeze({
+  hr:{position:[-25,-43],parking:[-25,-28],approach:'link-west-2',rotation:0},
+  crypto:{position:[33,-34],parking:[44,-25],approach:'r4',rotation:Math.PI/4},
+  contracts:{position:[65,-9],parking:[50,-9],approach:'r4',rotation:-Math.PI/2},
+  compressor:{position:[42,30],parking:[42,15],approach:'r7',rotation:Math.PI},
+  ceremony:{position:[-39,31],parking:[-39,16],approach:'r9',rotation:Math.PI},
+  icue:{position:[-58,-12],parking:[-47.4,-22.6],approach:'link-west-2',rotation:Math.PI*3/4}
+});
 export const RIVER_HALF_WIDTH = 3.15;
 export const riverCenter = x => 3.4 + Math.sin(x * .25) * .45;
 export const bridges = [
@@ -16,10 +26,11 @@ export const bridges = [
   { id: 'outer-west', x:-99.4*DISTRICT_SCALE, z:riverCenter(-99.4*DISTRICT_SCALE), heading:.165, width:14.25, length:10.5 },
   { id: 'outer-east', x:99*DISTRICT_SCALE, z:riverCenter(99*DISTRICT_SCALE), heading:-.25, width:14.25, length:10.5 }
 ];
+const portalScale = 1.25;
 export const portals = [
   { id: 'west-gate', x: -32, z: -11, exitX: 27, exitZ: 16, heading: -Math.PI / 2, color: '#78dfd1' },
   { id: 'east-gate', x: 32, z: 11, exitX: -27, exitZ: -16, heading: Math.PI / 2, color: '#c1a2f3' }
-];
+].map(portal => ({ ...portal, scale: portalScale, radius: 1.25 * portalScale }));
 export const houses = [
   {x:-36,z:-42,scale:1.5,color:'#d6a178'}, {x:28,z:-48,scale:1.5,color:'#d2bc87'},
   {x:58,z:27,scale:1.5,color:'#a3b9ab'}, {x:-45,z:50,scale:1.5,color:'#b0a1bd'}

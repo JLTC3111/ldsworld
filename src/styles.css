@@ -2447,3 +2447,11 @@ body.ui-hidden #world::after { opacity:0 !important; }
 #minimap .map-caption>svg{width:10px;height:10px;}#minimap .map-caption>span{display:inline;white-space:nowrap;}
 #minimap:focus-visible{outline-offset:-3px;outline-width:2px;}
 @media(max-width:560px){.minimap-wrap{width:104px;max-width:104px;right:12px;bottom:78px;}#minimap{height:88px;grid-template-rows:58px 16px;padding:5px;}#minimap-svg{height:58px;max-height:58px;}#minimap .map-caption{height:16px;font-size:6px;gap:3px;}}
+.minimap-car-indicator { display:none; }
+@media (min-width:721px) and (hover:hover) and (pointer:fine) {
+  .minimap-wrap { width:168px; max-width:168px; }
+  #minimap { height:130px; grid-template-rows:98px 18px; }
+  #minimap-svg { height:98px; max-height:98px; }
+  #mini-car .minimap-car-basic { display:none; }
+  #mini-car .minimap-car-indicator { display:inline; }
+}

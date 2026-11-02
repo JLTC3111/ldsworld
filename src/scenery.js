@@ -301,7 +301,7 @@ export function createScenery({ THREE, scene, land, box, cylinder, sphere, group
   const portalRingGeometry = ownGeo(new THREE.TorusGeometry(1.48, .17, 7, 32));
   const glowRingGeometry = ownGeo(new THREE.TorusGeometry(1.24, .035, 5, 48));
   portals.forEach((portal, index) => {
-    const gate = group(root, portal.x, portal.z); gate.rotation.y = portal.heading;gate.scale.set(1.4,1.4,1);
+    const gate = group(root, portal.x, portal.z); gate.rotation.y = portal.heading;gate.scale.set(1.4*portal.scale,1.4*portal.scale,portal.scale);
     gate.userData.portalId = portal.id; gate.name = `Portal ${portal.id}`; portalGroups.push(gate);
     gate.userData.blastProtected=true;gate.userData.breakableKind='portal';
     cylinder(1.9, 2.04, .16, '#acb39b', gate, 0, .12, 0, 16).userData.physicsIgnore=true;
