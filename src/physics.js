@@ -22,17 +22,28 @@ export const colliderActive = (collider, bottom = -Infinity, top = Infinity) => 
 // have thousands of contacts without checking every contact every substep.
 export class ColliderIndex {
   constructor(colliders = [], cellSize = 4) {
-    this.cellSize = cellSize; this.cells = new Map();
+    this.cellSize = cellSize; this.cells = new Map(); this.memberships = new WeakMap();
     colliders.forEach(collider => this.insert(collider));
   }
   insert(collider) {
     const halfX = collider.radius || (collider.width || .1) / 2, halfZ = collider.radius || (collider.depth || .1) / 2;
-    for (let x = Math.floor((collider.x - halfX) / this.cellSize); x <= Math.floor((collider.x + halfX) / this.cellSize); x++) for (let z = Math.floor((collider.z - halfZ) / this.cellSize); z <= Math.floor((collider.z + halfZ) / this.cellSize); z++) {
+    const minX=Math.floor((collider.x-halfX)/this.cellSize),maxX=Math.floor((collider.x+halfX)/this.cellSize),minZ=Math.floor((collider.z-halfZ)/this.cellSize),maxZ=Math.floor((collider.z+halfZ)/this.cellSize);
+    const previous=this.memberships.get(collider);
+    if(previous&&previous.minX===minX&&previous.maxX===maxX&&previous.minZ===minZ&&previous.maxZ===maxZ)return;
+    if(previous)this.remove(collider);
+    const membership={minX,maxX,minZ,maxZ,keys:[]};this.memberships.set(collider,membership);
+    for (let x = minX; x <= maxX; x++) for (let z = minZ; z <= maxZ; z++) {
       const key = `${x},${z}`; if (!this.cells.has(key)) this.cells.set(key, []); this.cells.get(key).push(collider);
+      membership.keys.push(key);
     }
   }
-  near(x, z, radius = 1) {
-    const found = new Set();
+  remove(collider) {
+    const membership=this.memberships.get(collider);if(!membership)return;
+    for(const key of membership.keys){const bucket=this.cells.get(key),index=bucket.indexOf(collider);if(index>=0){bucket[index]=bucket[bucket.length-1];bucket.pop();}if(!bucket.length)this.cells.delete(key);}
+    this.memberships.delete(collider);
+  }
+  near(x, z, radius = 1, found = new Set()) {
+    found.clear();
     for (let ix = Math.floor((x - radius) / this.cellSize); ix <= Math.floor((x + radius) / this.cellSize); ix++) for (let iz = Math.floor((z - radius) / this.cellSize); iz <= Math.floor((z + radius) / this.cellSize); iz++) for (const collider of this.cells.get(`${ix},${iz}`) || []) found.add(collider);
     return found;
   }
@@ -45,6 +56,7 @@ export class PhysicsWorld {
     this.colliders = colliders;
     this.colliderIndex = new ColliderIndex(colliders);
     this.carContact = {};
+    this.carCandidates=new Set();this.fixedCandidates=new Set();this.pairCandidates=new Set();this.checkedPairs=new Set();this.awake=[];this.queued=new Set();
     this.initial = bodies.map((definition, index) => {
       const body = { ...definition, id: definition.id || `prop-${index}`, radius: Math.max(.1, definition.radius || .4), mass: Math.max(.05, definition.mass || 1) };
       body.height = Math.max(.1, definition.height || body.radius * 2);
@@ -58,11 +70,12 @@ export class PhysicsWorld {
   reset() {
     // Keep the array identity so a renderer can retain a reference to it.
     this.bodies.splice(0, this.bodies.length, ...this.initial.map(body => ({ ...body, vx: 0, vz: 0, vy: 0, rotation: body.rotation || 0, angularVelocity: 0, tiltX: 0, tiltZ: 0, sleepTime: 0, sleeping: Boolean(body.initialSleeping), displaced: false })));
+    this.bodyIndex=new ColliderIndex(this.bodies);this.bodyNumbers=new WeakMap();this.bodies.forEach((body,index)=>this.bodyNumbers.set(body,index));
   }
   restoreBody(id){
     const index=this.initial.findIndex(b=>b.id===id);if(index<0)return null;const initial=this.initial[index];
     const body={...initial,vx:0,vz:0,vy:0,rotation:initial.rotation||0,angularVelocity:0,tiltX:0,tiltZ:0,sleepTime:0,sleeping:true,displaced:false,destroyed:false};
-    this.bodies[index]=body;return body;
+    this.bodyIndex.remove(this.bodies[index]);this.bodies[index]=body;this.bodyNumbers.set(body,index);this.bodyIndex.insert(body);return body;
   }
   explode({x,y=.6,z,radius=8,strength=15,carStrength=0},driver){
     for(const body of this.bodies){
@@ -96,15 +109,16 @@ export class PhysicsWorld {
     const steps = Math.ceil(duration * 120), dt = duration / steps;
     const friction = weather === 'snow' ? .75 : weather === 'rain' ? 1.55 : 2.8;
     const carContact = driver ? carContactFor(driver,this.carContact) : null;
-    for(const body of this.bodies)body.impactSpeed=0;
+    // External kicks, respawns and pin radius changes all share this index.
+    // Unchanged sleeping props retain their cell memberships across frames.
+    for(const body of this.bodies){body.impactSpeed=0;this.bodyIndex.insert(body);}
     for (let step = 0; step < steps; step++) {
-      let moving = false;
+      const awake=this.awake,queued=this.queued;awake.length=0;queued.clear();
+      if(driver)for(const body of this.bodyIndex.near(driver.x+(carContact.bounds?.offsetX||0),driver.z+(carContact.bounds?.offsetZ||0),carContact.radius+.25,this.carCandidates)){
+        if(body.sleeping&&activeBody(body)){this.resolveCar(body,driver,carContact);this.bodyIndex.insert(body);}
+      }
       for (const body of this.bodies) {
-        if (!activeBody(body)) continue;
-        if (body.sleeping) {
-          if (driver) this.resolveCar(body, driver, carContact);
-          if (body.sleeping) continue;
-        }
+        if (body.sleeping || !activeBody(body)) continue;
         body.previousY = body.y;
         const grounded = body.y <= floorAt(body) + .015 && body.vy <= .05;
         const damping = Math.exp(-(grounded ? friction : .12) * dt);
@@ -138,19 +152,26 @@ export class PhysicsWorld {
         if (Math.hypot(body.vx, body.vz, body.vy) < .025 && Math.abs(body.angularVelocity) < .025 && Math.abs(body.tipVelocity||0)<.025) body.sleepTime += dt;
         else body.sleepTime = 0;
         if (body.sleepTime > .8) { body.sleeping = true; body.vx = 0; body.vz = 0; body.vy = 0; body.angularVelocity = 0; }
-        if(!body.sleeping)moving=true;
+        this.bodyIndex.insert(body);
+        if(!body.sleeping){awake.push(body);queued.add(body);}
       }
       // No body-body work is needed for an island full of sleeping props.
       // Nearby car contacts above still wake bodies before taking this path.
-      if(!moving)continue;
-      const active = this.bodies.filter(activeBody), pairs = new ColliderIndex(active);
-      const checked = new Set();
-      for (const a of active) for (const entry of pairs.near(a.x, a.z, a.radius)) {
-        const b = entry; if (a === b || (a.sleeping && b.sleeping)) continue;
-        const pair = a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
-        if (checked.has(pair)) continue; checked.add(pair); this.resolvePair(a, b);
+      if(!awake.length)continue;
+      const checked=this.checkedPairs;checked.clear();
+      // Query moving props only. A hit wakes and queues a resting neighbour,
+      // so momentum still propagates through a complete row of bowling pins.
+      for(let index=0;index<awake.length;index++){
+        const a=awake[index],aNumber=this.bodyNumbers.get(a);
+        for(const b of this.bodyIndex.near(a.x,a.z,a.radius,this.pairCandidates)){
+          if(a===b||!activeBody(b))continue;
+          const bNumber=this.bodyNumbers.get(b),pair=Math.min(aNumber,bNumber)*this.bodies.length+Math.max(aNumber,bNumber);
+          if(checked.has(pair))continue;checked.add(pair);this.resolvePair(a,b);
+          this.bodyIndex.insert(a);this.bodyIndex.insert(b);
+          if(!b.sleeping&&!queued.has(b)){awake.push(b);queued.add(b);}
+        }
       }
-      for (const body of active) this.resolveGround(body);
+      for (const body of awake) this.resolveGround(body);
     }
   }
   resolveGround(body) {
@@ -164,7 +185,7 @@ export class PhysicsWorld {
     if (Math.abs(body.vz) < .002) body.vz = 0;
   }
   resolveFixed(body) {
-    for (const obstacle of this.colliderIndex.near(body.x, body.z, body.radius)) {
+    for (const obstacle of this.colliderIndex.near(body.x, body.z, body.radius, this.fixedCandidates)) {
       if (!colliderActive(obstacle, body.y - body.height / 2 + .015, body.y + body.height / 2 - .015)) continue;
       let nx, nz, penetration;
       if (obstacle.radius) {
@@ -226,8 +247,9 @@ export class PhysicsWorld {
     driver.collisionImpact = Math.max(driver.collisionImpact || 0, closing);
   }
   resolvePair(a, b) {
-    const dx = b.x - a.x, dz = b.z - a.z, distance = Math.hypot(dx, dz), overlap = a.radius + b.radius - distance;
-    if (overlap <= 0) return;
+    const dx = b.x - a.x, dz = b.z - a.z, radius=a.radius+b.radius;
+    if(dx*dx+dz*dz>=radius*radius)return;
+    const distance=Math.hypot(dx,dz),overlap=radius-distance;
     const aBottom = a.y - a.height / 2, aTop = a.y + a.height / 2, bBottom = b.y - b.height / 2, bTop = b.y + b.height / 2;
     const stack = (top, lower) => {
       const bottom = top.y - top.height / 2, oldBottom = (top.previousY ?? top.y) - top.height / 2, surface = lower.y + lower.height / 2;

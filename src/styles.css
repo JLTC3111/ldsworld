@@ -2362,7 +2362,19 @@ body.evening #world { background: radial-gradient(ellipse at 73% 54%, #36363600 
 .world-options button:hover { background:var(--hover-bg); }
 .world-options button[aria-pressed="true"] { background:var(--active-bg); color:var(--active-ink); border-color:var(--active-bg); }
 .time-options { grid-template-columns:repeat(3,minmax(0,1fr)); }
-.time-options button:first-child { grid-column:span 2; flex-direction:row; }
+.time-options button:first-child {
+  grid-column:span 2; flex-direction:row; align-items:center; justify-content:center;
+  border:0; background:none; box-shadow:none; line-height:1;
+}
+.time-options button:first-child:hover,
+.time-options button:first-child[aria-pressed="true"] {
+  border:0; background:none; box-shadow:none;
+}
+.time-options button:first-child[aria-pressed="true"] { color:var(--ink); }
+.time-options button:first-child > span {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:1em; height:1em; line-height:1; transform:translateY(-0.08em);
+}
 .light-options { grid-template-columns:repeat(3,minmax(0,1fr)); }
 .light-options button { min-height:41px; }
 .world-settings>.world-explanation { font-size:11px; line-height:1.8; margin:13px 0 24px; }

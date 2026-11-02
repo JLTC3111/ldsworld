@@ -1,0 +1,4 @@
+.world-option-icon { display:inline-flex; flex:none; width:24px; height:24px; align-items:center; justify-content:center; }
+.world-option-icon svg { display:block; width:24px; height:24px; overflow:visible; }
+.world-option-icon :is(path,circle) { fill:none; }
+/* Motion belongs to native SVG animateTransform, paused by the panel lifecycle. */

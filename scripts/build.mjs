@@ -2,8 +2,10 @@ import { mkdir, rm, readdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { MODEL_ASSETS } from '../src/model-catalog.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
+const runtimeModels=new Set(Object.values(MODEL_ASSETS).map(model=>`assets/3d_models/${model.file}`));
 
 // Read module syntax without mistaking examples, shader strings, comments, or
 // regular expressions for imports. Template expressions remain executable code.
@@ -93,6 +95,8 @@ async function readSource(directory, prefix = '') {
     const relative = prefix + entry.name, filename = path.join(directory, entry.name);
     // Input reference photographs and design screenshots are not runtime assets.
     if(relative==='assets/3D_CARS'||relative==='assets/aspects')continue;
+    // Keep all uploaded originals in source; ship only models used by the site.
+    if(/^assets\/3d_models\/.*\.glb$/i.test(relative)&&!runtimeModels.has(relative))continue;
     if(relative==='assets/demos'||relative==='assets/posters'||/^assets\/gallery\/videos\/(?:en|vi)\/To-Do-App-.*\.mp4$/i.test(relative))continue;
     if (entry.isDirectory()) result.push(...await readSource(filename, `${relative}/`));
     else if (entry.isFile()) result.push({ relative, bytes: await readFile(filename) });

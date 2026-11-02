@@ -31,21 +31,30 @@ export const angleDifference = (target, current) => Math.atan2(Math.sin(target -
 export const CAR_HALF_WIDTH = .84;
 export const CAR_HALF_LENGTH = 1.33;
 
-function fixedContact(x, z, heading, obstacle, halfWidth=CAR_HALF_WIDTH, halfLength=CAR_HALF_LENGTH) {
-  if (obstacle.radius && !obstacle.width) obstacle = { ...obstacle, width: obstacle.radius * 2, depth: obstacle.radius * 2 };
-  const rightX = Math.cos(heading), rightZ = -Math.sin(heading), forwardX = Math.sin(heading), forwardZ = Math.cos(heading);
-  const dx = x - obstacle.x, dz = z - obstacle.z, halfX = obstacle.width / 2, halfZ = obstacle.depth / 2;
-  let depth = Infinity, nx = 0, nz = 0;
-  // The world axes and the car's two local axes form the separating-axis test.
-  // Resolving along its smallest overlap avoids an oversized diagonal AABB.
-  for (const [axisX, axisZ] of [[1, 0], [0, 1], [rightX, rightZ], [forwardX, forwardZ]]) {
-    const carRadius = halfWidth * Math.abs(axisX * rightX + axisZ * rightZ) + halfLength * Math.abs(axisX * forwardX + axisZ * forwardZ);
-    const obstacleRadius = halfX * Math.abs(axisX) + halfZ * Math.abs(axisZ);
-    const signedDistance = dx * axisX + dz * axisZ, overlap = carRadius + obstacleRadius - Math.abs(signedDistance);
-    if (overlap <= 0) return null;
-    if (overlap < depth) { depth = overlap; nx = axisX * Math.sign(signedDistance || 1); nz = axisZ * Math.sign(signedDistance || 1); }
-  }
-  return { depth, nx, nz };
+function fixedContact(x, z, heading, obstacle, halfWidth=CAR_HALF_WIDTH, halfLength=CAR_HALF_LENGTH, result) {
+  const rightX = Math.cos(heading), rightZ = -Math.sin(heading), forwardX = -rightZ, forwardZ = rightX;
+  const dx = x - obstacle.x, dz = z - obstacle.z;
+  const halfX = (obstacle.width || obstacle.radius * 2) / 2, halfZ = (obstacle.depth || obstacle.radius * 2) / 2;
+  const absCos = Math.abs(rightX), absSin = Math.abs(rightZ);
+  // Reject on the world axes before testing the car's local axes. Scalar SAT
+  // avoids allocating five axis arrays for every scenery candidate/substep.
+  let depth = halfWidth * absCos + halfLength * absSin + halfX - Math.abs(dx);
+  if (depth <= 0) return null;
+  let nx = Math.sign(dx || 1), nz = 0;
+  let overlap = halfWidth * absSin + halfLength * absCos + halfZ - Math.abs(dz);
+  if (overlap <= 0) return null;
+  if (overlap < depth) { depth = overlap; nx = 0; nz = Math.sign(dz || 1); }
+  const side = dx * rightX + dz * rightZ;
+  overlap = halfWidth + halfX * absCos + halfZ * absSin - Math.abs(side);
+  if (overlap <= 0) return null;
+  if (overlap < depth) { depth = overlap; nx = rightX * Math.sign(side || 1); nz = rightZ * Math.sign(side || 1); }
+  const along = dx * forwardX + dz * forwardZ;
+  overlap = halfLength + halfX * absSin + halfZ * absCos - Math.abs(along);
+  if (overlap <= 0) return null;
+  if (overlap < depth) { depth = overlap; nx = forwardX * Math.sign(along || 1); nz = forwardZ * Math.sign(along || 1); }
+  const contact = result || {};
+  contact.depth = depth; contact.nx = nx; contact.nz = nz;
+  return contact;
 }
 
 export function planRoute(position, destination) {
@@ -123,6 +132,8 @@ export class Driver {
     this.colliders = colliders;
     this.routeColliders = routeColliders;
     this.colliderIndex = new ColliderIndex(colliders);
+    this.nearbyColliders = new Set();
+    this.fixedContact = {};
     this.profile=vehicleModel('explorer').profile;
     this.attitude=new AerialDynamics();
     this.reset();
@@ -160,7 +171,7 @@ export class Driver {
   cancelRoute() { this.route = []; this.destinationId = null; }
   routeBudget() { let previous=[this.x,this.z],length=0;for(const point of this.route){length+=distance(previous,point);previous=point;}return Math.max(35,length/3.5+15); }
   setVehicleProfile(profile){this.profile=profile||vehicleModel('explorer').profile;this.rideHeight=this.hydraulicsRaised?this.profile.raised:this.profile.low;this.attitude.pivotHeight=this.profile.pivotHeight||1.2;this.attitude.bodyTop=this.profile.bodyTop+this.rideHeight;this.attitude.halfWidth=this.profile.halfWidth+.1;this.attitude.halfLength=this.profile.halfLength+.12;}
-  canPark(x,z){if(islandRadius(x,z,2)>1||isWater(x,z))return false;const bottom=driveHeightAt(x,z)+.1;for(const c of this.colliderIndex.near(x,z,3))if(colliderActive(c,bottom,bottom+this.profile.bodyTop+this.profile.raised)&&fixedContact(x,z,this.heading,c,this.profile.halfWidth+.15,this.profile.halfLength+.15))return false;return true;}
+  canPark(x,z){if(islandRadius(x,z,2)>1||isWater(x,z))return false;const bottom=driveHeightAt(x,z)+.1;for(const c of this.colliderIndex.near(x,z,3,this.nearbyColliders))if(colliderActive(c,bottom,bottom+this.profile.bodyTop+this.profile.raised)&&fixedContact(x,z,this.heading,c,this.profile.halfWidth+.15,this.profile.halfLength+.15,this.fixedContact))return false;return true;}
   teleport(x,z,heading=this.heading){this.x=x;this.z=z;this.heading=this.velocityHeading=heading;this.cancelRoute();this.speed=0;this.vx=0;this.vz=0;this.groundHeight=driveHeightAt(x,z);this.groundVelocity=0;this.settle();this.inWater=isWater(x,z);}
   applyImpulse({x=0,y=0,z=0},spin=0){
     if(!this.attitude.flying){this.attitude.takeoff(this.heading,this.pitch,this.roll);this.vx=Math.sin(this.velocityHeading)*this.speed;this.vz=Math.cos(this.velocityHeading)*this.speed;}
@@ -229,7 +240,7 @@ export class Driver {
       } else {
         const [tx, tz] = this.route[0];
         const delta = angleDifference(Math.atan2(tx - this.x, tz - this.z), this.heading);
-        const desiredSpeed = Math.abs(delta) > .9 ? .65 : Math.abs(delta) > .45 ? 2.7 : 6.3;
+        const desiredSpeed = Math.min(DRIVE_TUNING.speed, Math.abs(delta) > .9 ? .65 : Math.abs(delta) > .45 ? 2.7 : 6.3);
         this.speed += clamp(desiredSpeed - this.speed, -10 * dt, 7 * dt);
         this.heading += clamp(delta, -2.7 * dt, 2.7 * dt);
         steering = clamp(delta, -1, 1);
@@ -258,14 +269,14 @@ export class Driver {
     let nextX = this.x + (flying?this.vx:Math.sin(this.velocityHeading)*this.speed)*dt;
     let nextZ = this.z + (flying?this.vz:Math.cos(this.velocityHeading)*this.speed)*dt;
     const airBounds=flying||this.attitude.recovering?this.attitude.bounds():null;
-    for (let pass = 0; pass < 2; pass++) for (const collider of this.colliderIndex.near(nextX+(airBounds?.offsetX||0),nextZ+(airBounds?.offsetZ||0),Math.hypot(airBounds?.halfX??this.profile.halfWidth,airBounds?.halfZ??this.profile.halfLength)+.2)) {
+    for (let pass = 0; pass < 2; pass++) for (const collider of this.colliderIndex.near(nextX+(airBounds?.offsetX||0),nextZ+(airBounds?.offsetZ||0),Math.hypot(airBounds?.halfX??this.profile.halfWidth,airBounds?.halfZ??this.profile.halfLength)+.2,this.nearbyColliders)) {
       const bottom = this.hop + this.groundHeight + (airBounds?airBounds.bottom+this.attitude.supportLift:.1);
       // Height ranges let the car travel under lanterns and through gateways,
       // while bridge rails and snow-only scenery remain genuinely solid.
       if (!colliderActive(collider, bottom, bottom + (airBounds?airBounds.top-airBounds.bottom:2.5))) continue;
       if (collider.minY === undefined && this.hop >= 1) continue;
       const roof=!airBounds&&(collider.minY??0)>this.groundHeight+this.hop+1.5;
-      const contact=fixedContact(nextX+(airBounds?.offsetX||0),nextZ+(airBounds?.offsetZ||0),airBounds?0:this.heading,collider,airBounds?.halfX??(roof?this.profile.halfWidth*.74:this.profile.halfWidth),airBounds?.halfZ??(roof?this.profile.halfLength*.6:this.profile.halfLength));
+      const contact=fixedContact(nextX+(airBounds?.offsetX||0),nextZ+(airBounds?.offsetZ||0),airBounds?0:this.heading,collider,airBounds?.halfX??(roof?this.profile.halfWidth*.74:this.profile.halfWidth),airBounds?.halfZ??(roof?this.profile.halfLength*.6:this.profile.halfLength),this.fixedContact);
       if (!contact) continue;
       const impactSpeed=Math.max(0,-((flying?this.vx:Math.sin(this.velocityHeading)*this.speed)*contact.nx+(flying?this.vz:Math.cos(this.velocityHeading)*this.speed)*contact.nz));
       if(impactSpeed>.1&&this.onImpact?.(collider,impactSpeed)){this.speed*=.88;continue;}

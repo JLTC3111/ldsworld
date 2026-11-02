@@ -5,6 +5,7 @@ import { createBlastDamage,treeBlastTargets,BLAST_BURN_SECONDS } from '../src/bl
 import { PhysicsWorld,colliderActive } from '../src/physics.js';
 import { collectWorldColliders,syncPhysicsBodies } from '../src/world-physics.js';
 import {collectBreakableTargets,isProtectedObject} from '../src/breakables.js';
+import { Driver } from '../src/driving.js';
 
 function fixture(){
   const scene=new THREE.Scene(),trunks=new THREE.InstancedMesh(new THREE.CylinderGeometry(.2,.3,3,8),new THREE.MeshStandardMaterial(),2),matrix=new THREE.Matrix4();scene.add(trunks);
@@ -53,9 +54,21 @@ test('reset restores exact tree instances and contacts, revives props, and relea
   const owned=new Set();f.damage.root.traverse(o=>{if(o.geometry)owned.add(o.geometry);if(o.material)owned.add(o.material);});let releases=0;owned.forEach(r=>r.addEventListener('dispose',()=>releases++));f.damage.dispose();f.damage.dispose();assert.equal(releases,owned.size);
 });
 
-test('a strong impact breaks scenery, respects buildings, and restores original instances after their individual delay',()=>{
+test('trees stay visible and solid when the boosted car hits them, including direct impact requests',()=>{
   const f=fixture();f.damage.dispose();const targets=collectBreakableTargets({THREE,colliders:f.colliders,existing:[{id:'tree',kind:'tree',x:2,z:2,parts:[{object:f.trunks,index:0}]}]});const damage=createBlastDamage({THREE,scene:f.scene,physics:f.physics,targets});
-  assert.equal(damage.impact(f.colliders[0],4),false);assert.equal(damage.impact(f.colliders[0],20),true);assert.equal(colliderActive(f.colliders[0]),false);assert.equal(f.building.visible,true);
+  const original=new THREE.Matrix4(),after=new THREE.Matrix4();f.trunks.getMatrixAt(0,original);
+  const driver=new Driver(f.colliders);driver.teleport(2,-1,0);driver.speed=48;let hits=0;
+  driver.onImpact=(collider,strength)=>{hits++;assert.ok(strength>11);return damage.impact(collider,strength);};
+  for(let i=0;i<8;i++)driver.step(1/120,{forward:true,boost:true});
+  assert.ok(hits>0);assert.ok(driver.z<2,'The car stops against the trunk instead of passing through it');
+  for(const strength of [20,48,999,Infinity])assert.equal(damage.impact(f.colliders[0],strength),false);
+  assert.equal(damage.impact('tree',999),false);f.trunks.getMatrixAt(0,after);assert.deepEqual(after.elements,original.elements);
+  assert.equal(colliderActive(f.colliders[0]),true);assert.equal(damage.destroyed.size,0);assert.equal(damage.respawns.size,0);assert.ok(damage.sites.every(site=>!site.used));damage.dispose();
+});
+
+test('TNT still burns trees and restores their original instances after their individual delay',()=>{
+  const f=fixture();f.damage.dispose();const targets=collectBreakableTargets({THREE,colliders:f.colliders,existing:[{id:'tree',kind:'tree',x:2,z:2,parts:[{object:f.trunks,index:0}]}]});const damage=createBlastDamage({THREE,scene:f.scene,physics:f.physics,targets});
+  damage.blast({x:2,z:2,radius:3});assert.equal(damage.destroyed.has('tree'),true);assert.equal(colliderActive(f.colliders[0]),false);assert.equal(f.building.visible,true);
   for(let i=0;i<1100;i++)damage.update(.1,{focus:{x:2,z:2}});assert.ok(damage.destroyed.has('tree'),'Respawning waits until the car leaves the original tree position');
   damage.update(.1,{focus:{x:100,z:100}});assert.equal(damage.destroyed.has('tree'),false);assert.equal(colliderActive(f.colliders[0]),true);damage.dispose();
 });

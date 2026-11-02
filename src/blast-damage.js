@@ -3,20 +3,7 @@ import { breakProfile,isProtectedObject,isProtectedKind } from './breakables.js'
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 export const BLAST_BURN_SECONDS=7;
 
-export function treeBlastTargets({THREE:T,trees,objects}){
-  const targets=trees.map((tree,index)=>({id:`tree-${index+1}`,kind:'tree',x:tree.x,z:tree.z,parts:[]}));
-  const matrix=new T.Matrix4(),position=new T.Vector3();
-  for(const object of objects){
-    if(!object.isInstancedMesh)continue;object.updateWorldMatrix(true,false);
-    for(let index=0;index<object.count;index++){
-      object.getMatrixAt(index,matrix);matrix.premultiply(object.matrixWorld);position.setFromMatrixPosition(matrix);
-      let nearest=null,distance=Infinity;
-      for(const target of targets){const d=Math.hypot(target.x-position.x,target.z-position.z);if(d<distance){distance=d;nearest=target;}}
-      if(nearest&&distance<4)nearest.parts.push({object,index});
-    }
-  }
-  return targets;
-}
+export { collectTreeInstances as treeBlastTargets } from './tree-details.js';
 
 // Registered scenery and loose physics props break and return on individual
 // timers. Buildings and the terrain remain outside the destruction registry.
@@ -69,13 +56,15 @@ export function createBlastDamage({THREE:T,scene,physics,targets=[],coarse=false
   }
   function impact(colliderOrId,strength){
     if(disposed)return false;const id=typeof colliderOrId==='string'?colliderOrId:colliderOrId?.breakableId,target=targetById.get(id);
+    // Trees stay solid under driving/click impacts; TNT can still burn them.
+    if(target?.kind==='tree')return false;
     return strength>=breakProfile(target?.kind).speed&&destroyTarget(target);
   }
   function processImpacts(){
     for(const body of physics.bodies){
       if(body.destroyed||body.active&&!body.active()||isProtectedKind(body.kind)||isProtectedObject(body.object))continue;
       const initial=initialById.get(body.id),displaced=initial&&Math.hypot(body.x-initial.x,body.z-initial.z)>Math.max(.75,initial.radius);
-      if(body.kind!=='tnt'&&(body.impactSpeed||0)>=breakProfile(body.kind).speed)destroyBody(body);
+      if(body.kind!=='tnt'&&body.kind!=='tree'&&(body.impactSpeed||0)>=breakProfile(body.kind).speed)destroyBody(body);
       else if((displaced||body.kind==='bowling-pin'&&(body.tipAngle||0)>1.25)&&!respawns.has(body.id))respawns.set(body.id,{id:body.id,kind:body.kind,body:true,at:clock+breakProfile(body.kind).respawn});
     }
   }

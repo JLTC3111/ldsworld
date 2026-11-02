@@ -1,3 +1,7 @@
+import { createMobileDrivingVisibility } from './mobile-driving-visibility.js';
+import { mountExploreSpecularButton } from './vendor/explore-specular-button.js';
+import { createSplitFlapHeadline } from './split-flap-text.js';
+import { worldOptionIcon, mountWorldIcons } from './world-icons.js';
 import { deviceBudget } from './render-budget.js';
 import { loadCarAssets } from './car-assets.js';
 import { roadSvgPath,ROAD_COLOR,ROAD_SHOULDER_COLOR } from './road-style.js';
@@ -64,6 +68,7 @@ const panel = $('#panel'),carPicker=$('#car-picker');
 const panelDrag=createDialogDrag({dialog:panel,handle:$('.panel-topbar'),keyboardHandle:$('#panel-context')});
 const drivingHud=createDrivingHud();
 const explorationUI=createExplorationUI({hero:$('.hero'),badge:$('#explore-status'),focusSurface:()=>$('#island-canvas')?.focus({preventScroll:true})});
+const mobileDrivingVisibility=createMobileDrivingVisibility({hero:$('.hero'),dock:$('#control-dock')});mobileDrivingVisibility.setMobile(state.mobile);
 let portfolioControls=null;
 let world = null, previousFocus = null, toastTimer = null, speedValue = -1, carSelectionRequest = 0;
 let projectPlayer=null,projectCarousel=null,carouselRequest=0,topography=null,topographyRequest=0,flyingAction=null,flyingRequest=0;
@@ -77,24 +82,26 @@ environmentAudio.start();
 let backgroundMusic = null;
 backgroundMusic = createBackgroundMusic({enabled:state.music,muted:!state.sound,onStateChange:syncMusicButton});
 backgroundMusic.start();
-let panelShowcase = null, showcaseRequest = 0;
+let panelShowcase = null, showcaseRequest = 0, worldIcons = null;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 document.body.classList.toggle('low-power',deviceBudget({hardwareConcurrency:navigator.hardwareConcurrency,deviceMemory:navigator.deviceMemory,saveData:navigator.connection?.saveData}).lowPower);
+const headlineText = createSplitFlapHeadline($('#hero-title'));
 const brandTechText = createTechText($('#brand-wordmark'), { text:'long d.', fontSize:21, fontWeight:700, letterSpacing:-.025, align:'left', reach:36, dashLength:2.2, dashGap:1.5, strokeWidth:.65, specks:3, labels:false, draggable:false, clickKick:false, sweep:false, intro:'none' });
+const exploreSpecularButton=mountExploreSpecularButton($('#explore'),{isActive:()=>!state.panel&&!state.menuOpen&&!state.mobileGameplay&&!document.body.classList.contains('ui-hidden')&&!$('.hero').classList.contains('hero-driving')});
 function controlsModel() {
   const musicPlaying=state.musicPlaying??state.music;
   return {mobileGameplay:state.mobile&&state.mobileGameplay,mobileNavigation:navigationMedia.matches,language:state.language,night:state.night,sound:state.sound,musicPlaying,view:state.panel,labels:{
     home:t('navHome'),projects:t('navWork'),about:t('navAbout'),contact:t('navContact'),world:t('worldSettings'),language:t('switchLanguage'),navigation:t('navigationAria'),
-    menu:t('menuLabel'),closeMenu:t('closeMenuLabel'),openMenuAria:t('openMenuAria'),closeMenuAria:t('closeMenuAria'),socials:t('socialLinks'),garage:t('chooseCar'),reset:`${t('reset')} (R)`,sound:t(state.sound?'soundOff':'soundOn'),music:t(musicPlaying?'musicPause':'musicPlay'),theme:t(state.night?'day':'night'),help:t('help')
+    menu:t('menuLabel'),closeMenu:t('closeMenuLabel'),openMenuAria:t('openMenuAria'),closeMenuAria:t('closeMenuAria'),socials:t('socialLinks'),garage:t('chooseCar'),reset:`${t('reset')} (R)`,sound:t(state.sound?'soundOff':'soundOn'),music:t(musicPlaying?'musicPause':'musicPlay'),theme:t(state.night?'day':'night'),themeToggle:t('darkTheme'),languageGroup:t('languageAria'),help:t('help')
   }};
 }
 function syncControls() { portfolioControls?.update(controlsModel()); }
 portfolioControls=mountPortfolioControls({navigation:$('#header-navigation'),dock:$('#control-dock'),model:controlsModel(),onAction:performAction,onMenuChange:setMenuOpen});
 navigationMedia.addEventListener?.('change',()=>{portfolioControls?.closeMenu();document.body.classList.toggle('compact-navigation',navigationMedia.matches);syncControls();});
-mobileMedia.addEventListener?.('change',()=>{state.mobile=mobileMedia.matches;document.body.classList.toggle('mobile-layout',state.mobile);if(!state.mobile)mobileGameplay.exit();syncMobileControls();});
+mobileMedia.addEventListener?.('change',()=>{state.mobile=mobileMedia.matches;document.body.classList.toggle('mobile-layout',state.mobile);mobileDrivingVisibility.setMobile(state.mobile);if(state.mobile)explorationUI.revealHero();else mobileGameplay.exit();syncMobileControls();});
 
-function syncMobileControls(){touchControls.setEnabled(state.mobile&&state.exploring);touchControls.setPaused(!!state.panel||carPicker.open||state.menuOpen||document.hidden);$('#rotate-phone-hint').hidden=!(touchControls.active&&state.mobileGameplay&&state.portrait);}
-function syncWorldPause(){const paused=!!state.panel||carPicker.open||state.menuOpen||document.hidden;world?.setPaused(paused);syncMobileControls();}
+function syncMobileControls(){touchControls.setEnabled(state.mobile&&state.exploring);touchControls.setPaused(!!state.panel||carPicker.open||state.menuOpen||document.hidden);$('#rotate-phone-hint').hidden=!(touchControls.active&&state.mobileGameplay&&state.portrait);mobileDrivingVisibility.sync();}
+function syncWorldPause(){const paused=!!state.panel||carPicker.open||state.menuOpen||document.hidden;world?.setPaused(paused);syncMobileControls();exploreSpecularButton.refresh();}
 function setMenuOpen(value){state.menuOpen=value;syncWorldPause();}
 function openCarPicker(){
   portfolioControls.closeMenu();closePanel();drivingHud.reveal();
@@ -114,7 +121,7 @@ function translatePage() {
   $('meta[property="og:title"]').content = t('siteTitle');
   $('meta[property="og:description"]').content = t('ogDescription');
   document.querySelectorAll('[data-copy]').forEach(element => { element.textContent = t(element.dataset.copy); });
-  document.querySelectorAll('[data-html]').forEach(element => { element.innerHTML = t(element.dataset.html); });
+  document.querySelectorAll('[data-html]').forEach(element => { if(element.id==='hero-title')headlineText.refresh(t(element.dataset.html));else element.innerHTML = t(element.dataset.html); });
   document.querySelectorAll('[data-aria]').forEach(element => element.setAttribute('aria-label', t(element.dataset.aria)));
   document.querySelectorAll('[data-language]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.language === state.language)));
   $('#minimap').setAttribute('aria-label', t('map'));
@@ -134,7 +141,7 @@ function applyTheme() {
   syncControls();updateFlyingAction();
   panelShowcase?.setTheme(showcaseDark());
   const panelTheme=$('#panel-theme');if(panelTheme){panelTheme.innerHTML=icon(state.night?'moon':'sun');panelTheme.setAttribute('aria-pressed',String(state.night));panelTheme.setAttribute('aria-label',t(state.night?'day':'night'));}
-  brandTechText.refresh();
+  brandTechText.refresh();exploreSpecularButton.refresh();
   $('meta[name="theme-color"]').content = state.night ? '#24292e' : '#eae7e0';
 }
 function startCurrentDemo() {
@@ -203,7 +210,7 @@ function showPanel(view, id = null) {
 }
 function closePanel() { if (panel.open) panel.close(); }
 function handlePanelClose() {
-  disposeShowcase();disposeTopography();disposeFlyingAction();disposeProjectCarousel();projectPlayer?.destroy();projectPlayer=null;
+  worldIcons?.dispose();worldIcons=null;disposeShowcase();disposeTopography();disposeFlyingAction();disposeProjectCarousel();projectPlayer?.destroy();projectPlayer=null;
   state.panel = null; state.projectId = null; document.body.classList.remove('panel-open');syncWorldPause();
   setHash(null); refreshNearby(); syncControls();
   $('#panel-content').querySelectorAll('video').forEach(releaseDemo);
@@ -344,7 +351,7 @@ function renderStage() {
   else if(view==='project')action=`<a class="primary-button" href="${p.live||p.github}" target="_blank" rel="noopener noreferrer">${t(p.live?'visit':'code')}${icon('up-right')}</a>`;
   else if(view==='contact')action=`<a class="primary-button" href="mailto:dev@icue.vn">${icon('mail')}${t('email')}</a>`;
   else if(view==='about')action=`<button class="primary-button" data-action="projects">${t('navProjects')}${icon('arrow')}</button>`;
-  else action=`<button class="primary-button" data-action="close-world">${t('return')}${icon('arrow')}</button>`;
+  else action=`<button class="primary-button" data-action="close-world">${icon('arrow-left')}${t('return')}</button>`;
   const cta=`<div class="stage-cta">${action}</div>`;
   const details=hasScreen?renderScreenInspector(p):`<p class="stage-caption"><strong data-stage-project-label>${caption}</strong><span>${t(view==='map'?'helpProject':'dragPreview')}</span></p><dl class="stage-meta">${metrics.map(([label,value])=>`<div><dt>${label}</dt><dd>${value}</dd></div>`).join('')}</dl>`;
   const lower=`${details}${nav}`;
@@ -402,7 +409,7 @@ function renderContact() {
   return `<article class="info-content contact-content">${renderTopography()}<p class="panel-eyebrow">${t('contactLabel')}</p><h2 id="panel-title">${t('contactTitle')}</h2><p>${t('contactText')}</p><div class="contact-links"><a href="mailto:dev@icue.vn"><span>${icon('mail')}dev@icue.vn</span>${icon('up-right')}</a><a href="https://github.com/JLTC3111" target="_blank" rel="noopener noreferrer"><span>${icon('github')}GitHub</span>${icon('up-right')}</a><a href="https://www.youtube.com/@Drherbal2011" target="_blank" rel="noopener noreferrer"><span>${icon('play')}YouTube</span>${icon('up-right')}</a></div><div class="contact-location">${t('location')} · UTC+7</div></article>`;
 }
 function renderHelp() {
-  return `<article class="info-content"><p class="panel-eyebrow">${t('help')}</p><h2 id="panel-title">${t('helpTitle')}</h2><p>${t('helpIntro')}</p><ul class="help-list"><li>${icon('car')}${t(state.mobile?'touchDriveHelp':'helpDrive')}</li><li>${icon('pin')}${t('helpClick')}</li><li>${icon('map')}${t('helpMouse')}</li><li>${icon('map')}${t('helpTrackpad')}</li><li>${icon('grid')}${t('helpProject')}</li><li>${icon('car')}${t('helpProps')}</li>${state.mobile?'':`<li><kbd>↟</kbd>${t('helpBoost')}</li><li>${icon('car')}${t('helpAir')}</li>`}<li>${icon('map')}${t('helpMore')}</li></ul><p class="help-touch">${t('helpTouch')}</p>${reducedMotion ? `<p>${t('reduced')}</p>` : ''}<button class="primary-button" data-action="explore">${t('explore')}${icon('arrow')}</button></article>`;
+  return `<article class="info-content"><p class="panel-eyebrow">${t('help')}</p><h2 id="panel-title">${t('helpTitle')}</h2><p>${t('helpIntro')}</p><ul class="help-list"><li>${icon('car')}${t(state.mobile?'touchDriveHelp':'helpDrive')}</li><li>${icon('pin')}${t('helpClick')}</li><li>${icon('map')}${t('helpMouse')}</li><li>${icon('map')}${t('helpTrackpad')}</li><li>${icon('grid')}${t('helpProject')}</li>${state.mobile?'':`<li><kbd>↟</kbd>${t('helpBoost')}</li><li>${icon('car')}${t('helpAir')}</li>`}<li>${icon('map')}${t('helpMore')}</li></ul><p class="help-touch">${t('helpTouch')}</p>${reducedMotion ? `<p>${t('reduced')}</p>` : ''}<button class="primary-button" data-action="explore">${t('explore')}${icon('arrow')}</button><p class="help-touch"><a href="./assets/3d_models/credits.html" target="_blank" rel="noopener">${state.language==='vi'?'Tác giả mô hình 3D':'3D model credits'}</a></p></article>`;
 }
 function mapSvg(large = false, carId = large ? 'large-car' : 'mini-car') {
   const river = Array.from({length:65},(_,i)=>{ const x=-RIVER_REACH+i*RIVER_REACH*2/64; return `${x},${riverCenter(x)}`; }).join('L');
@@ -420,7 +427,7 @@ function renderMap(){
   const image=picture?`<image href="${picture}" x="${left}" y="${top}" width="${width}" height="${height}" preserveAspectRatio="none"/>`:mapSvg(true,'map-fallback-car').replace(/<g id="map-fallback-car"[\s\S]*?<\/g>/,'');
   const car=state.carPosition,carScale=frame.halfWidth/35;
   const vehicle=`<g id="large-car" data-map-scale="${carScale}" transform="translate(${car.x},${car.z}) rotate(${-car.heading*180/Math.PI}) scale(${carScale})"><circle r="1.3" fill="#fff8de" stroke="#24383e" stroke-width=".12"/><path d="m0 1.1-.65-1.5L0-.1l.65-.3Z" fill="#ed5838"/></g>`;
-  return `<article class="travel-map"><p class="panel-eyebrow">${t('mapEyebrow')}</p><h2 id="panel-title">${t('map')}</h2><p class="map-intro">${t('teleportHint')}</p><div class="atlas-tabs" role="group" aria-label="${t('destinations')}">${['buildings','objects'].map(category=>`<button data-map-category="${category}" aria-pressed="${state.mapCategory===category}">${t(category==='buildings'?'mapBuildings':'mapObjects')}<span>${all.filter(l=>l.category===category).length}</span></button>`).join('')}</div><div class="travel-map-layout"><div><div class="large-map top-view-map"><svg viewBox="${box}" aria-hidden="true">${image}${vehicle}</svg><span class="atlas-north" aria-hidden="true">N ↑</span><div class="atlas-zoom"><button data-map-zoom="in" aria-label="${t('mapZoomIn')}">+</button><button data-map-zoom="out" aria-label="${t('mapZoomOut')}">−</button><button data-map-zoom="fit" aria-label="${t('mapOverview')}">↺</button></div>${locations.filter(l=>Math.abs(l.x-frame.x)<frame.halfWidth&&Math.abs(l.z-frame.z)<frame.halfHeight).map(l=>`<button class="map-pin ${l.projectId?'is-building':'is-object'}" data-teleport="${l.id}" style="left:${(l.x-left)/width*100}%;top:${(l.z-top)/height*100}%;--pin-color:${l.color||'#d3efdb'}" aria-label="${t('teleportTo')} ${l.name}"><span class="map-pin-label">${l.name}</span></button>`).join('')}</div><div class="atlas-legend"><span><i class="atlas-car-dot"></i>${t('youAreHere')}</span><span>${t(state.mapCategory==='buildings'?'mapBuildings':'mapObjects')}</span><span>${state.mapZoom.toFixed(1)}×</span></div></div><aside class="map-destinations"><h3>${t('destinations')}</h3><div class="map-location-list">${locations.map(l=>`<button data-teleport="${l.id}"><span class="destination-diamond" aria-hidden="true">${l.projectId?'◆':'◇'}</span><span>${l.name}</span>${icon('arrow')}</button>`).join('')}</div><p class="panel-footnote">${t('mapRespawn')}</p></aside></div><button class="secondary-button" data-action="close-world">${t('return')}</button></article>`;
+  return `<article class="travel-map"><p class="panel-eyebrow">${t('mapEyebrow')}</p><h2 id="panel-title">${t('map')}</h2><p class="map-intro">${t('teleportHint')}</p><div class="atlas-tabs" role="group" aria-label="${t('destinations')}">${['buildings','objects'].map(category=>`<button data-map-category="${category}" aria-pressed="${state.mapCategory===category}">${t(category==='buildings'?'mapBuildings':'mapObjects')}<span>${all.filter(l=>l.category===category).length}</span></button>`).join('')}</div><div class="travel-map-layout"><div><div class="large-map top-view-map"><svg viewBox="${box}" aria-hidden="true">${image}${vehicle}</svg><span class="atlas-north" aria-hidden="true">N ↑</span><div class="atlas-zoom"><button data-map-zoom="in" aria-label="${t('mapZoomIn')}">+</button><button data-map-zoom="out" aria-label="${t('mapZoomOut')}">−</button><button data-map-zoom="fit" aria-label="${t('mapOverview')}">↺</button></div>${locations.filter(l=>Math.abs(l.x-frame.x)<frame.halfWidth&&Math.abs(l.z-frame.z)<frame.halfHeight).map(l=>`<button class="map-pin ${l.projectId?'is-building':'is-object'}" data-teleport="${l.id}" style="left:${(l.x-left)/width*100}%;top:${(l.z-top)/height*100}%;--pin-color:${l.color||'#d3efdb'}" aria-label="${t('teleportTo')} ${l.name}"><span class="map-pin-label">${l.name}</span></button>`).join('')}</div><div class="atlas-legend"><span><i class="atlas-car-dot"></i>${t('youAreHere')}</span><span>${t(state.mapCategory==='buildings'?'mapBuildings':'mapObjects')}</span><span>${state.mapZoom.toFixed(1)}×</span></div></div><aside class="map-destinations"><h3>${t('destinations')}</h3><div class="map-location-list">${locations.map(l=>`<button data-teleport="${l.id}"><span class="destination-diamond" aria-hidden="true">${l.projectId?'◆':'◇'}</span><span>${l.name}</span>${icon('arrow')}</button>`).join('')}</div></aside></div><button class="secondary-button" data-action="close-world">${t('return')}</button></article>`;
 }
 function carIcon(id){if(id!=='explorer')return `<img src="./assets/cars/${id}-preview.png" alt="" loading="lazy" decoding="async">`;const c=vehicleModel(id).color;return `<svg viewBox="0 0 120 66" aria-hidden="true"><ellipse cx="60" cy="58" rx="48" ry="5" fill="currentColor" opacity=".09"/><path d="M17 37 28 28h64l15 12v12H17Z" fill="${c}"/><circle cx="32" cy="51" r="${id==='monster-truck'?13:9}" fill="#26383b"/><circle cx="92" cy="51" r="${id==='monster-truck'?13:9}" fill="#26383b"/>${id==='8-ball'?'<path d="M39 36a22 22 0 0 1 44 0" fill="#142329"/><circle cx="61" cy="22" r="10" fill="#f5f1df"/><text x="61" y="27" text-anchor="middle" font-size="15" font-weight="700" fill="#142329">8</text>':id==='toy-story'?'<path d="M42 31V20h39v12" fill="#f4ce48"/><ellipse cx="62" cy="18" rx="30" ry="7" fill="#765044"/><path d="M48 18V9h26v9" fill="#765044"/>':id==='monster-truck'?'<path d="m23 29 8-15 19 8 8-9 38 12-2 13Z" fill="#659d41"/><path d="m26 28 6 8 6-8 6 8 6-8" fill="#efdc9c"/>':'<path d="m40 29 8-18h30l14 18" fill="#f0e5c9"/><path d="m48 15-6 13h16V15Zm17 0v13h19l-9-13" fill="#344e5a"/>'}</svg>`;}
 function renderGarage(){const names={'8-ball':['8-Ball','Xe Bi-A'],'monster-truck':['Crocodile','Cá Sấu'],'toy-story':['Woody','Câu Chuyện Đồ Chơi'],'explorer':['Default','Mặc Định']};return `<div class="car-picker-list" role="group" aria-label="${t('chooseCar')}">${VEHICLE_MODELS.map(model=>`<button class="car-choice" data-car-model="${model.id}" aria-pressed="${state.carModel===model.id}">${carIcon(model.id)}<span>${names[model.id][state.language==='vi'?1:0]}</span>${state.carModel===model.id?icon('check'):'<span class="car-choice-empty" aria-hidden="true"></span>'}</button>`).join('')}</div>`;}
@@ -456,10 +463,10 @@ function renderWorld() {
   const times = [['auto','↻','timeAuto'],['sunrise','↗','timeSunrise'],['day','☀','timeDay'],['sunset','↘','timeSunset'],['night','☾','timeNight']];
   const weathers = [['clear','☀','weatherClear'],['rain','☂','weatherRain'],['snow','❄','weatherSnow'],['auto','↻','weatherAuto']];
   return `<article class="info-content world-settings"><p class="panel-eyebrow">${t('worldSettings')} / LONG D.</p><h2 id="panel-title">${t('worldTitle')}</h2><p>${t('worldIntro')}</p>${state.mobile?`<section class="touch-settings"><h3>${t('touchControlsTitle')}</h3><p>${t('touchDriveHelp')}</p></section>`:''}
-    <h3 class="skill-heading">${t('timeLabel')}</h3><div class="world-options time-options" role="group" aria-label="${t('timeLabel')}">${times.map(([mode,glyph,key])=>`<button data-time-mode="${mode}" aria-pressed="${state.timeMode===mode}"><span aria-hidden="true">${glyph}</span>${t(key)}</button>`).join('')}</div><p class="world-explanation">${t('worldCycle')}</p><p class="world-explanation">${t('worldSoundscape')}</p>
-    <h3 class="skill-heading">${t('weatherLabel')}</h3><div class="world-options" role="group" aria-label="${t('weatherLabel')}">${weathers.map(([mode,glyph,key])=>`<button data-weather="${mode}" aria-pressed="${state.weatherMode===mode}"><span aria-hidden="true">${glyph}</span>${t(key)}</button>`).join('')}</div>
+    <h3 class="skill-heading">${t('timeLabel')}</h3><div class="world-options time-options" role="group" aria-label="${t('timeLabel')}">${times.map(([mode,glyph,key])=>`<button data-time-mode="${mode}" aria-pressed="${state.timeMode===mode}"><span aria-hidden="true">${worldOptionIcon(mode,'time')||glyph}</span>${t(key)}</button>`).join('')}</div><p class="world-explanation">${t('worldCycle')}</p><p class="world-explanation">${t('worldSoundscape')}</p>
+    <h3 class="skill-heading">${t('weatherLabel')}</h3><div class="world-options" role="group" aria-label="${t('weatherLabel')}">${weathers.map(([mode,glyph,key])=>`<button data-weather="${mode}" aria-pressed="${state.weatherMode===mode}"><span aria-hidden="true">${worldOptionIcon(mode,'weather')||glyph}</span>${t(key)}</button>`).join('')}</div>
     <h3 class="skill-heading">${t('headlightsLabel')}</h3><div class="world-options light-options" role="group" aria-label="${t('headlightsLabel')}">${[['auto','lightsAuto'],['on','lightsOn'],['off','lightsOff']].map(([mode,key])=>`<button data-headlights="${mode}" aria-pressed="${state.headlights===mode}">${t(key)}</button>`).join('')}</div>
-    <h3 class="skill-heading">${t('zoomLabel')}</h3><div class="zoom-options"><button class="secondary-button" data-zoom="out" aria-label="${t('zoomOut')}">−</button><button class="secondary-button" data-zoom="reset">${t('zoomReset')}</button><button class="secondary-button" data-zoom="in" aria-label="${t('zoomIn')}">+</button></div><p class="world-explanation">${t('zoomNote')}</p><p class="help-touch">${t('worldPhysics')}</p><button class="primary-button" data-action="close-world">${t('return')}${icon('arrow')}</button></article>`;
+    <h3 class="skill-heading">${t('zoomLabel')}</h3><div class="zoom-options"><button class="secondary-button" data-zoom="out" aria-label="${t('zoomOut')}">−</button><button class="secondary-button" data-zoom="reset">${t('zoomReset')}</button><button class="secondary-button" data-zoom="in" aria-label="${t('zoomIn')}">+</button></div><p class="world-explanation">${t('zoomNote')}</p><button class="primary-button" data-action="close-world">${t('return')}${icon('arrow')}</button></article>`;
 }
 function syncMusicButton(snapshot) {
   const info=snapshot||backgroundMusic?.getState()||{enabled:state.music,blocked:false};
@@ -470,7 +477,7 @@ function syncSoundButton() {
   syncControls();
 }
 function renderPanel({ mount = true } = {}) {
-  disposeShowcase();disposeTopography();disposeFlyingAction();disposeProjectCarousel();projectPlayer?.destroy();projectPlayer=null;
+  worldIcons?.dispose();worldIcons=null;disposeShowcase();disposeTopography();disposeFlyingAction();disposeProjectCarousel();projectPlayer?.destroy();projectPlayer=null;
   // Pause an active demo before replacing its DOM, including language/filter changes.
   $('#panel-content').querySelectorAll('video').forEach(releaseDemo);
   const context = state.panel === 'project' ? `${getProject(state.projectId)?.number || '01'} / ${projectCount} · LONG D.` : state.panel === 'projects' ? `${t('selectedWork')} · LONG D.` : t('siteSubtitle');
@@ -480,26 +487,27 @@ function renderPanel({ mount = true } = {}) {
   const content = (renders[state.panel] || renderIndex)();
   panel.classList.add('portfolio-panel'); panel.dataset.view = state.panel || 'projects';
   $('#panel-content').innerHTML = `<div class="panel-layout">${['map','contact'].includes(state.panel)?'':renderStage()}<div class="panel-reader">${content}</div></div>`;
+  if(state.panel==='world')worldIcons=mountWorldIcons(panel);
   if(state.panel!=='projects')projectPlayer=createProjectPlayer({container:$('#panel .panel-reader'),label:playing=>t(playing?'videoPause':'videoPlay')});
   startCurrentDemo();updateEnvironment(state.environment);applyTheme();if(mount&&panel.open){mountShowcase();mountPanelTopography();void mountFlyingAction();void mountProjectCarousel();}
 }
 
 function goHome() {
   touchControls.clear();mobileGameplay.exit();drivingHud.reveal();closePanel(); stopTour(); world?.overview(); state.exploring = false; state.nearby = null;
-  syncMobileControls();explorationUI.reset();document.body.classList.remove('exploring'); updateStatus(); refreshNearby(); setHash(null);syncControls();
+  syncMobileControls();explorationUI.reset();mobileDrivingVisibility.reset();document.body.classList.remove('exploring'); updateStatus(); refreshNearby(); setHash(null);syncControls();
 }
 async function performAction(action) {
   if(action==='home'){goHome();return;}
   if(action==='garage'){openCarPicker();return;}
   if(action==='toggle-language'){setLanguage(state.language==='en'?'vi':'en');return;}
-  if(action==='reset'){stopTour();world?.reset();touchControls.clear();explorationUI.revealHero();showToast(t('resetToast'));return;}
+  if(action==='reset'){stopTour();world?.reset();touchControls.clear();explorationUI.revealHero();mobileDrivingVisibility.reset();showToast(t('resetToast'));return;}
   if(action==='toggle-theme'){state.night=!state.night;storage.set('theme',state.night?'dark':'light');applyTheme();return;}
   if(action==='toggle-sound'){try{await toggleSound();}catch{showToast(t('soundOff'));}return;}
   if (['projects', 'about', 'contact', 'help', 'map', 'world'].includes(action)) { showPanel(action); return; }
   if (action === 'jump') { world?.jump(); return; }
   if(action==='hydraulics'){world?.hydraulics();return;}
   if (action === 'tour') { startTour(); return; }
-  if (action === 'explore') { closePanel(); if (world) {if(state.mobile)void mobileGameplay.enter();explorationUI.explore();world.start();} else if (state.ready) showPanel('projects'); else showToast(t('loading')); return; }
+  if (action === 'explore') { closePanel(); if (world) {if(state.mobile)void mobileGameplay.enter();else explorationUI.explore();mobileDrivingVisibility.sync();world.start();} else if (state.ready) showPanel('projects'); else showToast(t('loading')); return; }
   if (action === 'toggle-music') { const current=backgroundMusic.getState();state.music=!current.enabled||current.blocked;storage.set('music',state.music?'on':'off');backgroundMusic.setEnabled(state.music);return; }
   if (action === 'watch-demo') { seekDemo(0); return; }
   if (action === 'reset-showcase') { panelShowcase?.resetView(); return; }
@@ -536,7 +544,6 @@ document.addEventListener('click', async event => {
   else if (button.dataset.weather) { state.weatherMode = button.dataset.weather; updateEnvironment(world?.setWeather(state.weatherMode)); syncWorldChoices(); }
   else if (button.dataset.headlights) { state.headlights = button.dataset.headlights; world?.setHeadlightsMode(state.headlights); syncWorldChoices(); }
   else if (button.dataset.zoom) { if (button.dataset.zoom === 'reset') world?.resetCamera(); else world?.zoomBy(button.dataset.zoom === 'in' ? -.06 : .06); }
-  else if(button.dataset.goPlayground){closePanel();stopTour();world?.goToPlayground(button.dataset.goPlayground);}
   else if (button.dataset.goPortal) { closePanel(); stopTour(); world?.goToPortal(button.dataset.goPortal); }
   else if (button.dataset.language) setLanguage(button.dataset.language);
   else if (button.dataset.action) performAction(button.dataset.action);
@@ -566,7 +573,7 @@ window.addEventListener('keydown', event => {
   if (panel.open||carPicker.open||state.menuOpen) return;
   if(!world&&drivingKey(event)===' ')event.preventDefault();
   const key = event.key.toLowerCase();
-  if (key === 'escape') { event.preventDefault();drivingHud.toggle(); }
+  if (key === 'escape') { event.preventDefault();drivingHud.toggle();mobileDrivingVisibility.sync(); }
   if (key === 'm') { event.preventDefault(); showPanel('map'); }
   if (key === 'p') { event.preventDefault(); showPanel('projects'); }
   if (key === 'r') { event.preventDefault();performAction('reset'); }
@@ -603,10 +610,10 @@ try {
     onNearby(id) { state.nearby = id; refreshNearby(); },
     onPortal() { engineAudio.impact('teleport',4);showToast(t('portalArrival')); },
     onImpact({kind,strength,distance}){engineAudio.impact(kind,strength,distance);},
-    onExplosion({distance}){engineAudio.blast(distance);},
     onEnvironment: updateEnvironment,
     onFrame({ x, z, heading, speed, actualSpeed, rpm, gear, throttle,carModel, acceleration, paused, hop, elapsed,surface,airborne,boosting,landingImpact,steering,weather }) {
-      explorationUI.updateMotion({speed:actualSpeed,airborne,hop,paused,dt:elapsed});
+      if(!state.mobile)explorationUI.updateMotion({speed:actualSpeed,airborne,hop,paused,dt:elapsed});
+      mobileDrivingVisibility.updateMotion({mobile:state.mobile,speed:actualSpeed,airborne,hop,paused,dt:elapsed});
       state.carPosition={x,z,heading};
       state.riverDistance = Math.abs(z-riverCenter(x));
       const transform = `translate(${x.toFixed(2)},${z.toFixed(2)}) rotate(${(-heading * 180 / Math.PI).toFixed(1)})`;
@@ -623,6 +630,6 @@ try {
   console.warn('The 3D island could not start. The full project portfolio remains available.', error);
   $('#world canvas')?.remove(); $('#webgl-fallback').hidden = false;
   document.body.classList.add('loaded'); state.ready = true;
-  $('#explore').innerHTML = `${icon('grid')}<span data-copy="browseProjects">${t('browseProjects')}</span>${icon('arrow')}`;
+  $('#explore').innerHTML = `${icon('grid')}<span data-copy="browseProjects">${t('browseProjects')}</span>${icon('arrow')}`;exploreSpecularButton.refresh();
 }
-window.addEventListener('pagehide', event => { if (!event.persisted) { portfolioControls.dispose();disposeProjectCarousel();projectPlayer?.destroy();disposeTopography();disposeFlyingAction();mobileGameplay.dispose();touchControls.dispose();explorationUI.dispose();engineUnlock.dispose();panelDrag.dispose();drivingHud.dispose();disposeShowcase(); world?.dispose(); engineAudio.dispose(); backgroundMusic.dispose(); brandTechText.dispose(); environmentAudio.dispose(); } });
+window.addEventListener('pagehide', event => { if (!event.persisted) { portfolioControls.dispose();disposeProjectCarousel();projectPlayer?.destroy();disposeTopography();disposeFlyingAction();mobileGameplay.dispose();touchControls.dispose();explorationUI.dispose();mobileDrivingVisibility.dispose();engineUnlock.dispose();panelDrag.dispose();drivingHud.dispose();disposeShowcase(); world?.dispose(); engineAudio.dispose(); backgroundMusic.dispose();exploreSpecularButton.dispose(); headlineText.dispose();worldIcons?.dispose(); brandTechText.dispose(); environmentAudio.dispose(); } });

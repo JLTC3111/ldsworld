@@ -1,13 +1,17 @@
 import { RIVER_REACH, RIVER_HALF_WIDTH, riverCenter, isWater } from './world-layout.js';
 
 const vertexShader=`
+  uniform float uTime;
+  uniform float uWaveAmount;
   varying vec3 vStreamWorld;
   varying float vBank;
   attribute float bank;
   #include <fog_pars_vertex>
   void main(){
     vBank=bank;
-    vec4 world=modelMatrix*vec4(position,1.0);
+    vec3 displaced=position;
+    displaced.y+=uWaveAmount*(sin(position.x*1.8-uTime*1.6+position.z*2.0)*.009+sin(position.x*5.4+uTime*.7)*.003);
+    vec4 world=modelMatrix*vec4(displaced,1.0);
     vStreamWorld=world.xyz;
     vec4 mvPosition=viewMatrix*world;
     gl_Position=projectionMatrix*mvPosition;
@@ -75,8 +79,13 @@ export function createStreamWater({THREE:T,parent,scene,reducedMotion=false,coar
     if(i<count)for(let j=0;j<2;j++){const a=i*3+j;indices.push(a,a+3,a+1,a+1,a+3,a+4);}
   }
   const geometry=ownGeometry(new T.BufferGeometry());geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));geometry.setAttribute('bank',new T.Float32BufferAttribute(banks,1));geometry.setIndex(indices);geometry.computeVertexNormals();
+  // The shader moves the surface by at most 12 mm. Keep culling conservative
+  // without rewriting the river's vertex buffer or rescanning it each frame.
+  const waveExtent=reducedMotion?0:.012;
+  geometry.computeBoundingBox();geometry.boundingBox.min.y-=waveExtent;geometry.boundingBox.max.y+=waveExtent;
+  geometry.computeBoundingSphere();geometry.boundingSphere.radius+=waveExtent;
   const ripples=Array.from({length:8},()=>new T.Vector4(0,0,-10,0));
-  const uniforms=T.UniformsUtils.merge([T.UniformsLib.fog,{uTime:{value:0},uDaylight:{value:1},uRain:{value:0},uSky:{value:new T.Color('#dce8e3')},uSun:{value:new T.Vector3(-.5,.8,.3)},uRipples:{value:ripples}}]);
+  const uniforms=T.UniformsUtils.merge([T.UniformsLib.fog,{uTime:{value:0},uWaveAmount:{value:reducedMotion?0:1},uDaylight:{value:1},uRain:{value:0},uSky:{value:new T.Color('#dce8e3')},uSun:{value:new T.Vector3(-.5,.8,.3)},uRipples:{value:ripples}}]);
   const material=ownMaterial(new T.ShaderMaterial({uniforms,vertexShader,fragmentShader,transparent:true,depthWrite:false,side:T.DoubleSide,fog:true}));
   const surface=new T.Mesh(geometry,material);surface.name='Winding animated river';surface.renderOrder=2;root.add(surface);
   const bedGeometry=ownGeometry(new T.BufferGeometry());bedGeometry.setAttribute('position',new T.Float32BufferAttribute(bedPositions,3));bedGeometry.setAttribute('color',new T.Float32BufferAttribute(bedColors,3));bedGeometry.setIndex(indices);bedGeometry.computeVertexNormals();
@@ -102,7 +111,6 @@ export function createStreamWater({THREE:T,parent,scene,reducedMotion=false,coar
     if(driver&&!reducedMotion&&isWater(driver.x,driver.z)&&(driver.hop||0)<.15&&Math.abs(driver.speed)>.3&&time-lastRipple>.12){
       uniforms.uRipples.value[rippleIndex++%8].set(driver.x,driver.z,time,Math.min(1,Math.abs(driver.speed)/5));lastRipple=time;
     }
-    if(!reducedMotion){const p=geometry.attributes.position;for(let i=0;i<p.count;i++)p.setY(i,.075+Math.sin(p.getX(i)*1.8-time*1.6+p.getZ(i)*2)*.009+Math.sin(p.getX(i)*5.4+time*.7)*.003);p.needsUpdate=true;}
   }
   update(0);
   return {root,surface,update,reset(){time=0;lastRipple=-1;uniforms.uRipples.value.forEach(r=>r.set(0,0,-10,0));update(0);},dispose(){if(disposed)return;disposed=true;root.removeFromParent();geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());}};

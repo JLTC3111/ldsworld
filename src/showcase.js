@@ -11,6 +11,13 @@ const screenCopy = {
 };
 const cleanText = value => typeof value === 'string' || typeof value === 'number' ? String(value).replace(/\s+/gu, ' ').trim().slice(0, 1600) : '';
 const validLanguage = value => value === 'vi' ? 'vi' : 'en';
+export const SUPPLIED_COMPUTER_FIT = Object.freeze({width:4.8,height:3.5,depth:5});
+// Calibrated in the authored GLB coordinates from the CRT's UV island. Its
+// curved glass reaches z=25.59 and the upper-left glazing reaches z=29.02;
+// keep the live face just ahead of both layers.
+const computerSourceSize=[91.65383911132812,63.288143157958984,97.85091400146484];
+const computerScale=Math.min(SUPPLIED_COMPUTER_FIT.width/computerSourceSize[0],SUPPLIED_COMPUTER_FIT.height/computerSourceSize[1],SUPPLIED_COMPUTER_FIT.depth/computerSourceSize[2]);
+export const SUPPLIED_COMPUTER_SCREEN = Object.freeze({width:29.5*computerScale,height:27.2*computerScale,position:[(.93435-7.556404)*computerScale,(1.26485+41.045826)*computerScale+.12,(30.2-8.323971)*computerScale]});
 
 export function getShowcaseScreenContent(project = {}, language = project.language || 'en') {
   const localized = language === 'vi' && project.vi ? { ...project, ...project.vi } : project;
@@ -42,7 +49,7 @@ export function wrapShowcaseText(context, value, maxWidth, { fontSize = 32, maxL
   result[result.length - 1] = `${last}…`; return result;
 }
 
-export function createShowcaseScreenTexture({ project = {}, screen = 'project', language = project.language || 'en', night = false, width = 1024, height = 640, namespace = THREE } = {}) {
+export function createShowcaseScreenTexture({ project = {}, screen = 'project', language = project.language || 'en', night = false, width = 1024, height = 640, namespace = THREE, layout = 'default' } = {}) {
   if (!['project', 'stack'].includes(screen)) return null;
   let canvas, context;
   try { canvas = globalThis.document?.createElement('canvas'); context = canvas?.getContext('2d'); } catch { return null; }
@@ -50,13 +57,32 @@ export function createShowcaseScreenTexture({ project = {}, screen = 'project', 
   canvas.width = width; canvas.height = height;
   const content = getShowcaseScreenContent(project, language), copy = screenCopy[validLanguage(language)];
   const palette = night ? { background: '#2e2e2e', card: '#424242', ink: '#eeeeee', muted: '#cccccc', accent: '#c6c6c6' } : { background: '#ededed', card: '#e3e3e3', ink: '#3c3c3c', muted: '#5e5e5e', accent: '#5c5c5c' };
-  const margin = 62, usable = width - margin * 2;
+  const unit=width/768,margin = layout==='crt'?40*unit:62, usable = width - margin * 2;
   const text = (value, x, y, size, color = palette.ink, weight = 400, maxWidth = usable, maxLines = 1) => {
     context.font = `${weight} ${size}px system-ui, -apple-system, "Segoe UI", sans-serif`; context.fillStyle = color;
     const lines = wrapShowcaseText(context, value, maxWidth, { fontSize: size, maxLines });
     lines.forEach((line, index) => context.fillText(line, x, y + index * size * 1.25)); return lines.length * size * 1.25;
   };
   context.fillStyle = palette.background; context.fillRect(0, 0, width, height); context.textBaseline = 'top'; context.textAlign = 'left';
+  if(layout==='crt'){
+    // A physical CRT is much smaller than the inspector below it. Show a clear
+    // project identity or the full tool list; detailed prose stays in that reader.
+    const compactTitle=cleanText((language==='vi'?project.vi?.short:null)||project.short||content.title);
+    text(copy[screen],margin,40*unit,screen==='project'?48*unit:60*unit,palette.accent,650,usable,2);
+    context.fillStyle=palette.accent;context.fillRect(margin,screen==='project'?116*unit:190*unit,72*unit,5*unit);
+    if(screen==='project'){
+      text(compactTitle,margin,160*unit,110*unit,palette.ink,650,usable,3);
+      text(content.year,margin,height-132*unit,80*unit,palette.muted,550);
+    }else{
+      const tools=content.tech.slice(0,8),top=224*unit,rows=tools.length||1,rowHeight=(height-top-36*unit)/rows;
+      if(!tools.length)text(copy.empty,margin,top,58*unit,palette.muted,400,usable,3);
+      tools.forEach((tool,index)=>{
+        const size=Math.min(78*unit,rowHeight*.72),y=top+index*rowHeight;
+        context.fillStyle=palette.card;context.fillRect(margin,y,usable,rowHeight-10*unit);
+        text(tool,margin+20*unit,y+(rowHeight-size*1.25)/2,size,palette.ink,550,usable-40*unit,1);
+      });
+    }
+  }else{
   text(copy[screen], margin, 38, 25, palette.accent, 650);
   context.fillStyle = palette.accent; context.fillRect(margin, 84, 42, 4);
   const titleHeight = text(content.title, margin, 111, screen === 'project' ? 58 : 49, palette.ink, 650, usable, 2);
@@ -80,14 +106,39 @@ export function createShowcaseScreenTexture({ project = {}, screen = 'project', 
   }
   context.fillStyle = palette.card; context.fillRect(margin, height - 57, usable, 1);
   text(copy.hint, margin, height - 39, 22, palette.muted, 500);
+  }
   const texture = new namespace.CanvasTexture(canvas); texture.colorSpace = namespace.SRGBColorSpace; texture.minFilter = namespace.LinearFilter; texture.magFilter = namespace.LinearFilter; texture.generateMipmaps = false;
-  texture.userData.showcase = { screen, language: validLanguage(language), night: !!night, content };
+  texture.userData.showcase = { screen, language: validLanguage(language), night: !!night, content, layout };
   return texture;
 }
 
 export function resolveShowcasePoster(project = {}, baseURL = globalThis.document?.baseURI || new URL('../', import.meta.url).href) {
   if(project.poster){try{return new URL(project.poster,baseURL).href;}catch{}}
   return new URL(`./assets/posters/${project.id || 'hr'}.jpg`,import.meta.url).href;
+}
+
+export function frameShowcaseCamera({model,camera,width,height:heightPixels}) {
+    if(!model||!camera)return;
+    const bounds=model.focusBounds,center=bounds.getCenter(new THREE.Vector3());
+    camera.position.copy(center).add(model.suppliedComputer?new THREE.Vector3(1.1,1.45,10):new THREE.Vector3(5,3.3,8));camera.lookAt(center);camera.updateMatrixWorld();
+    let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+    const include=point=>{minX=Math.min(minX,point.x);maxX=Math.max(maxX,point.x);minY=Math.min(minY,point.y);maxY=Math.max(maxY,point.y);};
+    if(model.suppliedComputer){
+      // Project the actual silhouette once on fit/resize. Projected 3D AABB
+      // corners include empty space above the keyboard and make the CRT tiny.
+      model.root.updateMatrixWorld(true);const point=new THREE.Vector3(),transform=new THREE.Matrix4();
+      model.content.traverse(object=>{const positions=object.geometry?.attributes.position;if(!object.visible||!positions)return;
+        transform.multiplyMatrices(camera.matrixWorldInverse,object.matrixWorld);
+        for(let index=0;index<positions.count;index++)include(point.fromBufferAttribute(positions,index).applyMatrix4(transform));
+      });
+    }else{
+    for(const x of[bounds.min.x,bounds.max.x])for(const y of[bounds.min.y,bounds.max.y])for(const z of[bounds.min.z,bounds.max.z]){
+      include(new THREE.Vector3(x,y,z).applyMatrix4(camera.matrixWorldInverse));
+    }
+    }
+    const aspect=Math.max(.2,width/Math.max(1,heightPixels)),height=Math.max(maxY-minY,(maxX-minX)/aspect)*1.13;
+    const centerX=(minX+maxX)/2,centerY=(minY+maxY)/2;
+    camera.left=centerX-height*aspect/2;camera.right=centerX+height*aspect/2;camera.top=centerY+height/2;camera.bottom=centerY-height/2;camera.updateProjectionMatrix();
 }
 
 export function hitShowcaseScreen({ model, camera, clientX, clientY, rect }) {
@@ -104,7 +155,7 @@ export function isShowcaseScreenTap(gesture, event) {
 
 // Geometry and resource ownership are separate from WebGL, so models can be
 // verified without a browser and every panel can release its own resources.
-export function buildShowcaseModel({ project = {}, mode = 'device', carModel='explorer', texture = null, screen = 'preview', language = project.language || 'en', namespace = THREE } = {}) {
+export function buildShowcaseModel({ project = {}, mode = 'device', carModel='explorer', texture = null, screen = 'preview', language = project.language || 'en', namespace = THREE, computer = null, computerScreen = null } = {}) {
   const T = namespace;
   const root = new T.Group(); root.name = `Portfolio artifact: ${mode}/${project.id || 'longd'}`;
   const content = new T.Group(); root.add(content);
@@ -161,6 +212,27 @@ export function buildShowcaseModel({ project = {}, mode = 'device', carModel='ex
     else if(tablet){const kickstand=box(1.4,.08,1.1,colors.sage,content,0,.45,-.45);kickstand.rotation.x=.22;}
     else {box(.2,1.05,.2,colors.sage,content,0,.74,-.25);const foot=cylinder(.81,.08,colors.pale,content,0,.2,-.25);foot.scale.set(1.3,1,.65);keyboard(content,3.2,.9,0,.19,1.13);}
     return device;
+  }
+  function suppliedComputer() {
+    const source = computer.root;
+    source.name = 'Supplied retrofuturistic computer';
+    source.position.set(computerScreen ? 0 : -1.12,.12,0);content.add(source);
+    source.traverse(object=>{if(object.isMesh){object.castShadow=false;object.receiveShadow=false;}});
+    // The source is one baked mesh. Keep its material intact and own the live
+    // notes separately; a calibrated CRT transform can replace this side panel.
+    const width=computerScreen?.width||2.8,height=computerScreen?.height||2.1;
+    const panel = new T.Group();panel.name=computerScreen?'Supplied CRT information screen':'Project notes beside supplied computer';content.add(panel);
+    panel.position.fromArray(computerScreen?.position||[1.8,1.72,1.9]);
+    if(computerScreen?.rotation)panel.rotation.fromArray(computerScreen.rotation);
+    if(!computerScreen){
+      rounded(width+.18,height+.18,.09,colors.cream,panel,0,0,-.075,.09);
+      box(.12,.55,.12,colors.sage,content,1.8,.39,1.86);
+      const foot=cylinder(.48,.07,colors.pale,content,1.8,.16,1.86);foot.scale.z=.55;
+    }
+    screenMaterial=new T.MeshBasicMaterial({color:texture?'#ffffff':'#dadada',map:texture,toneMapped:false});materials.add(screenMaterial);
+    screenObject=mesh(new T.PlaneGeometry(width,height),screenMaterial,panel,0,0,.01);
+    screenObject.name='Original project preview';screenObject.userData.showcaseScreen=true;
+    screenObject.castShadow=screenObject.receiveShadow=false;
   }
   function teamBadge() {
     const badge=new T.Group();content.add(badge);badge.position.set(-2.2,.65,.88);badge.rotation.set(-.06,0,-.13);
@@ -226,7 +298,8 @@ export function buildShowcaseModel({ project = {}, mode = 'device', carModel='ex
   const pedestal=cylinder(mode==='car'?2.15:3.0,.12,pedestalMaterial,root,0,.03,0,64);pedestal.scale.z=mode==='car'?1:.76;
   if(mode==='car') {
     vehicle=createVehicle({THREE:T,scene:content,reducedMotion:true,model:carModel});vehicle.root.rotation.y=-.28;
-  } else if(mode==='mail') mail();
+  } else if(mode==='device'&&computer?.root) suppliedComputer();
+  else if(mode==='mail') mail();
   else if(mode==='workbench') workbench();
   else {
     const type=project.id||'hr';
@@ -242,13 +315,14 @@ export function buildShowcaseModel({ project = {}, mode = 'device', carModel='ex
     if(!screenMaterial||disposed)return;
     const previous=informationTexture;
     const aspect=screenObject.geometry.parameters.width/screenObject.geometry.parameters.height;
-    informationTexture=createShowcaseScreenTexture({project,screen:selectedScreen,language:selectedLanguage,night,width:1024,height:Math.round(1024/aspect),namespace:T});
+    const width=computerScreen?768:1024;
+    informationTexture=createShowcaseScreenTexture({project,screen:selectedScreen,language:selectedLanguage,night,width,height:Math.round(width/aspect),namespace:T,layout:computerScreen?'crt':'default'});
     applyTexture();previous?.dispose();
   }
   function applyTexture(){if(screenMaterial){const nextTexture=informationTexture||previewTexture;screenMaterial.map=nextTexture;screenMaterial.color.set(nextTexture?'#ffffff':'#dadada');screenMaterial.needsUpdate=true;}}
   updateScreen();
   return {
-    root, content, focusBounds, screenMaterial, screen:screenObject,
+    root, content, focusBounds, screenMaterial, screen:screenObject,suppliedComputer:!!computer?.root,
     get screenReady(){return !!screenMaterial?.map;},
     getScreen(){return selectedScreen;},
     setScreen(value){if(disposed||!screens.includes(value)||selectedScreen===value)return;selectedScreen=value;updateScreen();},
@@ -257,11 +331,11 @@ export function buildShowcaseModel({ project = {}, mode = 'device', carModel='ex
     setTheme(value){const changed=night!==!!value;night=!!value;pedestalMaterial.color.set(night?'#585858':'#dbdbdb');if(changed)updateScreen();},
     setHeadlights(value){if(['auto','on','off'].includes(value))lights=value;},
     update(dt,time=0){vehicle?.update(dt,{driver,night:night ? .85 : 0,headlights:lights,time});},
-    dispose(){if(disposed)return;disposed=true;vehicle?.dispose();informationTexture?.dispose();root.removeFromParent();geometries.forEach(geometry=>geometry.dispose());materials.forEach(material=>material.dispose());}
+    dispose(){if(disposed)return;disposed=true;vehicle?.dispose();computer?.dispose();informationTexture?.dispose();root.removeFromParent();geometries.forEach(geometry=>geometry.dispose());materials.forEach(material=>material.dispose());}
   };
 }
 
-export function createShowcase({ container, project = {}, mode = 'device', carModel='explorer', screen = 'project', screenModes = screens, language = project.language || 'en', onScreenChange, night = false, reducedMotion = false } = {}) {
+export function createShowcase({ container, project = {}, mode = 'device', carModel='explorer', screen = 'project', screenModes = screens, language = project.language || 'en', onScreenChange, night = false, reducedMotion = false, modelAssets } = {}) {
   const allowedScreens=[...new Set((Array.isArray(screenModes)?screenModes:screens).filter(value=>screens.includes(value)))];
   if(!allowedScreens.length)allowedScreens.push('project');
   const initialScreen=allowedScreens.includes(screen)?screen:allowedScreens[0];
@@ -273,6 +347,7 @@ export function createShowcase({ container, project = {}, mode = 'device', carMo
   let renderer=null,scene=null,camera=null,model=null,disposed=false,failed=false,visible=typeof IntersectionObserver==='undefined',raf=0,observer=null,intersection=null;
   let currentProject=project,currentMode=modes.has(mode)?mode:'device',currentScreen=initialScreen,currentLanguage=validLanguage(language),dark=!!night,headlights='auto',request=0;
   let yaw=0,pitch=0,targetYaw=0,targetPitch=0,pointer=null,clock=0,lastTime=0;
+  let computerAsset=null,assetModule=null,assetLibrary=null,assetPending=null,assetFailed=false,assetGeneration=0,requestedGeneration=-1;
   const textures=new Map(),ownedTextures=new Set();
   const removeReady=()=>{container.classList.remove('showcase-ready');container.dataset.ready='false';};
   const markReady=()=>{if(renderer&&model&&(!model.screen||model.screenReady)&&!disposed){container.classList.add('showcase-ready');container.dataset.ready='true';}else removeReady();};
@@ -292,21 +367,30 @@ export function createShowcase({ container, project = {}, mode = 'device', carMo
     } catch { if(!model?.screenReady)removeReady(); }
   }
   function rebuild(){
-    if(!scene||disposed)return;removeReady();model?.dispose();model=buildShowcaseModel({project:currentProject,carModel,mode:currentMode,screen:currentScreen,language:currentLanguage});
+    if(!scene||disposed)return;++assetGeneration;removeReady();stop();model?.dispose();model=null;
+    // Keep the real project poster visible until the CRT is loaded. Building
+    // the old monitor here exposes it for a frame before the model arrives.
+    if(currentMode==='device'&&!computerAsset){resize();return;}
+    const computer=currentMode==='device'&&computerAsset?assetModule.fitModelAsset(computerAsset,SUPPLIED_COMPUTER_FIT):null;
+    model=buildShowcaseModel({project:currentProject,carModel,mode:currentMode,screen:currentScreen,language:currentLanguage,computer,computerScreen:computer?SUPPLIED_COMPUTER_SCREEN:null});
     model.setTheme(dark);model.setHeadlights(headlights);model.update(0,clock);scene.add(model.root);yaw=pitch=targetYaw=targetPitch=0;loadPoster();resize();draw();
   }
-  function fit(){
-    if(!model||!camera)return;
-    const bounds=model.focusBounds,center=bounds.getCenter(new THREE.Vector3());
-    camera.position.copy(center).add(new THREE.Vector3(5,3.3,8));camera.lookAt(center);camera.updateMatrixWorld();
-    let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
-    for(const x of[bounds.min.x,bounds.max.x])for(const y of[bounds.min.y,bounds.max.y])for(const z of[bounds.min.z,bounds.max.z]){
-      const point=new THREE.Vector3(x,y,z).applyMatrix4(camera.matrixWorldInverse);minX=Math.min(minX,point.x);maxX=Math.max(maxX,point.x);minY=Math.min(minY,point.y);maxY=Math.max(maxY,point.y);
-    }
-    const aspect=Math.max(.2,container.clientWidth/Math.max(1,container.clientHeight)),height=Math.max(maxY-minY,(maxX-minX)/aspect)*1.13;
-    camera.left=-height*aspect/2;camera.right=height*aspect/2;camera.top=height/2;camera.bottom=-height/2;camera.updateProjectionMatrix();
+  async function upgradeComputer(){
+    if(computerAsset||assetFailed||currentMode!=='device'||!canPresent()||requestedGeneration===assetGeneration)return;
+    const generation=assetGeneration;requestedGeneration=generation;
+    try{
+      if(!assetPending)assetPending=(async()=>{
+        const api=modelAssets||await import('./model-assets.js');if(disposed)return null;
+        assetModule=api;assetLibrary=api.createModelAssetLibrary({maxTextureSize:budget.lowPower?512:1024});return assetLibrary.load('computer');
+      })();
+      const asset=await assetPending;
+      if(!asset||disposed||generation!==assetGeneration||currentMode!=='device'||!canPresent())return;
+      computerAsset=asset;rebuild();
+    }catch{assetPending=null;assetFailed=true;/* Keep the project poster on load failure. */}
+    finally{if(requestedGeneration===generation&&!computerAsset)requestedGeneration=-1;}
   }
-  function draw(){if(!renderer||!scene||!camera||disposed||!visible||globalThis.document?.hidden||container.clientWidth<2||container.clientHeight<2)return;renderer.render(scene,camera);markReady();}
+  function fit(){frameShowcaseCamera({model,camera,width:container.clientWidth,height:container.clientHeight});}
+  function draw(){if(!canAnimate())return;renderer.render(scene,camera);markReady();}
   function start(){
     if(disposed||failed||renderer||!visible||globalThis.document?.hidden||container.clientWidth<2||container.clientHeight<2)return;
     try {
@@ -323,12 +407,13 @@ export function createShowcase({ container, project = {}, mode = 'device', carMo
       failed=true;stop();renderer?.dispose();renderer?.domElement.remove();renderer=null;model?.dispose();model=null;removeReady();
     }
   }
-  function canAnimate(){return !disposed&&renderer&&model&&visible&&!globalThis.document?.hidden&&container.clientWidth>=2&&container.clientHeight>=2;}
+  function canPresent(){return !disposed&&renderer&&visible&&!globalThis.document?.hidden&&container.clientWidth>=2&&container.clientHeight>=2;}
+  function canAnimate(){return canPresent()&&model;}
   function moving(){return !still||Math.abs(targetYaw-yaw)>1e-4||Math.abs(targetPitch-pitch)>1e-4;}
   function stop(){if(raf)globalThis.cancelAnimationFrame?.(raf);raf=0;}
   function resume(){if(!raf&&canAnimate()&&moving()){lastTime=performance.now();raf=requestAnimationFrame(animate);}}
-  function visibility(){if(!renderer)start();if(canAnimate()){draw();resume();}else stop();}
-  function resize(){if(disposed)return;if(!renderer){start();return;}const width=container.clientWidth,height=container.clientHeight;if(width<2||height<2){stop();return;}renderer.setPixelRatio(pixelRatioFor(width,height,globalThis.devicePixelRatio||1,pixels));renderer.setSize(width,height);fit();draw();resume();}
+  function visibility(){if(!renderer)start();if(canPresent()){draw();resume();void upgradeComputer();}else stop();}
+  function resize(){if(disposed)return;if(!renderer){start();return;}const width=container.clientWidth,height=container.clientHeight;if(width<2||height<2){stop();return;}renderer.setPixelRatio(pixelRatioFor(width,height,globalThis.devicePixelRatio||1,pixels));renderer.setSize(width,height);fit();draw();resume();void upgradeComputer();}
   function animate(now){
     raf=0;if(!canAnimate())return;if(now-lastTime<frameInterval-.5){raf=requestAnimationFrame(animate);return;}const dt=Math.min(.05,Math.max(0,(now-lastTime)/1000));lastTime=now;
     clock+=dt;const damping=1-Math.exp(-dt*7);yaw+=(targetYaw-yaw)*damping;pitch+=(targetPitch-pitch)*damping;
@@ -374,6 +459,6 @@ export function createShowcase({ container, project = {}, mode = 'device', carMo
     setTheme(value){dark=!!value;model?.setTheme(dark);model?.update(0,clock);if(renderer)renderer.toneMappingExposure=dark?1:1.13;draw();},
     setHeadlights(value){if(!['auto','on','off'].includes(value))return;headlights=value;model?.setHeadlights(value);model?.update(0,clock);draw();},
     resetView(){targetYaw=targetPitch=yaw=pitch=0;if(model){model.root.rotation.set(0,0,0);model.root.position.y=0;}fit();draw();},
-    dispose(){if(disposed)return;disposed=true;++request;stop();observer?.disconnect();intersection?.disconnect();globalThis.document?.removeEventListener?.('visibilitychange',visibility);globalThis.window?.removeEventListener('resize',resize);for(const[name,listener]of Object.entries(listeners))container.removeEventListener(name,listener);model?.dispose();ownedTextures.forEach(texture=>texture.dispose());scene?.traverse(object=>object.shadow?.dispose());renderer?.dispose();renderer?.forceContextLoss?.();renderer?.domElement.remove();removeReady();}
+    dispose(){if(disposed)return;disposed=true;++request;++assetGeneration;stop();observer?.disconnect();intersection?.disconnect();globalThis.document?.removeEventListener?.('visibilitychange',visibility);globalThis.window?.removeEventListener('resize',resize);for(const[name,listener]of Object.entries(listeners))container.removeEventListener(name,listener);model?.dispose();assetLibrary?.dispose();ownedTextures.forEach(texture=>texture.dispose());scene?.traverse(object=>object.shadow?.dispose());renderer?.dispose();renderer?.forceContextLoss?.();renderer?.domElement.remove();removeReady();}
   };
 }

@@ -17,7 +17,7 @@ test('four visible hydraulic rams retract for charging and extend during the phy
   assert.equal(pistons.length,4);assert.equal(cylinders.length,4);
   vehicle.update(1/60,{driver});const resting=pistons.map(p=>p.scale.y);
   driver.jump();for(let i=0;i<6;i++){driver.step(1/60);vehicle.update(1/60,{driver});}
-  assert.ok(vehicle.body.position.y<driver.rideHeight-.07);assert.ok(pistons.every((p,i)=>p.scale.y<resting[i]));
+  assert.ok(vehicle.body.position.y*VEHICLE_SCALE<driver.rideHeight-.07*VEHICLE_SCALE);assert.ok(pistons.every((p,i)=>p.scale.y<resting[i]));
   for(let i=0;i<25;i++){driver.step(1/60);vehicle.update(1/60,{driver});}
   assert.ok(driver.hop>1);assert.ok(pistons.every((p,i)=>p.scale.y>resting[i]));
   for(let i=0;i<180;i++){driver.step(1/60);vehicle.update(1/60,{driver});}
@@ -46,10 +46,10 @@ function resources(root) {
 }
 
 test('the complete vehicle rolls around its centre, its suspension extends clearly, and boost has visible exhaust',()=>{
-  const {vehicle}=fixture({reducedMotion:true}),driver=new Driver();vehicle.update(1/60,{driver});const rest=vehicle.hydraulicRams.map(r=>r.piston.scale.y);
+  const {vehicle}=fixture({reducedMotion:true}),driver=new Driver();driver.setVehicleProfile(vehicle.profile);vehicle.update(1/60,{driver});const rest=vehicle.hydraulicRams.map(r=>r.piston.scale.y);
   driver.attitude.takeoff(driver.heading);driver.attitude.rotation.setFromAxisAngle(new THREE.Vector3(0,0,1),Math.PI*.7);driver.attitude.updateAxes();driver.hop=3;driver.hydraulicOffset=.48;driver.boosting=true;vehicle.update(1/60,{driver});vehicle.root.updateMatrixWorld(true);
   assert.ok(vehicle.root.quaternion.angleTo(driver.attitude.rotation)<1e-8);const centre=new THREE.Vector3(0,CAR_PIVOT_HEIGHT,0).applyMatrix4(vehicle.root.matrixWorld);assert.ok(centre.distanceTo(new THREE.Vector3(driver.x,3+CAR_PIVOT_HEIGHT*VEHICLE_SCALE,driver.z))<1e-8);
-  assert.ok(vehicle.hydraulicRams.every((r,i)=>(r.piston.scale.y-rest[i])*VEHICLE_SCALE>.4));assert.equal(vehicle.root.children.filter(o=>o.name==='Rocket boost exhaust'&&o.visible).length,2);
+  assert.ok(vehicle.hydraulicRams.every((r,i)=>(r.piston.scale.y-rest[i])*VEHICLE_SCALE>.4*VEHICLE_SCALE));assert.equal(vehicle.root.children.filter(o=>o.name==='Rocket boost exhaust'&&o.visible).length,2);
   vehicle.dispose();
 });
 

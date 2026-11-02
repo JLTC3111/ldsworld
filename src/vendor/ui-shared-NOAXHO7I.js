@@ -1,1 +1,0 @@
-function u({hardwareConcurrency:t,deviceMemory:a,saveData:r=!1,coarse:i=!1,reducedMotion:n=!1}={}){let e=!!r||t>0&&t<=4||a>0&&a<=4;return{lowPower:e,maxPixelRatio:e?1:i?1.25:1.5,maxPixels:e?9e5:i?15e5:24e5,shadowSize:e?512:1024,maxFps:e||n?30:60}}export{u as a};

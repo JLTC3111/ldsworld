@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Driver, planGroundRoute, angleDifference } from '../src/driving.js';
-import { PhysicsWorld, PortalSystem } from '../src/physics.js';
+import { PhysicsWorld, PortalSystem, ColliderIndex } from '../src/physics.js';
 import { bridges, bridgeHeightAt, crossesWater, isWater, portals, riverCenter } from '../src/world-layout.js';
 
 test('shallow streams accept direct routes and a driver can ford them without a bridge',()=>{
@@ -91,6 +91,58 @@ test('sleeping props skip pair solving until contact wakes them and aerial bound
   world.update(1/30,driver);assert.equal(groundChecks,0);assert.equal(boundsChecks,1);assert.ok(world.bodies.every(b=>b.sleeping));
   world.kick('a',{x:-1,z:-8,strength:5});world.update(1/30,driver);
   assert.ok(world.bodies[1].vx>0);assert.equal(world.bodies[1].sleeping,false);assert.ok(groundChecks>0);
+});
+
+test('one moving prop leaves distant sleeping props out of collision and ground work',()=>{
+  const bodies=Array.from({length:300},(_,i)=>({id:`resting-${i}`,x:30+i%20*3,z:-70+Math.floor(i/20)*3,radius:.4,initialSleeping:true}));
+  const world=new PhysicsWorld({bodies:[{id:'moving',x:-60,z:-60,radius:.4},...bodies]});
+  const driver={x:-90,z:-60,heading:0,speed:0};
+  const touched=new Set();
+  for(const name of ['resolveGround','resolveFixed','resolveCar']){const original=world[name].bind(world);world[name]=(body,...args)=>{touched.add(body.id);return original(body,...args);};}
+  let pairs=0;const resolvePair=world.resolvePair.bind(world);world.resolvePair=(a,b)=>{pairs++;return resolvePair(a,b);};
+  const index=world.bodyIndex;world.bodies[0].vx=3;
+  for(let i=0;i<30;i++)world.update(1/60,driver);
+  assert.equal(world.bodyIndex,index,'Resting cell memberships persist across simulation frames');
+  assert.deepEqual([...touched],['moving']);assert.equal(pairs,0);
+  assert.ok(world.bodies.slice(1).every(body=>body.sleeping&&body.vx===0&&body.vy===0));
+});
+
+test('collision wakeups reach a reversed row even when bodies share an authored id',()=>{
+  const world=new PhysicsWorld({bodies:[{id:'shared',x:1.92,z:-20,radius:.5,initialSleeping:true},{id:'shared',x:.96,z:-20,radius:.5,initialSleeping:true},{id:'shared',x:0,z:-20,radius:.5,initialSleeping:true}]});
+  world.bodies[2].sleeping=false;world.bodies[2].vx=8;world.update(1/120);
+  assert.ok(world.bodies.every(body=>!body.sleeping&&body.vx>0),'A newly awakened neighbour participates in the same collision pass');
+});
+
+test('persistent prop contacts follow relocated and resized bodies and replace respawned bodies',()=>{
+  const world=new PhysicsWorld({bodies:[{id:'moving',x:-7,z:-20,radius:.5},{id:'resting',x:-18,z:-20,radius:.5,initialSleeping:true}]});
+  const [moving,old]=world.bodies;old.x=-9.3;old.radius=2;moving.vx=-5;world.update(1/120);
+  assert.ok(old.vx<0&&!old.sleeping,'A changed resting radius and position enter the next broadphase query');
+  old.destroyed=true;const restored=world.restoreBody('resting');
+  assert.equal(restored.x,-18);assert.equal(restored.radius,.5);
+  assert.ok(!world.bodyIndex.near(old.x,old.z,3).has(old),'The previous body leaves the persistent grid on respawn');
+  moving.x=-17.1;moving.vx=-4;world.update(1/120);
+  assert.ok(restored.vx<0&&!restored.sleeping,'The replacement collides at its authored resting position');
+  const retained=world.bodies;world.reset();assert.equal(world.bodies,retained);
+  assert.ok(world.bodyIndex.near(-18,-20,1).has(world.bodies[1]));assert.ok(!world.bodyIndex.near(-18,-20,1).has(restored));
+});
+
+test('collider queries preserve independent results and clear caller-owned scratch sets',()=>{
+  const left={x:-12,z:-12,radius:.4},right={x:12,z:-12,radius:.4},index=new ColliderIndex([left,right]);
+  const first=index.near(-12,-12,1),second=index.near(12,-12,1);
+  assert.notEqual(first,second);assert.deepEqual([...first],[left]);assert.deepEqual([...second],[right]);
+  const scratch=new Set([left]);assert.equal(index.near(12,-12,1,scratch),scratch);assert.deepEqual([...scratch],[right]);
+  index.near(80,80,1,scratch);assert.equal(scratch.size,0);assert.deepEqual([...first],[left]);
+});
+
+test('cached contacts ignore inactive and destroyed props and reenable a restored prop',()=>{
+  let enabled=false;
+  const world=new PhysicsWorld({bodies:[{id:'moving',x:.9,z:-20,radius:.5},{id:'seasonal',x:0,z:-20,radius:.5,initialSleeping:true,active:()=>enabled}]});
+  const moving=world.bodies[0],resting=world.bodies[1];
+  const approach=()=>{moving.x=.9;moving.vx=-4;moving.sleeping=false;world.update(1/120);};
+  approach();assert.equal(resting.sleeping,true);assert.equal(resting.vx,0);
+  enabled=true;approach();assert.ok(!resting.sleeping&&resting.vx<0);
+  resting.destroyed=true;resting.sleeping=true;resting.vx=0;approach();assert.equal(resting.vx,0);
+  const restored=world.restoreBody('seasonal');approach();assert.ok(!restored.destroyed&&!restored.sleeping&&restored.vx<0);
 });
 
 test('solid scenery reflects a moving prop before it crosses the wall', () => {

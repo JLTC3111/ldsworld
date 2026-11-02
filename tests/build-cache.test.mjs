@@ -6,6 +6,7 @@ import path from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { buildProject, versionModuleImports, versionHtmlResources } from '../scripts/build.mjs';
 import { serveStatic } from '../scripts/static-handler.mjs';
+import { MODEL_ASSETS } from '../src/model-catalog.js';
 
 async function fixture(callback) {
   const directory=await mkdtemp(path.join(tmpdir(),'longd-build-cache-')),source=path.join(directory,'src'),destination=path.join(directory,'dist');
@@ -51,6 +52,19 @@ test('production includes the language-organized gallery and excludes legacy dem
   await buildProject({source,destination});
   for(const file of files.slice(0,3))assert.equal(await readFile(path.join(destination,file),'utf8'),'fixture media');
   for(const file of files.slice(3))await assert.rejects(readFile(path.join(destination,file)),{code:'ENOENT'});
+}));
+
+test('production ships only catalogued models byte-for-byte and preserves every uploaded source and credit file',async()=>fixture(async({source,destination})=>{
+  const originals=['building.glb','tree (1).glb','rick_roll_bridge.glb'],selected=Object.values(MODEL_ASSETS).map(model=>model.file);
+  const folder='assets/3d_models';await mkdir(path.join(source,folder),{recursive:true});
+  for(const file of [...selected,...originals])await writeFile(path.join(source,folder,file),Buffer.from(`original bytes of ${file}`));
+  await writeFile(path.join(source,folder,'CREDITS.md'),'Uploaded model credits');
+  const first=await buildProject({source,destination});
+  for(const file of selected)assert.deepEqual(await readFile(path.join(destination,folder,file)),await readFile(path.join(source,folder,file)));
+  for(const file of originals){await assert.rejects(readFile(path.join(destination,folder,file)),{code:'ENOENT'});assert.equal(await readFile(path.join(source,folder,file),'utf8'),`original bytes of ${file}`);}
+  assert.equal(await readFile(path.join(destination,folder,'CREDITS.md'),'utf8'),'Uploaded model credits');
+  await writeFile(path.join(source,folder,originals[0]),'updated unused source');assert.equal((await buildProject({source,destination})).revision,first.revision,'unused references do not invalidate runtime caches');
+  await writeFile(path.join(source,folder,selected[0]),'updated runtime model');assert.notEqual((await buildProject({source,destination})).revision,first.revision);
 }));
 
 test('static, side-effect, exported, dynamic, and template-expression imports are stamped without changing prose or shader strings',()=>{

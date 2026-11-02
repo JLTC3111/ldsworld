@@ -108,10 +108,10 @@ test('weather, lantern lighting, and portal animation preserve physics-owned pro
   const { scenery } = build();
   const body = scenery.bodies[0]; body.object.position.set(9, 2, -3);
   const water = scenery.root.getObjectByName('Winding animated river');
-  const before = water.geometry.attributes.position.getY(10);
+  const before = water.material.uniforms.uTime.value;
   scenery.update(1, 3, { night: 1, weather: 'snow' });
   assert.deepEqual(body.object.position.toArray(), [9, 2, -3]);
-  assert.notEqual(water.geometry.attributes.position.getY(10), before);
+  assert.ok(water.material.uniforms.uTime.value > before);
   assert.ok(scenery.lamps.some(lamp => lamp.isMaterial && lamp.emissiveIntensity > 1));
   let visibleSnow = 0; scenery.root.traverse(object => { if (object.isMesh && object.material.transparent && object.material.opacity > .1 && object.material.color?.getHex() === 0xeff2e8) visibleSnow++; });
   assert.equal(visibleSnow, 8);

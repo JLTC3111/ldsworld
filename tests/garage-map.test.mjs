@@ -12,21 +12,25 @@ import { powertrainState } from '../src/powertrain.js';
 function withCanvas(fn){const previous=Object.getOwnPropertyDescriptor(globalThis,'document');Object.defineProperty(globalThis,'document',{configurable:true,value:{createElement:()=>({getContext:()=>({fillRect(){},fillText(){}})})}});try{fn();}finally{if(previous)Object.defineProperty(globalThis,'document',previous);else delete globalThis.document;}}
 test('all four garage models have complete moving suspension, lamps, finite geometry, and owned resources',()=>withCanvas(()=>{
   assert.equal(vehicleModel('missing').id,'8-ball');assert.equal(new Set(VEHICLE_MODELS.map(m=>m.id)).size,4);
+  assert.equal(VEHICLE_SCALE,1.26*.5,'Every model is half its previous size');
   for(const model of VEHICLE_MODELS){
     const scene=new THREE.Scene(),car=createVehicle({THREE,scene,model:model.id,reducedMotion:true}),driver=new Driver();driver.setVehicleProfile(car.profile);
     assert.equal(car.modelId,model.id);assert.equal(car.hydraulicRams.length,4);assert.equal(car.headLights.length,2);
+    assert.equal(car.root.scale.x,VEHICLE_SCALE);assert.equal(driver.attitude.pivotHeight,1.2*VEHICLE_SCALE);
+    for(const [key,value] of Object.entries(car.visualProfile))if(typeof value==='number')assert.equal(car.profile[key],value*VEHICLE_SCALE,`${model.id} ${key} follows rendered scale`);
+    assert.equal(driver.rideHeight,car.profile.raised);assert.equal(driver.attitude.halfWidth,car.profile.halfWidth+.1);assert.equal(driver.attitude.halfLength,car.profile.halfLength+.12);
     car.update(1/60,{driver,night:1,headlights:'on'});const lengths=car.hydraulicRams.map(r=>r.piston.scale.y);
     driver.attitude.takeoff(driver.heading);driver.attitude.rotation.setFromAxisAngle(new THREE.Vector3(1,0,0),Math.PI);driver.attitude.updateAxes();driver.hop=5;driver.hydraulicOffset=.48;
-    car.update(1/60,{driver,night:1,headlights:'on'});assert.ok(car.root.quaternion.angleTo(driver.attitude.rotation)<1e-8);assert.ok(car.hydraulicRams.every((r,i)=>(r.piston.scale.y-lengths[i])*VEHICLE_SCALE>.4));
+    car.update(1/60,{driver,night:1,headlights:'on'});assert.ok(car.root.quaternion.angleTo(driver.attitude.rotation)<1e-8);assert.ok(car.hydraulicRams.every((r,i)=>(r.piston.scale.y-lengths[i])*VEHICLE_SCALE>.4*VEHICLE_SCALE));
     const owned=new Set();let meshes=0;
     car.root.traverse(o=>{if(o.isMesh){meshes++;for(const v of o.geometry.attributes.position.array)assert.ok(Number.isFinite(v));if(o.isInstancedMesh)for(const v of o.instanceMatrix.array)assert.ok(Number.isFinite(v));}if(o.geometry)owned.add(o.geometry);for(const m of o.material?Array.isArray(o.material)?o.material:[o.material]:[]){owned.add(m);if(m.map)owned.add(m.map);}});
-    assert.ok(meshes>60&&meshes<350,model.id);assert.ok(car.headLights.every(l=>l.intensity>20));
+    assert.ok(meshes>60&&meshes<350,model.id);assert.ok(car.headLights.every(l=>l.intensity>20*VEHICLE_SCALE**2));
     let releases=0;owned.forEach(r=>r.addEventListener('dispose',()=>releases++));car.dispose();car.dispose();assert.equal(releases,owned.size);assert.equal(scene.children.length,0);
   }
 }));
 
 test('the map has unique bilingual destinations inside its top-down frustum and safe land arrivals',()=>{
-  const en=mapLocations('en'),vi=mapLocations('vi');assert.equal(en.length,29);assert.deepEqual(en.map(l=>l.id),vi.map(l=>l.id));assert.equal(new Set(en.map(l=>l.id)).size,en.length);
+  const en=mapLocations('en'),vi=mapLocations('vi');assert.equal(en.length,27);assert.deepEqual(en.map(l=>l.id),vi.map(l=>l.id));assert.equal(new Set(en.map(l=>l.id)).size,en.length);assert.ok(en.every(l=>!["bowling","tnt"].includes(l.id)));assert.equal(en.find(l=>l.id==="woodland").name,"Woodland");
   assert.ok(en.filter(l=>l.projectId).length===6);assert.ok(vi.some(l=>l.name.includes('thị trấn')));
   for(const location of en){assert.ok(Math.abs(location.x)<MAP_BOUNDS.x&&Math.abs(location.z)<MAP_BOUNDS.z);assert.ok(location.spawn.every(Number.isFinite));assert.notEqual(drivingSurfaceAt(...location.spawn),'water',location.id);}
 });

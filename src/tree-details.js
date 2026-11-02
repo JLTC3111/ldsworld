@@ -1,3 +1,20 @@
+// Match each authored tree to its instanced foliage so imported models can
+// replace the procedural visual without requiring a destruction system.
+export function collectTreeInstances({THREE:T,trees,objects}){
+  const targets=trees.map((tree,index)=>({id:`tree-${index+1}`,kind:'tree',x:tree.x,z:tree.z,parts:[]}));
+  const matrix=new T.Matrix4(),position=new T.Vector3();
+  for(const object of objects){
+    if(!object.isInstancedMesh)continue;object.updateWorldMatrix(true,false);
+    for(let index=0;index<object.count;index++){
+      object.getMatrixAt(index,matrix);matrix.premultiply(object.matrixWorld);position.setFromMatrixPosition(matrix);
+      let nearest=null,distance=Infinity;
+      for(const target of targets){const d=Math.hypot(target.x-position.x,target.z-position.z);if(d<distance){distance=d;nearest=target;}}
+      if(nearest&&distance<4)nearest.parts.push({object,index});
+    }
+  }
+  return targets;
+}
+
 export function createTreeDetails({THREE:T,scene,trees,coarse=false}) {
   const root=new T.Group();root.name='Layered woodland foliage';scene.add(root);
   const broad=trees.filter(t=>t.round),count=coarse?56:96;

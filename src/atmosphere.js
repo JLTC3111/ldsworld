@@ -1,5 +1,4 @@
 import { EnvironmentClock } from './environment-state.js';
-import { createPixelSnow } from './pixel-snow.js';
 
 /** A small, deterministic atmosphere. It owns no application theme or project state. */
 export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill, sea, coarse = false, reducedMotion = false }) {
@@ -10,14 +9,14 @@ export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill
   const ownGeometry = geometry => { geometries.add(geometry); return geometry; };
   const ownMaterial = material => { materials.add(material); return material; };
   const counts = {
-    rain: reducedMotion ? 90 : coarse ? 320 : 760,
-    snow: reducedMotion ? 130 : coarse ? 440 : 920,
+    rain: 0,
+    snow: 0,
     stars: coarse ? 110 : 230,
-    splashes: reducedMotion ? 6 : coarse ? 16 : 28
+    splashes: 0
   };
   let seed = 6299;
   const random = () => { seed = seed * 16807 % 2147483647; return (seed - 1) / 2147483646; };
-  let elapsedTime = 0, disposed = false;
+  let disposed = false;
   const blend = { rain: 0, snow: 0 };
   const state = clock.getState();
   const initial = {
@@ -29,8 +28,7 @@ export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill
   const colors = {
     day: new THREE.Color('#dce8e3'), night: new THREE.Color('#182d3c'), dawn: new THREE.Color('#f4d3ad'), dusk: new THREE.Color('#dba899'),
     seaDay: new THREE.Color('#cbded8'), seaNight: new THREE.Color('#172e38'), rain: new THREE.Color('#91a7af'), snow: new THREE.Color('#dce6e8'),
-    sunDay: new THREE.Color('#fff2ce'), sunWarm: new THREE.Color('#ffb16a'), moon: new THREE.Color('#a8bfd4'),
-    rainDay: new THREE.Color('#466d83'), rainNight: new THREE.Color('#bddde7')
+    sunDay: new THREE.Color('#fff2ce'), sunWarm: new THREE.Color('#ffb16a'), moon: new THREE.Color('#a8bfd4')
   };
   const skyColor = new THREE.Color(), seaColor = new THREE.Color(), lightColor = new THREE.Color();
   if (!scene.background?.isColor) scene.background = new THREE.Color('#dce8e3');
@@ -62,22 +60,6 @@ export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill
     crater.position.set((random() - .5) * .8, (random() - .5) * .8, .9); moonOrb.add(crater);
   }
 
-  const dummy = new THREE.Object3D();
-
-  const rainPositions = new Float32Array(counts.rain * 6);
-  const rainSeeds = Array.from({ length: counts.rain }, () => ({ x: (random() - .5) * 68, y: random() * 32, z: (random() - .5) * 56, speed: 30 + random() * 13 }));
-  const rainGeometry = ownGeometry(new THREE.BufferGeometry().setAttribute('position', new THREE.BufferAttribute(rainPositions, 3)));
-  rainGeometry.attributes.position.setUsage(THREE.DynamicDrawUsage);
-  const rainMaterial = ownMaterial(new THREE.LineBasicMaterial({ color: '#b4d5df', transparent: true, opacity: 0, depthWrite: false, toneMapped: false }));
-  const rain = new THREE.LineSegments(rainGeometry, rainMaterial); rain.name = 'atmosphere-rain'; rain.frustumCulled = false; root.add(rain);
-
-  const pixelSnow=createPixelSnow({THREE,renderer,capacity:counts.snow,coarse,reducedMotion});
-  const snow=pixelSnow.object;root.add(snow);
-
-  const splashMaterial = ownMaterial(new THREE.MeshBasicMaterial({ color: '#d7e9e8', transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }));
-  const splashes = new THREE.InstancedMesh(ownGeometry(new THREE.RingGeometry(.06, .085, 9)), splashMaterial, counts.splashes);
-  splashes.name = 'atmosphere-splashes'; splashes.frustumCulled = false; root.add(splashes);
-  const splashSeeds = Array.from({ length: counts.splashes }, () => ({ x: (random() - .5) * 44, z: (random() - .5) * 30, phase: random() }));
   const puddleMaterial = ownMaterial(new THREE.MeshStandardMaterial({ color: '#7fadb2', roughness: .12, metalness: .45, transparent: true, opacity: 0, depthWrite: false }));
   const snowPatchMaterial = ownMaterial(new THREE.MeshStandardMaterial({ color: '#f1f5e9', roughness: 1, transparent: true, opacity: 0, depthWrite: false }));
   const discGeometry = ownGeometry(new THREE.CircleGeometry(1, 24));
@@ -112,44 +94,21 @@ export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill
     sunMaterial.color.copy(colors.sunDay).lerp(colors.sunWarm, warmth); glowMaterial.opacity = (.08 + warmth * .14) * (1 - wet * .7 - white * .4);
     moonOrb.position.set(-Math.cos(sunAngle) * 48, -sunHeight * 40 + 3, -29); moonOrb.visible = night > .08;
   }
-  function paintWeather(dt,paused=false) {
-    const wind = reducedMotion ? .15 : .8 + Math.sin(elapsedTime * .13) * .3;
-    rain.visible = blend.rain > .01; snow.visible = blend.snow > .01; splashes.visible = rain.visible;
-    // Dark daylight strokes and bright night strokes remain visible against the
-    // sky and island. Longer slanted tails read as rain at the overview scale.
-    rainMaterial.opacity = blend.rain * (.64 + state.daylight * .21);
-    const skyLuminance = skyColor.r * .2126 + skyColor.g * .7152 + skyColor.b * .0722;
-    const strokeContrast = color => {
-      const strokeLuminance = color.r * .2126 + color.g * .7152 + color.b * .0722;
-      const rendered = strokeLuminance * rainMaterial.opacity + skyLuminance * (1 - rainMaterial.opacity);
-      return (Math.max(rendered, skyLuminance) + .05) / (Math.min(rendered, skyLuminance) + .05);
-    };
-    rainMaterial.color.copy(strokeContrast(colors.rainDay) >= strokeContrast(colors.rainNight) ? colors.rainDay : colors.rainNight);
-    pixelSnow.update(dt,{opacity:blend.snow*.88,time:elapsedTime,wind,paused});splashMaterial.opacity = blend.rain * .48;
-    puddleMaterial.opacity = blend.rain * .32; snowPatchMaterial.opacity = blend.snow * .56;
-    if(rain.visible)for (let i = 0; i < rainSeeds.length; i++) {
-      const particle = rainSeeds[i]; particle.y -= dt * particle.speed * (reducedMotion ? .3 : 1); particle.x += dt * wind;
-      if (particle.y < .18) { particle.y += 32; particle.x = (random() - .5) * 68; particle.z = (random() - .5) * 56; }
-      const offset = i * 6; rainPositions[offset] = particle.x; rainPositions[offset + 1] = particle.y; rainPositions[offset + 2] = particle.z;
-      rainPositions[offset + 3] = particle.x - wind * (reducedMotion ? .12 : .33); rainPositions[offset + 4] = particle.y + (reducedMotion ? .72 : 1.85); rainPositions[offset + 5] = particle.z - (reducedMotion ? .025 : .08);
-    }
-    if(rain.visible&&dt>0)rainGeometry.attributes.position.needsUpdate = true;
-    if(rain.visible)splashSeeds.forEach((splash, i) => {
-      const progress = reducedMotion ? .35 : (splash.phase + elapsedTime * .9) % 1;
-      dummy.position.set(splash.x, .18, splash.z); dummy.rotation.set(-Math.PI / 2, 0, 0); dummy.scale.setScalar(progress * 4.5 + .05); dummy.updateMatrix(); splashes.setMatrixAt(i, dummy.matrix);
-    });
-    if(rain.visible&&dt>0)splashes.instanceMatrix.needsUpdate = true;
+  // Precipitation is a CSS overlay; only the anchored ground styling lives here.
+  function paintWeather() {
+    puddleMaterial.opacity = blend.rain * .32;
+    snowPatchMaterial.opacity = blend.snow * .56;
   }
   function snapshot() { return { ...state, particleCounts: { ...counts } }; }
   function update(elapsed = 0, { paused = false, focus } = {}) {
     if (disposed) return snapshot();
     if(focus&&Number.isFinite(focus.x)&&Number.isFinite(focus.z))root.position.set(focus.x,0,focus.z);
     const dt = !paused && Number.isFinite(elapsed) ? Math.max(0, Math.min(elapsed, .1)) : 0;
-    Object.assign(state, clock.update(dt, paused)); elapsedTime += dt;
+    Object.assign(state, clock.update(dt, paused));
     const damping = 1 - Math.exp(-dt * 2);
     blend.rain += ((state.weather === 'rain' ? 1 : 0) - blend.rain) * damping;
     blend.snow += ((state.weather === 'snow' ? 1 : 0) - blend.snow) * damping;
-    paintLighting(state); paintWeather(dt,paused); return snapshot();
+    paintLighting(state); paintWeather(); return snapshot();
   }
   update(0);
   return {
@@ -160,9 +119,8 @@ export function createAtmosphere({ THREE, scene, renderer, sun, hemisphere, fill
       update(0); return snapshot();
     },
     getState: snapshot,
-    getSnowStats:pixelSnow.getStats,
     dispose() {
-      if (disposed) return; disposed = true;pixelSnow.dispose();root.removeFromParent();groundDetails.removeFromParent();
+      if (disposed) return; disposed = true;root.removeFromParent();groundDetails.removeFromParent();
       geometries.forEach(geometry => geometry.dispose()); materials.forEach(material => material.dispose());
       scene.background = initial.background;
       scene.fog = initial.fog || null; renderer.toneMappingExposure = initial.exposure;

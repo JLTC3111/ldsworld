@@ -32,7 +32,11 @@ export function createCarDetails({THREE:T,root,body,profile,id}){
   catch{}
   for(const z of [front+.085,rear-.075])box('Registration plate LD 3111',.35,.13,.018,plateMaterial,0,y-.075,z);
   // A bright forward-pointing hood chevron reads from every camera heading.
-  const arrowShape=new T.Shape();arrowShape.moveTo(0,.32);arrowShape.lineTo(.34,-.08);arrowShape.lineTo(.19,-.18);arrowShape.lineTo(0,.03);arrowShape.lineTo(-.19,-.18);arrowShape.lineTo(-.34,-.08);arrowShape.closePath();
+  const roadster=id==='8-ball';
+  const arrowShape=new T.Shape();
+  if(roadster){arrowShape.moveTo(0,.48);arrowShape.lineTo(.49,-.02);arrowShape.lineTo(.21,-.02);arrowShape.lineTo(.21,-.43);arrowShape.lineTo(-.21,-.43);arrowShape.lineTo(-.21,-.02);arrowShape.lineTo(-.49,-.02);}
+  else{arrowShape.moveTo(0,.32);arrowShape.lineTo(.34,-.08);arrowShape.lineTo(.19,-.18);arrowShape.lineTo(0,.03);arrowShape.lineTo(-.19,-.18);arrowShape.lineTo(-.34,-.08);}
+  arrowShape.closePath();
   const arrowGeometry=new T.ShapeGeometry(arrowShape);geometries.add(arrowGeometry);
   const vertices=arrowGeometry.attributes.position,hoodZ=front*.68;
   for(let i=0;i<vertices.count;i++){const x=vertices.getX(i),z=hoodZ+vertices.getY(i);vertices.setXYZ(i,x,surfaceY(x,z)+.035,z);}arrowGeometry.computeVertexNormals();
@@ -41,16 +45,20 @@ export function createCarDetails({THREE:T,root,body,profile,id}){
   // White top-facing headlamp caps and red rear markers stay visible from above.
   for(const side of [-1,1]){
     const x=side*Math.min(profile.halfWidth*.62,.68),fz=front-.12,rz=rear+.12;
-    const head=box('Top-facing front running light',.25,.045,.18,white,x,surfaceY(x,fz)+.045,fz);head.userData.direction='front';
-    const tail=box('Top-facing red tail marker',.25,.045,.18,red,x,surfaceY(x,rz)+.045,rz);tail.userData.direction='rear';
+    const head=box('Top-facing front running light',roadster?.38:.25,roadster?.07:.045,roadster?.28:.18,white,x,surfaceY(x,fz)+.055,fz);head.userData.direction='front';
+    const tail=box('Top-facing red tail marker',roadster?.36:.25,roadster?.07:.045,roadster?.25:.18,red,x,surfaceY(x,rz)+.055,rz);tail.userData.direction='rear';
   }
   // The back has a raised dark wing/utility gate and a wide red light bar.
-  const rearZ=rear*.78,rearY=surfaceY(0,rearZ)+.19,rearWidth=profile.halfWidth*1.5;
-  for(const side of [-1,1])box('Rear marker support',.055,.22,.10,black,side*rearWidth*.34,rearY-.09,rearZ);
-  const wing=box(id==='8-ball'?'Rear spoiler':'Rear utility gate',rearWidth,.08,id==='8-ball'?.28:.16,black,0,rearY+.035,rearZ);wing.userData.direction='rear';
-  const bar=box('Raised rear red light bar',rearWidth*.86,.035,.085,red,0,rearY+.09,rearZ-.025);bar.userData.direction='rear';
-  profile.bodyTop=Math.max(profile.bodyTop,rearY+.13);
-  profile.halfLength=Math.max(profile.halfLength,front+.14,-rear+.14);
+  const rearZ=rear*.78,rearY=surfaceY(0,rearZ)+(roadster?.3:.19),rearWidth=profile.halfWidth*(roadster?1.95:1.5);
+  for(const side of [-1,1])box('Rear marker support',roadster?.085:.055,roadster?.34:.22,.10,black,side*rearWidth*.34,rearY-.14,rearZ);
+  const wing=box(roadster?'Rear spoiler':'Rear utility gate',rearWidth,roadster?.12:.08,roadster?.48:.16,black,0,rearY+.035,rearZ);wing.userData.direction='rear';
+  const bar=box('Raised rear red light bar',rearWidth*.86,roadster?.055:.035,roadster?.17:.085,red,0,rearY+(roadster?.13:.09),rearZ-.025);bar.userData.direction='rear';
+  if(roadster){
+    for(const side of [-1,1]){const end=box('8 Ball rear spoiler endplate',.075,.24,.52,black,side*(rearWidth/2-.035),rearY+.11,rearZ);end.userData.direction='rear';}
+    const nose=box('8 Ball ivory front splitter',profile.halfWidth*1.75,.09,.26,ivory,0,y-.16,front+.08);nose.userData.direction='front';
+  }
+  profile.bodyTop=Math.max(profile.bodyTop,rearY+(roadster?.24:.13));
+  profile.halfLength=Math.max(profile.halfLength,front+(roadster?.23:.14),-rear+.14);
   let lastSpeed=0;
   return {headLights,tailLights,update({driver,night=0,headlights='auto',braking=false,time=0}){
     const active=headlights==='off'?0:headlights==='on'?1:Math.max(.25,night),lift=(driver.rideHeight??profile.raised)+(driver.hydraulicOffset||0);

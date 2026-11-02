@@ -8,8 +8,11 @@ const advance=(car,seconds,input={},fps=60)=>{for(let i=0;i<Math.round(seconds*f
 const carAt=()=>{const car=new Driver();car.x=0;car.z=-32;car.heading=car.velocityHeading=0;return car;};
 const takeoff=car=>{assert.equal(car.jump(),true);advance(car,.25);assert.equal(car.attitude.flying,true);};
 
-test('ordinary driving is twice as fast, boost accelerates from rest, and braking remains effective',()=>{
-  const car=carAt();advance(car,1,{forward:true});assert.equal(car.speed,DRIVE_TUNING.speed);assert.equal(car.speed,30);
+test('ordinary driving is capped at half its previous speed for keyboard and analog controls, while boost, reverse and braking stay effective',()=>{
+  for(const input of [{forward:true},{throttleAxis:1},{throttleAxis:1,smoothDrive:true}]){
+    const car=carAt();advance(car,1,input);assert.equal(car.speed,DRIVE_TUNING.speed);assert.equal(car.speed,15);
+  }
+  const car=carAt();advance(car,1,{reverse:true});assert.equal(car.speed,-7);
   car.reset();car.z=-32;advance(car,2,{boost:true});assert.equal(car.speed,48);
   advance(car,.6,{brake:true});assert.ok(car.speed<1);
 });

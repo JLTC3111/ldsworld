@@ -1,8 +1,8 @@
 import { CAR_PIVOT_HEIGHT } from './aerial-dynamics.js';
-export const VEHICLE_SCALE=1.4;
+export const VEHICLE_SCALE=.63;
 
 // Keep model coordinates local while collision bounds, suspension travel and
-// the aerial pivot agree with the larger car in world metres.
+// the aerial pivot agree with the rendered car in world metres.
 export function scaleVehicle(vehicle,{THREE:T,scale=VEHICLE_SCALE}){
   const profile=vehicle.profile,update=vehicle.update.bind(vehicle),offset=new T.Vector3();
   vehicle.visualProfile=profile;

@@ -13,6 +13,19 @@ test('every supplied car has a forward hood chevron and distinct top-visible fro
     const arrow=car.root.getObjectByName('Front hood direction chevron'),rear=car.root.getObjectByName('Raised rear red light bar'),front=car.root.getObjectByName('Top-facing front running light'),tail=car.root.getObjectByName('Top-facing red tail marker');assert.ok(arrow&&rear&&front&&tail);assert.equal(arrow.userData.direction,'front');assert.equal(rear.userData.direction,'rear');
     const center=new THREE.Box3().setFromBufferAttribute(arrow.geometry.attributes.position).getCenter(new THREE.Vector3());assert.ok(center.z>0);assert.ok(front.position.z>0);assert.ok(tail.position.z<0);assert.ok(rear.position.z<0);assert.equal(arrow.material.color.getHexString(),'fff2cf');assert.equal(front.material.color.getHexString(),'fff5df');assert.equal(tail.material.color.getHexString(),'b71920');assert.equal(rear.material,tail.material);
     assert.ok(car.root.getObjectByName(id==='8-ball'?'Rear spoiler':'Rear utility gate'));
+    if(id==='8-ball'){
+      const arrowSize=new THREE.Box3().setFromBufferAttribute(arrow.geometry.attributes.position).getSize(new THREE.Vector3());
+      assert.ok(arrowSize.x>.9&&arrowSize.z>.8,'A bold full hood arrow remains legible on the half-size car');
+      const nose=car.root.getObjectByName('8 Ball ivory front splitter'),wing=car.root.getObjectByName('Rear spoiler');
+      assert.ok(nose.position.z>front.position.z);assert.equal(nose.material,arrow.material);
+      assert.ok(wing.scale.x>car.visualProfile.halfWidth*1.8&&wing.scale.z>.4,'The rear has a distinct full-width silhouette');
+      assert.ok(rear.scale.z>.15);const endplates=[];car.root.traverse(object=>{if(object.name==='8 Ball rear spoiler endplate')endplates.push(object);});assert.equal(endplates.length,2);
+      for(const heading of [0,Math.PI/2,Math.PI,Math.PI*1.5]){
+        driver.heading=heading;car.update(1/60,{driver,headlights:'on'});car.root.updateMatrixWorld(true);
+        const origin=car.root.getWorldPosition(new THREE.Vector3()),forward=new THREE.Vector3(Math.sin(heading),0,Math.cos(heading));
+        assert.ok(nose.getWorldPosition(new THREE.Vector3()).sub(origin).dot(forward)>0);assert.ok(wing.getWorldPosition(new THREE.Vector3()).sub(origin).dot(forward)<0);
+      }
+    }
     const dim=tail.material.emissiveIntensity;car.update(1/60,{driver,night:1,braking:true});assert.ok(tail.material.emissiveIntensity>dim);car.dispose();car.dispose();assert.equal(scene.children.length,0);
   }
 });

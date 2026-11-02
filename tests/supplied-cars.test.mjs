@@ -11,7 +11,7 @@ test('the three supplied GLBs have correctly oriented, independently animated wh
   for(const id of CAR_ASSET_IDS){
     const bytes=await readFile(new URL(`../src/assets/cars/${id}.glb`,import.meta.url));await registerCarAsset(id,bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength));
     const scene=new THREE.Scene(),vehicle=createVehicle({THREE,scene,model:id}),driver=new Driver();driver.setVehicleProfile(vehicle.profile);driver.heading=driver.velocityHeading=0;vehicle.update(1/60,{driver,headlights:'on'});vehicle.root.updateMatrixWorld(true);
-    assert.equal(vehicle.sourceAsset,true);assert.equal(vehicle.wheelPivots.length,4);assert.equal(vehicle.hydraulicRams.length,4);assert.ok(vehicle.headLights.every(l=>l.intensity>30));
+    assert.equal(vehicle.sourceAsset,true);assert.equal(vehicle.wheelPivots.length,4);assert.equal(vehicle.hydraulicRams.length,4);assert.ok(vehicle.headLights.every(l=>l.intensity>30*VEHICLE_SCALE**2));
     assert.equal(vehicle.root.scale.x,VEHICLE_SCALE);assert.equal(driver.attitude.pivotHeight,1.2*VEHICLE_SCALE);assert.equal(vehicle.tailLights.length,2);
     for(const name of ['Wing mirror housing','Mirror glass','Registration plate LD 3111','Exhaust outlet','Projector headlight lens','LED daytime running light'])assert.ok(vehicle.root.getObjectByName(name),`${id}: ${name}`);
     const rear=vehicle.tailLights[0].material,dim=rear.emissiveIntensity;vehicle.update(1/60,{driver,braking:true});assert.ok(rear.emissiveIntensity>dim);

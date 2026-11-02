@@ -23,6 +23,8 @@ export const StaggeredMenu = ({
   onMenuOpen,
   onMenuClose,
   onItemSelect,
+  headerControls = null,
+  socialControls = null,
   controllerRef,
   displayLogo = true,
   menuLabel = 'Menu',
@@ -34,6 +36,7 @@ export const StaggeredMenu = ({
 }) => {
   const [open, setOpen] = useState(false);
   const openRef = useRef(false);
+  const focusedOpenRef = useRef(false);
   const motion = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 0 : 1;
   const panelRef = useRef(null);
   const preLayersRef = useRef(null);
@@ -99,7 +102,7 @@ export const StaggeredMenu = ({
     const itemEls = Array.from(panel.querySelectorAll('.sm-panel-itemLabel'));
     const numberEls = Array.from(panel.querySelectorAll('.sm-panel-list[data-numbering] .sm-panel-item'));
     const socialTitle = panel.querySelector('.sm-socials-title');
-    const socialLinks = Array.from(panel.querySelectorAll('.sm-socials-link'));
+    const socialLinks = Array.from(panel.querySelectorAll('.sm-socials-link, .sm-socials-action'));
 
     const offscreen = position === 'left' ? -100 : 100;
     const layerStates = layers.map(el => ({ el, start: offscreen }));
@@ -236,7 +239,7 @@ export const StaggeredMenu = ({
           gsap.set(numberEls, { '--sm-num-opacity': 0 });
         }
         const socialTitle = panel.querySelector('.sm-socials-title');
-        const socialLinks = Array.from(panel.querySelectorAll('.sm-socials-link'));
+        const socialLinks = Array.from(panel.querySelectorAll('.sm-socials-link, .sm-socials-action'));
         if (socialTitle) gsap.set(socialTitle, { opacity: 0 });
         if (socialLinks.length) gsap.set(socialLinks, { y: 25, opacity: 0 });
         busyRef.current = false;
@@ -350,8 +353,8 @@ export const StaggeredMenu = ({
   },[controllerRef,closeMenu]);
 
   React.useEffect(() => {
-    if(!open)return;
-    panelRef.current?.querySelector('.sm-panel-item')?.focus({preventScroll:true});
+    if(!open){focusedOpenRef.current=false;return;}
+    if(!focusedOpenRef.current){panelRef.current?.querySelector('.sm-panel-item')?.focus({preventScroll:true});focusedOpenRef.current=true;}
     const keydown=event=>{
       if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeMenu();return;}
       if(event.key!=='Tab')return;
@@ -414,6 +417,7 @@ export const StaggeredMenu = ({
         })()}
       </div>
       <header className="staggered-menu-header" aria-label={navigationLabel}>
+        {headerControls && <div className="sm-header-leading">{headerControls}</div>}
         {displayLogo && <div className="sm-logo" aria-label="Logo">
           <img
             src={logoUrl || '/src/assets/logos/reactbits-gh-white.svg'}
@@ -454,10 +458,13 @@ export const StaggeredMenu = ({
           <ul className="sm-panel-list" role="list" data-numbering={displayItemNumbering || undefined}>
             {items && items.length ? (
               items.map((it, idx) => (
-                <li className="sm-panel-itemWrap" key={it.label + idx}>
-                  <a id={it.id} className="sm-panel-item" href={it.link} aria-label={it.ariaLabel} aria-current={it.current?'page':undefined} data-index={idx + 1} onClick={event=>{if(onItemSelect){event.preventDefault();closeMenu(false);onItemSelect(it);}else closeMenu(false);}}>
+                <li className="sm-panel-itemWrap" key={it.id || it.action || it.link || it.label + idx}>
+                  {it.button ? <button id={it.id} type="button" className="sm-panel-item" aria-label={it.ariaLabel} aria-pressed={it.pressed} data-index={idx + 1} onClick={()=>{if(!it.keepOpen)closeMenu(false);onItemSelect?.(it);}}>
+                    {it.icon && <span className="sm-panel-itemIcon" aria-hidden="true">{it.icon}</span>}
                     <span className="sm-panel-itemLabel">{it.label}</span>
-                  </a>
+                  </button> : <a id={it.id} className="sm-panel-item" href={it.link} aria-label={it.ariaLabel} aria-current={it.current?'page':undefined} data-index={idx + 1} onClick={event=>{if(onItemSelect){event.preventDefault();closeMenu(false);onItemSelect(it);}else closeMenu(false);}}>
+                    <span className="sm-panel-itemLabel">{it.label}</span>
+                  </a>}
                 </li>
               ))
             ) : (
@@ -479,6 +486,7 @@ export const StaggeredMenu = ({
                     </a>
                   </li>
                 ))}
+                {socialControls && <li className="sm-socials-action">{socialControls}</li>}
               </ul>
             </div>
           )}

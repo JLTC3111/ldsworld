@@ -1,0 +1,46 @@
+/* Desktop settings sit below the location row, clear of the centered nav. */
+body:not(.compact-navigation) .header-tools {
+  flex-direction:column;
+  align-items:flex-end;
+  gap:10px;
+}
+body:not(.compact-navigation) .header-tools .location { display:flex; }
+#world-settings-desktop {
+  min-height:44px;
+  padding:9px 13px;
+  gap:9px;
+}
+#world-settings-desktop .icon { width:22px; height:22px; }
+body.compact-navigation #world-settings-desktop { display:none; }
+
+/* Actual mobile motion owns these two surfaces in either orientation. */
+body.mobile-driving .hero,
+body.mobile-driving #control-dock { display:none !important; }
+body.mobile-gameplay:not(.mobile-driving) .hero { display:block; }
+body.mobile-gameplay .hero #explore { display:none; }
+
+/* Give the stopped landscape Dock enough room to retain its touch targets. */
+@media(orientation:landscape) {
+  body.mobile-gameplay:not(.mobile-driving) #control-dock {
+    width:calc(100vw - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 24px);
+    max-width:640px;
+    bottom:max(8px,calc(env(safe-area-inset-bottom,0px) + 8px));
+  }
+}
+
+/* Short landscape screens reserve the lower corners for driving input. */
+@media(orientation:landscape) and (max-height:420px) {
+  body.mobile-layout .hero { top:64px; left:24px; width:300px; }
+  body.mobile-layout #hero-title.split-flap-headline { font-size:26px; margin-bottom:8px; }
+  body.mobile-layout .hero .eyebrow { font-size:6px; margin-bottom:6px; }
+  body.mobile-layout .hero-intro { font-size:10px; line-height:1.5; margin-bottom:8px; }
+  body.mobile-layout .hero .primary-button { min-height:44px; padding:10px 14px; }
+}
+@media(orientation:landscape) and (max-height:360px) {
+  body.mobile-layout .hero { top:56px; }
+  body.mobile-layout #hero-title.split-flap-headline { font-size:25px; }
+  body.mobile-layout .hero :is(.eyebrow,.hero-intro) { display:none; }
+}
+@media(orientation:landscape) and (max-width:679px) {
+  body.mobile-gameplay #control-dock { display:none; }
+}

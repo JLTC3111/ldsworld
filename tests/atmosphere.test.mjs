@@ -54,56 +54,52 @@ test('sunlight, sky colors, stars and moon respond to the chosen phase', () => {
   assert.ok(f.scene.fog.far > f.scene.fog.near); f.cleanup();
 });
 
-test('rain and snow have real bounded particle geometry and pause without falling', () => {
-  const f = fixture(); const rain = f.scene.getObjectByName('atmosphere-rain'), snow = f.scene.getObjectByName('atmosphere-snow');
-  f.atmosphere.setWeather('rain'); assert.equal(rain.visible, true); assert.equal(snow.visible, false);
-  const rainY = rain.geometry.attributes.position.array[1]; f.atmosphere.update(.05); assert.notEqual(rain.geometry.attributes.position.array[1], rainY);
-  const pausedRain = [...rain.geometry.attributes.position.array]; const pausedPhase = f.atmosphere.getState().phase;
-  f.atmosphere.update(.05, { paused: true }); assert.deepEqual([...rain.geometry.attributes.position.array], pausedRain); assert.equal(f.atmosphere.getState().phase, pausedPhase);
-  f.atmosphere.setWeather('snow'); assert.equal(snow.visible, true); assert.equal(rain.visible, false);
-  const snowY = snow.geometry.attributes.position.array[1]; f.atmosphere.update(.05); assert.notEqual(snow.geometry.attributes.position.array[1], snowY);
-  for (const object of [rain, snow]) for (const value of object.geometry.attributes.position.array) assert.ok(Number.isFinite(value));
-  const stats = f.atmosphere.getState().particleCounts; assert.equal(rain.geometry.attributes.position.count, stats.rain * 2); assert.equal(snow.geometry.attributes.position.count, stats.snow);
+test('precipitation stays outside WebGL while weather styling and pause remain active', () => {
+  const f = fixture(), stars = f.scene.getObjectByName('atmosphere-stars');
+  const positions = stars.geometry.attributes.position, initial = [...positions.array], version = positions.version;
+  for (const weather of ['rain', 'snow', 'clear']) {
+    f.atmosphere.setWeather(weather); f.atmosphere.update(.05);
+    for (const name of ['atmosphere-rain','atmosphere-snow','atmosphere-splashes']) assert.equal(f.scene.getObjectByName(name), undefined);
+    const counts = f.atmosphere.getState().particleCounts; assert.equal(counts.rain, 0); assert.equal(counts.snow, 0); assert.equal(counts.splashes, 0);
+  }
+  const phase = f.atmosphere.getState().phase; f.atmosphere.update(.05, {paused:true});
+  assert.equal(f.atmosphere.getState().phase, phase); assert.deepEqual([...positions.array], initial); assert.equal(positions.version, version);
   f.cleanup();
 });
 
 test('weather and sunlight follow distant driving positions while ground patches stay anchored',()=>{
   const f=fixture();f.atmosphere.setWeather('snow');
   const root=f.scene.getObjectByName('island-atmosphere'),patches=f.scene.getObjectByName('Weather ground patches');
-  const localSnow=[...f.scene.getObjectByName('atmosphere-snow').geometry.attributes.position.array];
+  const stars=f.scene.getObjectByName('atmosphere-stars'),localStars=[...stars.geometry.attributes.position.array];
   const patch=patches.children[0],position=patch.position.clone(),relativeSun=f.sun.position.clone();
   f.atmosphere.update(0,{focus:{x:110,z:-70}});
   assert.deepEqual(root.position.toArray(),[110,0,-70]);assert.deepEqual(f.sun.target.position.toArray(),[110,0,-70]);
   assert.ok(f.sun.position.clone().sub(root.position).distanceTo(relativeSun)<1e-8);
-  assert.deepEqual([...f.scene.getObjectByName('atmosphere-snow').geometry.attributes.position.array],localSnow);
+  assert.deepEqual([...stars.geometry.attributes.position.array],localStars);
   assert.ok(patch.position.equals(position));assert.equal(patch.parent,patches);
   f.cleanup();assert.equal(patches.parent,null);
 });
 
-test('coarse and reduced-motion configurations keep weather recognizable with fewer particles', () => {
-  const desktop = fixture(), mobile = fixture({ coarse: true }), reduced = fixture({ reducedMotion: true });
-  assert.ok(mobile.atmosphere.getState().particleCounts.rain < desktop.atmosphere.getState().particleCounts.rain);
-  assert.ok(reduced.atmosphere.getState().particleCounts.snow < mobile.atmosphere.getState().particleCounts.snow);
-  reduced.atmosphere.setWeather('snow'); assert.equal(reduced.scene.getObjectByName('atmosphere-snow').visible, true);
-  reduced.atmosphere.update(.05); assert.equal(reduced.scene.getObjectByName('atmosphere-clouds'),undefined);
-  desktop.cleanup(); mobile.cleanup(); reduced.cleanup();
+test('mobile and reduced motion keep seasonal lighting with no precipitation geometry', () => {
+  const desktop = fixture(), mobile = fixture({coarse:true}), reduced = fixture({reducedMotion:true});
+  assert.ok(mobile.atmosphere.getState().particleCounts.stars < desktop.atmosphere.getState().particleCounts.stars);
+  for (const f of [desktop,mobile,reduced]) {
+    f.atmosphere.setWeather('snow'); f.atmosphere.update(.05);
+    const patches=f.scene.getObjectByName('Weather ground patches');
+    assert.ok(patches.children.some(patch=>patch.material.opacity>.5));
+    assert.equal(f.scene.getObjectByName('atmosphere-snow'),undefined); f.cleanup();
+  }
 });
 
-test('rain strokes stay distinct from the actual day and night sky without cloud geometry', () => {
-  const f = fixture(); const rain = f.scene.getObjectByName('atmosphere-rain');
-  const luminance = color => color.r * .2126 + color.g * .7152 + color.b * .0722;
-  for (const time of ['day', 'night', 'sunrise', 'sunset']) {
-    f.atmosphere.setTimeMode(time); f.atmosphere.setWeather('rain');
-    const visibleStroke = rain.material.color.clone().lerp(f.scene.background, 1 - rain.material.opacity);
-    const a = luminance(visibleStroke), b = luminance(f.scene.background);
-    assert.ok((Math.max(a, b) + .05) / (Math.min(a, b) + .05) > 1.65, `${time}: rain remains distinct from sky after transparent blending`);
-    const positions = rain.geometry.attributes.position.array;
-    assert.ok(positions[4] - positions[1] > 1.7, 'Overview-scale rain has long falling streaks');
-    assert.ok(Math.abs(positions[3] - positions[0]) > .1, 'Rain slants with the wind');
+test('rain retains overcast lighting, visibility and fixed puddles across the day', () => {
+  const f=fixture(),patches=f.scene.getObjectByName('Weather ground patches');
+  for (const time of ['day','night','sunrise','sunset']) {
+    f.atmosphere.setTimeMode(time);f.atmosphere.setWeather('clear');
+    const sky=f.scene.background.getHexString(),fog=f.scene.fog.far;
+    f.atmosphere.setWeather('rain');assert.notEqual(f.scene.background.getHexString(),sky);assert.ok(f.scene.fog.far<fog);
+    assert.ok(patches.children.some(patch=>patch.material.opacity===.32));
   }
-  assert.equal(f.scene.getObjectByName('atmosphere-clouds'),undefined);
-  assert.ok(f.scene.getObjectByName('atmosphere-splashes').material.opacity > .4);
-  f.cleanup();
+  assert.equal(f.scene.getObjectByName('atmosphere-clouds'),undefined); f.cleanup();
 });
 
 test('disposing the atmosphere removes and disposes its resources and restores existing lighting', () => {
