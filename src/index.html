@@ -24,6 +24,8 @@
   <link rel="stylesheet" href="./split-flap-text.css">
   <link rel="stylesheet" href="./world-icons.css">
   <link rel="stylesheet" href="./vendor/explore-specular-button.css">
+  <link rel="stylesheet" href="./vendor/nearby-glass-surface.css">
+  <link rel="stylesheet" href="./nearby-glass.css">
   <link rel="stylesheet" href="./mobile-gameplay.css">
   <link rel="stylesheet" href="./world-controls.css">
   <link rel="stylesheet" href="./weather.css">
@@ -104,9 +106,9 @@
 
     <div id="mobile-driving-controls" class="mobile-driving-controls" data-world-overlay hidden>
       <button class="mobile-drive-exit" data-action="home" data-aria="leaveDrive" aria-label="Exit drive"><svg class="icon small"><use href="#i-close"/></svg><span data-copy="leaveDrive">Exit drive</span></button>
-      <p id="thumb-controls-help" class="control-instructions" data-copy="touchDriveHelp">Hold the left pad to go forward or reverse. Hold the right pad to steer. Release to coast and straighten the wheels.</p>
-      <div class="drive-pad drive-pad--movement" role="group" aria-labelledby="movement-label" aria-describedby="thumb-controls-help"><span class="control-instructions" id="movement-label" data-copy="movement">Movement</span><button type="button" data-thumb-action="forward" data-aria="driveForward" aria-label="Hold to drive forward" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 5 9 14H3Z"/></svg></button><button type="button" data-thumb-action="reverse" data-aria="driveReverse" aria-label="Hold to reverse" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19 9-14H3Z"/></svg></button></div>
-      <div class="drive-pad drive-pad--steering" role="group" aria-labelledby="steering-label" aria-describedby="thumb-controls-help"><span class="control-instructions" id="steering-label" data-copy="steering">Steering</span><button type="button" data-thumb-action="left" data-aria="steerLeft" aria-label="Hold to steer left" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 14-9v18Z"/></svg></button><button type="button" data-thumb-action="right" data-aria="steerRight" aria-label="Hold to steer right" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m19 12-14-9v18Z"/></svg></button></div>
+      <p id="thumb-controls-help" class="control-instructions" data-copy="touchDriveHelp">Hold the left pad to go forward or reverse. Slide around the right pad for gradual steering in either direction. Move toward its center to straighten, or release to coast.</p>
+      <div class="drive-pad drive-pad--movement" data-movement-pad role="group" aria-labelledby="movement-label" aria-describedby="thumb-controls-help"><span class="control-instructions" id="movement-label" data-copy="movement">Movement</span><button type="button" data-thumb-action="forward" data-aria="driveForward" aria-label="Hold to drive forward" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 5 9 14H3Z"/></svg></button><button type="button" data-thumb-action="reverse" data-aria="driveReverse" aria-label="Hold to reverse" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 19 9-14H3Z"/></svg></button></div>
+      <div class="drive-pad drive-pad--steering" data-steering-pad role="group" aria-labelledby="steering-label" aria-describedby="thumb-controls-help"><span class="control-instructions" id="steering-label" data-copy="steering">Steering</span><button type="button" data-thumb-action="left" data-aria="steerLeft" aria-label="Hold to steer left" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 14-9v18Z"/></svg></button><button type="button" data-thumb-action="right" data-aria="steerRight" aria-label="Hold to steer right" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m19 12-14-9v18Z"/></svg></button><span class="steering-thumb" aria-hidden="true"></span></div>
     </div>
   </main>
 

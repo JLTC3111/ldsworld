@@ -1,0 +1,21 @@
+/* Native project CTA with the actual React Bits Glass Surface behind its ink. */
+#nearby-project.nearby-project--glass {
+  background:transparent; backdrop-filter:none; -webkit-backdrop-filter:none;
+  border:1px solid #ffffff66; border-radius:16px; box-shadow:0 8px 28px #11111a18;
+  color-scheme:light;
+}
+body.evening #nearby-project.nearby-project--glass { color-scheme:dark; border-color:#ffffff33; }
+.nearby-project--glass > :not(.nearby-glass-host) { position:relative; z-index:1; }
+#nearby-project > .nearby-glass-host { position:absolute; inset:0; z-index:0; pointer-events:none; border-radius:inherit; }
+.nearby-glass-host .glass-surface { border-radius:inherit!important; }
+.nearby-glass-host .glass-surface__content { padding:0; pointer-events:none; }
+.nearby-glass-host .glass-surface--svg { background:linear-gradient(135deg,#ffffffe0,#f3f0e970); }
+body.evening .nearby-glass-host .glass-surface--svg { background:linear-gradient(135deg,#343d45d4,#202b3685); }
+.nearby-glass-host .glass-surface--fallback { background:linear-gradient(135deg,#ffffffe8,#f3f0e999); }
+body.evening .nearby-glass-host .glass-surface--fallback { background:linear-gradient(135deg,#343d45e6,#202b36c2); }
+body.low-power .nearby-glass-host .glass-surface { backdrop-filter:none; -webkit-backdrop-filter:none; }
+body.mobile-gameplay #nearby-project {
+  left:50%; right:auto; transform:translateX(-50%);
+  bottom:calc(env(safe-area-inset-bottom,0px) + var(--thumb-size) + 24px);
+  width:max-content; min-width:min(240px,calc(100vw - 32px)); max-width:calc(100vw - 32px);
+}

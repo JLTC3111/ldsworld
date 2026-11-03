@@ -42,15 +42,31 @@ body.compact-navigation .tiny-star { padding:0; border:0; background:transparent
   --pad-edge:#7888939e; --pad-button:#3c4a59a8;
   --pad-pressed:#b34f40c4; --pad-ink:#fffaf2;
 }
+/* WebKit otherwise highlights the entire clickable pad on an imprecise hold. */
+body.mobile-gameplay,.mobile-driving-controls,.mobile-driving-controls *,body.mobile-gameplay #world,body.mobile-gameplay #world * { -webkit-tap-highlight-color:transparent; }
+.mobile-driving-controls,body.mobile-gameplay #world { -webkit-touch-callout:none; user-select:none; -webkit-user-select:none; }
 body.evening .mobile-driving-controls { --pad-edge:#b0c0d0a1; --pad-button:#4c5c6bb0; --pad-pressed:#b85d4bd9; }
 .drive-pad {
   position:absolute; bottom:max(12px,calc(env(safe-area-inset-bottom,0px) + 12px));
   width:var(--thumb-size); height:var(--thumb-size); border:0; background:none;
   display:flex; align-items:center; justify-content:center; gap:7px;
-  pointer-events:none; user-select:none; -webkit-user-select:none;
+  pointer-events:auto; touch-action:none; user-select:none; -webkit-user-select:none;
 }
 .drive-pad--movement { left:max(12px,calc(env(safe-area-inset-left,0px) + 10px)); flex-direction:column; }
-.drive-pad--steering { right:max(12px,calc(env(safe-area-inset-right,0px) + 10px)); }
+.drive-pad--steering {
+  right:max(12px,calc(env(safe-area-inset-right,0px) + 10px));
+  pointer-events:auto; touch-action:none;
+}
+.drive-pad--steering button { position:absolute; top:50%; transform:translateY(-50%); }
+.drive-pad--steering [data-thumb-action="left"] { left:0; }
+.drive-pad--steering [data-thumb-action="right"] { right:0; }
+.steering-thumb {
+  position:absolute; left:50%; top:50%; width:14px; height:14px;
+  margin:-7px; border:1.5px solid var(--pad-ink); border-radius:50%;
+  background:var(--pad-button); box-shadow:0 0 0 4px #ffffff12;
+  transform:translate(var(--steer-x,0px),var(--steer-y,0px)); pointer-events:none;
+}
+.drive-pad--steering[data-active] .steering-thumb { background:var(--pad-ink); box-shadow:0 0 0 5px var(--pad-pressed); }
 .drive-pad button {
   display:grid; place-items:center; flex:none; width:max(44px,calc(var(--thumb-size) * .36)); height:max(44px,calc(var(--thumb-size) * .36));
   padding:10px; border:1.5px solid var(--pad-edge); border-radius:50%; color:var(--pad-ink);

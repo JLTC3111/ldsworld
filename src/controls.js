@@ -43,7 +43,7 @@ export function bindNavigation({ surface, wheelTarget = surface, keyboard = wind
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     try { surface.setPointerCapture(event.pointerId); } catch { /* Capture can end during a native gesture. */ }
     if (pointers.size >= 2) { multiTouch = true; drag = { ...centroid(), moved: true }; }
-    else drag = { x: event.clientX, y: event.clientY, originX: event.clientX, originY: event.clientY, moved: false, pan: event.button !== 0 || event.shiftKey, primary: event.button === 0 };
+    else drag = { x: event.clientX, y: event.clientY, originX: event.clientX, originY: event.clientY, startedAt: event.timeStamp, moved: false, pan: event.button !== 0 || event.shiftKey, primary: event.button === 0 };
   };
   const move = event => {
     if (isPaused() || !pointers.has(event.pointerId) || !drag) return;
@@ -67,7 +67,8 @@ export function bindNavigation({ surface, wheelTarget = surface, keyboard = wind
   const finish = event => {
     const pointer = pointers.get(event.pointerId);
     if (!pointer) return;
-    if (!isPaused() && event.type === 'pointerup' && !multiTouch && drag?.primary && !drag.moved && Math.hypot(event.clientX - drag.originX, event.clientY - drag.originY) <= 6) onClick?.(event.clientX, event.clientY);
+    // A missed thumb-pad hold must not open a building or start a route on release.
+    if (!isPaused() && event.type === 'pointerup' && !multiTouch && drag?.primary && !drag.moved && event.timeStamp - drag.startedAt <= 450 && Math.hypot(event.clientX - drag.originX, event.clientY - drag.originY) <= 6) onClick?.(event.clientX, event.clientY);
     pointers.delete(event.pointerId);
     try { if (surface.hasPointerCapture?.(event.pointerId)) surface.releasePointerCapture(event.pointerId); } catch { /* Already released. */ }
     if (!pointers.size) { drag = null; multiTouch = false; surface.classList.remove('is-dragging'); }

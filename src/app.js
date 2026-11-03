@@ -1,6 +1,8 @@
 import { createMapPreview } from './map-atlas.js';
 import { createMobileDrivingVisibility } from './mobile-driving-visibility.js';
+import { createMobileDrivingSession } from './mobile-driving-session.js';
 import { mountExploreSpecularButton } from './vendor/explore-specular-button.js';
+import { mountNearbyGlassSurface } from './vendor/nearby-glass-surface.js';
 import { createSplitFlapHeadline } from './split-flap-text.js';
 import { worldOptionIcon, mountWorldIcons } from './world-icons.js';
 import { deviceBudget } from './render-budget.js';
@@ -74,11 +76,13 @@ const mobileDrivingVisibility=createMobileDrivingVisibility({hero:$('.hero'),doc
 let portfolioControls=null;
 let world = null, previousFocus = null, toastTimer = null, speedValue = -1, carSelectionRequest = 0;
 let projectPlayer=null,projectCarousel=null,carouselRequest=0,topography=null,topographyRequest=0,flyingAction=null,flyingRequest=0;
-const touchControls=createTouchDriving({root:$('#mobile-driving-controls'),onInput:input=>world?.setDriveInput(input)});
-const mobileGameplay=createMobileGameplay({onChange:status=>{state.mobileGameplay=status.active;state.portrait=status.portrait;document.body.classList.toggle('mobile-gameplay',state.mobile&&status.active);syncControls();syncMobileControls();}});
+const touchControls=createTouchDriving({root:$('#mobile-driving-controls'),onInput:input=>{mobileDrivingSession.setHeld(touchControls.held);world?.setDriveInput(input);}});
+const nearbyGlassSurface=mountNearbyGlassSurface($('#nearby-project'));
+const mobileGameplay=createMobileGameplay({onChange:status=>{state.mobileGameplay=status.active;state.portrait=status.portrait;mobileDrivingSession.setActive(state.mobile&&status.active);document.body.classList.toggle('mobile-gameplay',state.mobile&&status.active);syncControls();syncMobileControls();}});
+const mobileDrivingSession=createMobileDrivingSession({onStop(){mobileGameplay.exit();explorationUI.revealHero();mobileDrivingVisibility.reset();}});
 const engineAudio = new EngineAudio();
 engineAudio.setEnabled(state.sound);
-const engineUnlock=bindEngineUnlock({audio:engineAudio,isDrivingGesture:event=>event.type==='keydown'?!panel.open&&!!drivingKey(event)&&!event.target.closest?.('input,textarea,select,[contenteditable]'):!!event.target.closest?.('#island-canvas,#explore,[data-thumb-action],[data-drive],[data-action="explore"],[data-action="jump"],[data-action="tour"],[data-drive-project],[data-next-project],[data-teleport],[data-go-portal],[data-go-playground]')});
+const engineUnlock=bindEngineUnlock({audio:engineAudio,isDrivingGesture:event=>event.type==='keydown'?!panel.open&&!!drivingKey(event)&&!event.target.closest?.('input,textarea,select,[contenteditable]'):!!event.target.closest?.('#island-canvas,#explore,[data-thumb-action],[data-steering-pad],[data-movement-pad],[data-drive],[data-action="explore"],[data-action="jump"],[data-action="tour"],[data-drive-project],[data-next-project],[data-teleport],[data-go-portal],[data-go-playground]')});
 const environmentAudio = createEnvironmentAudio({enabled:state.sound});
 environmentAudio.start();
 let backgroundMusic = null;
@@ -640,6 +644,7 @@ try {
     onFrame({ x, z, heading, speed, actualSpeed, rpm, gear, throttle,carModel, acceleration, paused, hop, elapsed,surface,airborne,boosting,landingImpact,steering,weather }) {
       if(!state.mobile)explorationUI.updateMotion({speed:actualSpeed,airborne,hop,paused,dt:elapsed});
       mobileDrivingVisibility.updateMotion({mobile:state.mobile,speed:actualSpeed,airborne,hop,paused,dt:elapsed});
+      mobileDrivingSession.updateMotion({speed:actualSpeed,airborne,hop,paused,dt:elapsed});
       state.carPosition={x,z,heading};
       state.riverDistance = Math.abs(z-riverCenter(x));
       const transform = `translate(${x.toFixed(2)},${z.toFixed(2)}) rotate(${(-heading * 180 / Math.PI).toFixed(1)})`;
@@ -658,4 +663,4 @@ try {
   document.body.classList.add('loaded'); state.ready = true;
   $('#explore').innerHTML = `${icon('grid')}<span data-copy="browseProjects">${t('browseProjects')}</span>${icon('arrow')}`;exploreSpecularButton.refresh();
 }
-window.addEventListener('pagehide', event => { if (!event.persisted) { mapPreview.dispose();portfolioControls.dispose();disposeProjectCarousel();projectPlayer?.destroy();disposeTopography();disposeFlyingAction();mobileGameplay.dispose();touchControls.dispose();explorationUI.dispose();mobileDrivingVisibility.dispose();engineUnlock.dispose();panelDrag.dispose();drivingHud.dispose();disposeShowcase(); world?.dispose(); engineAudio.dispose(); backgroundMusic.dispose();exploreSpecularButton.dispose(); headlineText.dispose();worldIcons?.dispose(); brandTechText.dispose(); environmentAudio.dispose(); } });
+window.addEventListener('pagehide', event => { if (!event.persisted) { mapPreview.dispose();portfolioControls.dispose();disposeProjectCarousel();projectPlayer?.destroy();disposeTopography();disposeFlyingAction();mobileGameplay.dispose();mobileDrivingSession.dispose();touchControls.dispose();nearbyGlassSurface.dispose();explorationUI.dispose();mobileDrivingVisibility.dispose();engineUnlock.dispose();panelDrag.dispose();drivingHud.dispose();disposeShowcase(); world?.dispose(); engineAudio.dispose(); backgroundMusic.dispose();exploreSpecularButton.dispose(); headlineText.dispose();worldIcons?.dispose(); brandTechText.dispose(); environmentAudio.dispose(); } });

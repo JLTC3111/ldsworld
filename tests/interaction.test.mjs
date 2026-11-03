@@ -62,6 +62,24 @@ test('a scene click travels, while a drag or cancelled gesture never starts an a
   assert.deepEqual(clicks, [[11, 21]]); assert.deepEqual(rotations, [[35, 10]]); assert.equal(surface.classes.size, 0); input.dispose();
 });
 
+test('stationary holds do not activate the scene, while intentional short taps and camera drags still work',()=>{
+  for(const pointerType of ['touch','mouse']){
+    const surface=new Surface(),keyboard=new Surface(),clicks=[],rotations=[];
+    const input=bindNavigation({surface,keyboard,onClick:(...point)=>clicks.push(point),onOrbit:(...delta)=>rotations.push(delta)});
+    emit(surface,'pointerdown',{pointerType,timeStamp:1000,clientX:10,clientY:20});
+    emit(surface,'pointerup',{pointerType,timeStamp:1600,clientX:11,clientY:21});
+    assert.deepEqual(clicks,[],'a 600ms hold cannot open a project or start a route');
+    emit(surface,'pointerdown',{pointerType,timeStamp:2000,clientX:10,clientY:20});
+    emit(surface,'pointerup',{pointerType,timeStamp:2200,clientX:11,clientY:21});
+    assert.deepEqual(clicks,[[11,21]],'the next short tap is still intentional scene activation');
+    emit(surface,'pointerdown',{pointerType,timeStamp:3000,clientX:10,clientY:20});
+    emit(surface,'pointermove',{pointerType,timeStamp:3600,clientX:30,clientY:40});
+    emit(surface,'pointerup',{pointerType,timeStamp:3700,clientX:30,clientY:40});
+    assert.deepEqual(rotations,[[20,20]],'holding before a drag does not disable camera movement');
+    assert.deepEqual(clicks,[[11,21]]);assert.equal(surface.classes.size,0);input.dispose();
+  }
+});
+
 test('mouse wheel and trackpad pinch zoom, Shift-scroll pans, and paused panels retain native scrolling', () => {
   assert.equal(wheelGesture({ deltaX: 0, deltaY: 3, deltaMode: 1 }).amount, .12);
   const surface = new Surface(), keyboard = new Surface(), zooms = [], pans = []; let paused = false;
