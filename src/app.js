@@ -36,6 +36,7 @@ import { createProjectCarousel } from './project-carousel.js';
 import { renderProjectCarousel } from './project-carousel-view.js';
 import { createTouchDriving } from './touch-driving.js';
 import { createMobileGameplay } from './mobile-gameplay.js';
+import { renderSectionNavigation } from './section-navigation.js';
 
 const $ = selector => document.querySelector(selector);
 const formatCount = value => String(value).padStart(2,'0');
@@ -106,7 +107,7 @@ portfolioControls=mountPortfolioControls({navigation:$('#header-navigation'),doc
 navigationMedia.addEventListener?.('change',()=>{portfolioControls?.closeMenu();document.body.classList.toggle('compact-navigation',navigationMedia.matches);syncControls();});
 mobileMedia.addEventListener?.('change',()=>{state.mobile=mobileMedia.matches;document.body.classList.toggle('mobile-layout',state.mobile);mobileDrivingVisibility.setMobile(state.mobile);if(state.mobile)explorationUI.revealHero();else mobileGameplay.exit();syncMobileControls();});
 
-function syncMobileControls(){touchControls.setEnabled(state.mobile&&state.exploring);touchControls.setPaused(!!state.panel||carPicker.open||state.menuOpen||document.hidden);$('#rotate-phone-hint').hidden=!(touchControls.active&&state.mobileGameplay&&state.portrait);mobileDrivingVisibility.sync();}
+function syncMobileControls(){touchControls.setEnabled(state.mobile&&state.mobileGameplay&&state.exploring);touchControls.setPaused(!!state.panel||carPicker.open||state.menuOpen||document.hidden);mobileDrivingVisibility.sync();}
 function syncWorldPause(){const paused=!!state.panel||carPicker.open||state.menuOpen||document.hidden;world?.setPaused(paused);syncMobileControls();exploreSpecularButton.refresh();}
 function setMenuOpen(value){state.menuOpen=value;syncWorldPause();}
 function openCarPicker(){
@@ -209,7 +210,7 @@ function showPanel(view, id = null) {
   state.panel = view; state.projectId = id; renderPanel({ mount: false });
   if (!panel.open) panel.showModal();
   startCurrentDemo(); mountShowcase();mountPanelTopography();void mountFlyingAction();void mountProjectCarousel();
-  document.body.classList.add('panel-open'); world?.setPaused(true);syncMobileControls(); panel.scrollTop = 0;
+  document.body.classList.add('panel-open'); world?.setPaused(true);syncMobileControls(); panel.scrollTop = 0; $('#panel-content').scrollTop = 0;
   $('#panel-close').focus({ preventScroll: true });
   refreshNearby(); setHash(view, id);
   syncControls();
@@ -412,7 +413,14 @@ function renderAbout() {
     ${renderCapabilities()}${renderJourney()}<div class="info-links"><button class="primary-button" data-action="contact">${t('navContact')}${icon('up-right')}</button><a class="secondary-button" href="https://github.com/JLTC3111" target="_blank" rel="noopener noreferrer">${icon('github')}GitHub</a></div></article>`;
 }
 function renderContact() {
-  return `<article class="info-content contact-content">${renderTopography()}<p class="panel-eyebrow">${t('contactLabel')}</p><h2 id="panel-title">${t('contactTitle')}</h2><p>${t('contactText')}</p><div class="contact-links"><a href="mailto:dev@icue.vn"><span>${icon('mail')}dev@icue.vn</span>${icon('up-right')}</a><a href="https://github.com/JLTC3111" target="_blank" rel="noopener noreferrer"><span>${icon('github')}GitHub</span>${icon('up-right')}</a><a href="https://www.youtube.com/@Drherbal2011" target="_blank" rel="noopener noreferrer"><span>${icon('play')}YouTube</span>${icon('up-right')}</a></div><div class="contact-location">${t('location')} · UTC+7</div></article>`;
+  const contacts=[
+    ['phone',t('contactPhone'),'0904 540 661','tel:+84904540661'],
+    ['message','WhatsApp','+65 8436 3476','https://wa.me/6584363476'],
+    ['message','Zalo','+84 375 889 900','https://zalo.me/84375889900'],
+    ['mail','Email','dev@icue.vn','mailto:dev@icue.vn'],
+    ['play','YouTube','@Drherbal2011','https://www.youtube.com/@Drherbal2011']
+  ];
+  return `<article class="info-content contact-content"><p class="panel-eyebrow">${t('contactLabel')}</p><h2 id="panel-title">${t('contactTitle')}</h2><p>${t('contactText')}</p><div class="contact-links">${contacts.map(([glyph,label,value,href])=>`<a href="${href}"${href.startsWith('https:')?' target="_blank" rel="noopener noreferrer"':''}><span>${icon(glyph)}<span class="contact-link-copy"><strong>${label}</strong><small>${value}</small></span></span>${icon('up-right')}</a>`).join('')}</div><div class="contact-location">${t('location')} · UTC+7</div></article>`;
 }
 function renderHelp() {
   return `<article class="info-content"><p class="panel-eyebrow">${t('help')}</p><h2 id="panel-title">${t('helpTitle')}</h2><p>${t('helpIntro')}</p><ul class="help-list"><li>${icon('car')}${t(state.mobile?'touchDriveHelp':'helpDrive')}</li><li>${icon('pin')}${t('helpClick')}</li><li>${icon('map')}${t('helpMouse')}</li><li>${icon('map')}${t('helpTrackpad')}</li><li>${icon('grid')}${t('helpProject')}</li>${state.mobile?'':`<li><kbd>↟</kbd>${t('helpBoost')}</li><li>${icon('car')}${t('helpAir')}</li>`}<li>${icon('map')}${t('helpMore')}</li></ul><p class="help-touch">${t('helpTouch')}</p>${reducedMotion ? `<p>${t('reduced')}</p>` : ''}<button class="primary-button" data-action="explore">${t('explore')}${icon('arrow')}</button><p class="help-touch"><a href="./assets/3d_models/credits.html" target="_blank" rel="noopener">${state.language==='vi'?'Tác giả mô hình 3D':'3D model credits'}</a></p></article>`;
@@ -496,6 +504,8 @@ function renderPanel({ mount = true } = {}) {
   const renders = { projects: renderIndex, project: renderProject, about: renderAbout, contact: renderContact, help: renderHelp, map: renderMap, world: renderWorld };
   const content = (renders[state.panel] || renderIndex)();
   panel.classList.add('portfolio-panel'); panel.dataset.view = state.panel || 'projects';
+  const navigation=renderSectionNavigation({view:state.panel||'projects',labels:{projects:t('navWork'),about:t('navAbout'),contact:t('navContact')},label:t('sectionNavigationAria')});
+  $('#panel-section-navigation').innerHTML=navigation; $('#panel-section-navigation').hidden=!navigation;
   $('#panel-content').innerHTML = `<div class="panel-layout">${['map','contact'].includes(state.panel)?'':renderStage()}<div class="panel-reader">${content}</div></div>`;
   if(state.panel==='map')mapPreview.refresh();
   if(state.panel==='world')worldIcons=mountWorldIcons(panel);
@@ -536,6 +546,10 @@ document.addEventListener('focusin', spotlightFromCard);
 document.addEventListener('click', async event => {
   const button = event.target.closest('[data-map-category], [data-map-zoom], [data-teleport], [data-car-model], [data-screen-mode], [data-stack-tool], [data-spotlight], [data-demo-time], [data-time-mode], [data-weather], [data-headlights], [data-zoom], [data-go-portal], [data-go-playground], [data-language], [data-action], [data-open-project], [data-drive-project], [data-next-project], [data-filter]');
   if (!button) return;
+  if(button.matches('.section-navigation a')) {
+    if(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey||event.button>0)return;
+    event.preventDefault();
+  }
   if(button.dataset.mapCategory){state.mapCategory=button.dataset.mapCategory==='objects'?'objects':'buildings';state.mapZoom=1;renderPanel();return;}
   if(button.dataset.mapZoom){state.mapZoom=button.dataset.mapZoom==='fit'?1:Math.max(1,Math.min(6,state.mapZoom*(button.dataset.mapZoom==='in'?1.5:1/1.5)));renderPanel();return;}
   if(button.dataset.teleport){const location=mapLocations(state.language).find(l=>l.id===button.dataset.teleport);if(world?.teleportTo(button.dataset.teleport)){closePanel();drivingHud.reveal();engineAudio.update({...engineAudio.motion,paused:false});engineAudio.impact?.('teleport',3);showToast(`${t('teleported')} ${location?.name||''}`);}return;}

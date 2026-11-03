@@ -138,15 +138,16 @@ test('portfolio routes give auxiliary panels no selection and only project detai
       assert.deepEqual(props.items.map(item=>item.action),['home','projects','about','contact','toggle-language']);
       const dockItems=dock.child.props.items;
       assert.deepEqual(dockItems.slice(0,2).map(item=>item.id),['garage','reset']);
-      assert.ok(!dockItems.some(item=>item.id==='world'),'Desktop settings live below the location badge');
+      assert.ok(!dockItems.some(item=>item.id==='dock-world'),'Desktop settings live below the location badge');
       assert.equal(dockItems.findIndex(item=>item.id==='music'),dockItems.findIndex(item=>item.id==='sound')+1,'Music remains immediately after sound');
       assert.equal(props.particleCount,4);assert.equal(props.animationTime,280);
     }
     controller.update({...model,view:'project'});const props=navigation.child.props;props.onChange(1,props.items[1]);assert.deepEqual(actions,['projects']);
     controller.update({...model,view:'world',mobileNavigation:true});
     assert.ok(navigation.child.props.items.some(item=>item.action==='world'&&item.current),'Mobile navigation retains its selected World destination');
-    assert.deepEqual(dock.child.props.items.slice(0,3).map(item=>item.id),['garage','world','reset']);
-    const world=dock.child.props.items.find(item=>item.id==='world');assert.equal(world.active,true);world.onClick();assert.equal(actions.at(-1),'world');
+    assert.deepEqual(dock.child.props.items.slice(0,3).map(item=>item.id),['garage','dock-world','reset']);
+    assert.ok(!dock.child.props.items.some(item=>item.id==='world'),'World controls must not inherit the full-screen world container layout');
+    const world=dock.child.props.items.find(item=>item.id==='dock-world');assert.equal(world.active,true);world.onClick();assert.equal(actions.at(-1),'world');
     assert.equal(navigation.child.props.items.length,6,'Utilities are not a seventh numbered menu item');
     controller.update({...model,mobileNavigation:true,mobileGameplay:true,night:true,labels:{theme:'Light theme',themeToggle:'Dark theme',languageGroup:'Language'}});
     const theme=navigation.child.props.socialControls,languages=navigation.child.props.headerControls;
@@ -155,5 +156,7 @@ test('portfolio routes give auxiliary panels no selection and only project detai
     assert.equal(languages.props.role,'group');assert.equal(languages.props['aria-label'],'Language');
     assert.deepEqual(languages.props.children.map(button=>button.props['data-language']),['en','vi']);assert.equal(languages.props.children[0].props['aria-pressed'],true);
     assert.equal(dock.child.props.baseItemSize,44,'Stopped mobile gameplay keeps usable touch targets');
+    assert.equal(dock.child.props.magnification,44,'Touching a Dock item keeps every tile aligned at its base size');
+    assert.equal(dock.child.props.showLabels,false,'Touch navigation has accessible names without tooltip labels');
   }finally{controller.dispose();}
 });

@@ -526,6 +526,50 @@ dialog#panel.portfolio-panel::backdrop {
   scrollbar-color: var(--line) transparent;
 }
 
+.portfolio-panel #panel-section-navigation {
+  flex: 0 0 auto;
+}
+
+.portfolio-panel .section-navigation {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px 30px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+}
+
+.portfolio-panel .section-navigation a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 8px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--muted);
+  font: 11px/1.4 var(--mono);
+  text-align: center;
+  text-decoration: none;
+}
+
+.portfolio-panel .section-navigation a:hover {
+  background: var(--hover-bg);
+  color: var(--ink);
+}
+
+.portfolio-panel .section-navigation a[aria-current="page"] {
+  border-color: var(--line);
+  background: var(--active-bg);
+  color: var(--active-ink);
+}
+
+.portfolio-panel .section-navigation a:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
 .portfolio-panel .panel-reader .panel-intro {
   padding: 30px 30px 0;
 }
@@ -1264,6 +1308,11 @@ dialog#panel.portfolio-panel::backdrop {
     width: 100%;
     height: auto;
     overflow: visible;
+  }
+
+  .portfolio-panel .section-navigation {
+    padding-right: 20px;
+    padding-left: 20px;
   }
 
   .portfolio-panel .project-list:is(.cards-count-3,.cards-count-5,.cards-count-7) > .project-card:first-child {

@@ -18,6 +18,7 @@ export function mountPortfolioControls({ navigation, dock, model, onAction, onMe
     if (disposed || serialized === previous) return;
     previous = serialized;
     const { labels, language, night, sound, musicPlaying, view, mobileNavigation, mobileGameplay } = next;
+    const dockBase=mobileGameplay?44:50;
     navigation.dataset.mode=mobileNavigation?'mobile':'desktop';
     const navigationItems = ['home', 'projects', 'about', 'contact','world','garage'].map(action => ({ label:labels[action],ariaLabel:labels[action],link:'#'+action,action,current:view===action||(action==='home'&&!view)||(action==='projects'&&view==='project') }));
     const desktopItems = navigationItems.slice(0,4).map(({label,action})=>({label,action,allowReselect:action==='projects'&&view==='project'}));
@@ -26,7 +27,7 @@ export function mountPortfolioControls({ navigation, dock, model, onAction, onMe
     const item = (id, icon, label, action, active, pressed) => ({ id, icon:glyph(icon), label, active, pressed, onClick:() => onAction(action) });
     const items = [
       item('garage','car',labels.garage,'garage'),
-      ...(mobileNavigation?[item('world','world',labels.world,'world',view==='world')]:[]),
+      ...(mobileNavigation?[item('dock-world','world',labels.world,'world',view==='world')]:[]),
       item('reset', 'reset', labels.reset, 'reset'),
       { separator:true },
       item('sound', sound ? 'sound' : 'muted', labels.sound, 'toggle-sound', sound, sound),
@@ -42,7 +43,7 @@ export function mountPortfolioControls({ navigation, dock, model, onAction, onMe
     </div>;
     flushSync(() => {
       navRoot.render(mobileNavigation ? <StaggeredMenu controllerRef={menuController} position="right" items={navigationItems} headerControls={languageSwitch} socialControls={themeButton} socialItems={[{label:'GitHub',link:'https://github.com/JLTC3111'},{label:'YouTube',link:'https://www.youtube.com/@Drherbal2011'}]} displaySocials={true} displayItemNumbering={true} displayLogo={false} logoUrl="./assets/favicon.svg" isFixed={true} menuButtonColor="#f2eee6" openMenuButtonColor="#f2eee6" changeMenuColorOnOpen={true} colors={['#B497CF','#5227FF']} accentColor="#ff6b6b" menuLabel={labels.menu} closeLabel={labels.closeMenu} openAriaLabel={labels.openMenuAria} closeAriaLabel={labels.closeMenuAria} socialsLabel={labels.socials} navigationLabel={labels.navigation} onItemSelect={selectItem} onMenuOpen={menuOpen} onMenuClose={menuClose} className="portfolio-menu" /> : <GooeyNav items={desktopItems} activeIndex={activeIndex} ariaLabel={labels.navigation} theme={night?'dark':'light'} color={night?'#c9c3b8':'#59636b'} activeTextColor={night?'#353d44':'#f4f0e8'} size="md" frame={true} particleCount={4} spread={12} animationTime={280} timeVariance={50} gooeyness={0.22} wobble={0.12} onChange={(_,item)=>onAction(item.action)} className="portfolio-navigation" style={{'--gn-frame':'var(--chrome)','--gn-frame-edge':'var(--line)','--gn-frame-highlight':'var(--surface)','--gn-ink':'var(--ink)','--gn-muted':'var(--muted)'}} />);
-      dockRoot.render(<Dock items={items} baseItemSize={mobileGameplay?44:50} magnification={mobileGameplay?52:70} panelHeight={mobileGameplay?60:68} autoHide={false} accentColor={night ? '#c7c8c7' : '#65717a'} className="portfolio-dock" style={{ '--dock-panel':'var(--chrome)', '--dock-panel-edge':'var(--line)', '--dock-panel-highlight':'var(--surface)', '--dock-ink':'var(--ink)', '--dock-tile':night ? 'linear-gradient(#444c55, #343c45)' : 'linear-gradient(#f4f0e8, #e6e1d8)', '--dock-tile-edge':'var(--line)', '--dock-dot':'var(--ink)', '--dock-separator':'var(--line)', '--dock-label':'var(--paper)', '--dock-label-ink':'var(--ink)' }} />);
+      dockRoot.render(<Dock items={items} baseItemSize={dockBase} magnification={mobileNavigation?dockBase:70} showLabels={!mobileNavigation} panelHeight={mobileGameplay?60:68} autoHide={false} accentColor={night ? '#c7c8c7' : '#65717a'} className="portfolio-dock" style={{ '--dock-panel':'var(--chrome)', '--dock-panel-edge':'var(--line)', '--dock-panel-highlight':'var(--surface)', '--dock-ink':'var(--ink)', '--dock-tile':night ? 'linear-gradient(#444c55, #343c45)' : 'linear-gradient(#f4f0e8, #e6e1d8)', '--dock-tile-edge':'var(--line)', '--dock-dot':'var(--ink)', '--dock-separator':'var(--line)', '--dock-label':'var(--paper)', '--dock-label-ink':'var(--ink)' }} />);
     });
   }
   update(model);

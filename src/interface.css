@@ -192,7 +192,6 @@ dialog#panel[data-view="project"] #panel-close { border-radius:50% !important; }
 .portfolio-panel[data-view="contact"] #panel-content { overflow-y:auto; }
 .portfolio-panel[data-view="contact"] .panel-reader { overflow:visible; max-width:none; width:100%; }
 .contact-content { max-width:1040px; margin:0 auto; }
-.contact-content .topography-scene { margin:0 0 30px; }
 .tilt-settings { padding:18px 0; border-bottom:1px solid var(--line); }
 .tilt-settings .secondary-button { margin:4px 6px 4px 0; }
 body.mobile-layout #home-link,body.mobile-layout .header-tools { display:none !important; }

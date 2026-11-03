@@ -39,28 +39,22 @@ body.compact-navigation .tiny-star { padding:0; border:0; background:transparent
 .mobile-driving-controls,body.mobile-gameplay { --thumb-size:clamp(112px,31dvh,152px); }
 .mobile-driving-controls {
   position:fixed; inset:0; z-index:8; pointer-events:none;
-  --pad-surface:#f3f0e980; --pad-edge:#7888939e; --pad-button:#3c4a59a8;
+  --pad-edge:#7888939e; --pad-button:#3c4a59a8;
   --pad-pressed:#b34f40c4; --pad-ink:#fffaf2;
 }
-body.evening .mobile-driving-controls { --pad-surface:#17243180; --pad-edge:#b0c0d0a1; --pad-button:#4c5c6bb0; --pad-pressed:#b85d4bd9; }
+body.evening .mobile-driving-controls { --pad-edge:#b0c0d0a1; --pad-button:#4c5c6bb0; --pad-pressed:#b85d4bd9; }
 .drive-pad {
   position:absolute; bottom:max(12px,calc(env(safe-area-inset-bottom,0px) + 12px));
-  width:var(--thumb-size); height:var(--thumb-size); border:1.5px solid var(--pad-edge);
-  border-radius:50%; background:var(--pad-surface); backdrop-filter:blur(4px);
+  width:var(--thumb-size); height:var(--thumb-size); border:0; background:none;
   display:flex; align-items:center; justify-content:center; gap:7px;
-  pointer-events:auto; touch-action:none; user-select:none; -webkit-user-select:none;
+  pointer-events:none; user-select:none; -webkit-user-select:none;
 }
 .drive-pad--movement { left:max(12px,calc(env(safe-area-inset-left,0px) + 10px)); flex-direction:column; }
 .drive-pad--steering { right:max(12px,calc(env(safe-area-inset-right,0px) + 10px)); }
-.drive-pad-label {
-  position:absolute; top:-25px; left:50%; transform:translateX(-50%);
-  padding:4px 7px; border-radius:5px; background:var(--chrome); color:var(--ink);
-  font:9px var(--mono); text-transform:uppercase; letter-spacing:.7px; white-space:nowrap;
-}
 .drive-pad button {
   display:grid; place-items:center; flex:none; width:max(44px,calc(var(--thumb-size) * .36)); height:max(44px,calc(var(--thumb-size) * .36));
   padding:10px; border:1.5px solid var(--pad-edge); border-radius:50%; color:var(--pad-ink);
-  background:var(--pad-button); touch-action:none; user-select:none; -webkit-user-select:none;
+  background:var(--pad-button); pointer-events:auto; touch-action:none; user-select:none; -webkit-user-select:none;
 }
 .drive-pad button[aria-pressed="true"] { background:var(--pad-pressed); border-color:var(--pad-ink); }
 .drive-pad button svg { width:100%; height:100%; fill:currentColor; pointer-events:none; }
@@ -70,12 +64,6 @@ body.evening .mobile-driving-controls { --pad-surface:#17243180; --pad-edge:#b0c
   display:flex; align-items:center; justify-content:center; gap:5px; min-height:44px; padding:8px 12px;
   border:1px solid var(--chrome-border); border-radius:999px; background:var(--paper); color:var(--ink);
   font:10px var(--mono); pointer-events:auto;
-}
-.rotate-phone-hint {
-  position:absolute; top:calc(env(safe-area-inset-top,0px) + 180px); left:50%; transform:translateX(-50%);
-  width:max-content; max-width:calc(100vw - 48px); margin:0; padding:8px 12px;
-  border:1px solid var(--chrome-border); border-radius:8px; background:var(--paper); color:var(--ink);
-  font:11px/1.5 var(--mono); text-align:center;
 }
 body.mobile-gameplay .hero,body.mobile-gameplay .world-caption { display:none; }
 body.mobile-gameplay #world { height:100vh; height:100dvh; }
