@@ -1,3 +1,5 @@
+import { isAudioControl } from './audio-gesture.js';
+
 const definitions = {
   wind: { loop: true, retry: 32 }, water: { loop: true, retry: 32 },
   rooster: { loop: false, interval: 32, gain: .065, phase: hour => hour >= 5.5 && hour < 9.5 },
@@ -101,7 +103,7 @@ export function createEnvironmentAudio({
     return Promise.all(attempts).then(results => !disposed && (results.some(Boolean) || Object.values(tracks).some(track => track.playing)));
   }
   function gesture(event) {
-    if (event.isTrusted !== true || event.ctrlKey || event.metaKey || event.altKey || event.repeat || !wanted()) return;
+    if (event.isTrusted !== true || event.ctrlKey || event.metaKey || event.altKey || event.repeat || isAudioControl(event) || !wanted()) return;
     // Invoke play synchronously while the native user activation is still live.
     run({ retryBlocked: true }); schedule();
   }

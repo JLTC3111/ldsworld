@@ -20,3 +20,15 @@ test('driving gestures retry denied audio, restore suspended audio and retain th
   audio.enabled=false;audio.context.state='suspended';events.emit('keydown',{driving:true});documentTarget.emit('visibilitychange');assert.equal(attempts,3,'Mute never gets overridden');
   binding.dispose();assert.equal(events.listeners.size,0);assert.equal(documentTarget.listeners.size,0);
 });
+
+test('Space on an audio control cannot unlock driving audio before its button click',async()=>{
+  const events=new Target(),documentTarget=new Target();let attempts=0;
+  const audio={enabled:true,unlocked:false,context:null,async resume(){attempts++;return true;}};
+  const binding=bindEngineUnlock({audio,eventTarget:events,documentTarget,isDrivingGesture:event=>event.key===' '});
+  for(const id of ['sound','music']){
+    events.emit('keydown',{key:' ',target:{closest:selector=>selector.includes(`#${id}`)?{id}:null}});
+    await Promise.resolve();assert.equal(attempts,0,'Audio controls own their activation, including Space');
+  }
+  events.emit('keydown',{key:' ',target:{closest:()=>null}});assert.equal(attempts,1,'Space still unlocks the engine during driving');
+  binding.dispose();
+});

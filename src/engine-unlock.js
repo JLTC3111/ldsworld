@@ -1,9 +1,11 @@
+import { isAudioControl } from './audio-gesture.js';
+
 // Audio must unlock inside a real driving gesture. Keep listening after the
 // first attempt: browsers can deny it or suspend the context after a tab switch.
 export function bindEngineUnlock({audio,eventTarget=globalThis.window,documentTarget=globalThis.document,isDrivingGesture=()=>true}){
   let disposed=false;
   const unlock=event=>{
-    if(disposed||!audio.enabled||documentTarget?.hidden||event.isTrusted===false||event.repeat||event.ctrlKey||event.metaKey||event.altKey||!isDrivingGesture(event))return;
+    if(disposed||!audio.enabled||documentTarget?.hidden||event.isTrusted===false||event.repeat||event.ctrlKey||event.metaKey||event.altKey||isAudioControl(event)||!isDrivingGesture(event))return;
     if(audio.unlocked&&audio.context?.state==='running')return;
     audio.resume().catch(()=>{});
   };

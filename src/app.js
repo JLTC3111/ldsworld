@@ -83,7 +83,7 @@ const mobileDrivingSession=createMobileDrivingSession({onStop(){mobileGameplay.e
 const engineAudio = new EngineAudio();
 engineAudio.setEnabled(state.sound);
 const engineUnlock=bindEngineUnlock({audio:engineAudio,isDrivingGesture:event=>event.type==='keydown'?!panel.open&&!!drivingKey(event)&&!event.target.closest?.('input,textarea,select,[contenteditable]'):!!event.target.closest?.('#island-canvas,#explore,[data-thumb-action],[data-steering-pad],[data-movement-pad],[data-drive],[data-action="explore"],[data-action="jump"],[data-action="tour"],[data-drive-project],[data-next-project],[data-teleport],[data-go-portal],[data-go-playground]')});
-const environmentAudio = createEnvironmentAudio({enabled:state.sound});
+const environmentAudio = createEnvironmentAudio({enabled:state.sound,onStateChange:snapshot=>{state.environmentSoundPlaying=snapshot.playing;syncSoundButton();}});
 environmentAudio.start();
 let backgroundMusic = null;
 backgroundMusic = createBackgroundMusic({enabled:state.music,muted:!state.sound,onStateChange:syncMusicButton});
@@ -101,9 +101,10 @@ const brandTechText = createTechText($('#brand-wordmark'), { text:'long d.', fon
 const exploreSpecularButton=mountExploreSpecularButton($('#explore'),{isActive:()=>!state.panel&&!state.menuOpen&&!state.mobileGameplay&&!document.body.classList.contains('ui-hidden')&&!$('.hero').classList.contains('hero-driving')});
 function controlsModel() {
   const musicPlaying=state.musicPlaying??state.music;
-  return {mobileGameplay:state.mobile&&state.mobileGameplay,mobileNavigation:navigationMedia.matches,language:state.language,night:state.night,sound:state.sound,musicPlaying,view:state.panel,labels:{
+  const sound=soundActive();
+  return {mobileGameplay:state.mobile&&state.mobileGameplay,mobileNavigation:navigationMedia.matches,language:state.language,night:state.night,sound,musicPlaying,view:state.panel,labels:{
     home:t('navHome'),projects:t('navWork'),about:t('navAbout'),contact:t('navContact'),world:t('worldSettings'),language:t('switchLanguage'),navigation:t('navigationAria'),
-    menu:t('menuLabel'),closeMenu:t('closeMenuLabel'),openMenuAria:t('openMenuAria'),closeMenuAria:t('closeMenuAria'),socials:t('socialLinks'),garage:t('chooseCar'),reset:`${t('reset')} (R)`,sound:t(state.sound?'soundOff':'soundOn'),music:t(musicPlaying?'musicPause':'musicPlay'),theme:t(state.night?'day':'night'),themeToggle:t('darkTheme'),languageGroup:t('languageAria'),help:t('help')
+    menu:t('menuLabel'),closeMenu:t('closeMenuLabel'),openMenuAria:t('openMenuAria'),closeMenuAria:t('closeMenuAria'),socials:t('socialLinks'),garage:t('chooseCar'),reset:`${t('reset')} (R)`,sound:t(sound?'soundOff':'soundOn'),music:t(musicPlaying?'musicPause':'musicPlay'),theme:t(state.night?'day':'night'),themeToggle:t('darkTheme'),languageGroup:t('languageAria'),help:t('help')
   }};
 }
 function syncControls() { portfolioControls?.update(controlsModel()); }
@@ -491,7 +492,7 @@ function renderWorld() {
 }
 function syncMusicButton(snapshot) {
   const info=snapshot||backgroundMusic?.getState()||{enabled:state.music,blocked:false};
-  const active=info.enabled&&!info.blocked;
+  const active=info.enabled&&info.playing&&!info.muted;
   state.musicPlaying=active;syncControls();
 }
 function syncSoundButton() {
@@ -533,7 +534,7 @@ async function performAction(action) {
   if(action==='hydraulics'){world?.hydraulics();return;}
   if (action === 'tour') { startTour(); return; }
   if (action === 'explore') { closePanel(); if (world) {if(state.mobile)void mobileGameplay.enter();else explorationUI.explore();mobileDrivingVisibility.sync();world.start();} else if (state.ready) showPanel('projects'); else showToast(t('loading')); return; }
-  if (action === 'toggle-music') { const current=backgroundMusic.getState();state.music=!current.enabled||current.blocked;storage.set('music',state.music?'on':'off');backgroundMusic.setEnabled(state.music);return; }
+  if (action === 'toggle-music') { toggleMusic(); return; }
   if (action === 'watch-demo') { seekDemo(0); return; }
   if (action === 'reset-showcase') { panelShowcase?.resetView(); return; }
   if (action === 'close-world') { closePanel(); return; }
@@ -591,9 +592,28 @@ $('#skip-link').addEventListener('click', event => { event.preventDefault(); sho
 $('#nearby-project').addEventListener('click', () => { if (state.nearby) openProject(state.nearby); });
 $('#stop-tour').addEventListener('click', stopTour);
 
-async function toggleSound() {
-  state.sound = !state.sound; storage.set('sound', state.sound ? 'on' : 'off'); engineAudio.setEnabled(state.sound);backgroundMusic.setMuted(!state.sound);environmentAudio.setEnabled(state.sound);
-  if (state.sound) await engineAudio.resume(); syncSoundButton();
+function soundActive() {
+  return !!(state.sound && (state.environmentSoundPlaying || state.musicPlaying || engineAudio.unlocked && engineAudio.context?.state === 'running'));
+}
+function setSoundEnabled(enabled) {
+  state.sound = !!enabled; storage.set('sound', state.sound ? 'on' : 'off');
+  engineAudio.setEnabled(state.sound); backgroundMusic.setMuted(!state.sound); environmentAudio.setEnabled(state.sound);
+  syncSoundButton();
+  if (state.sound) {
+    // Request every audio bus inside the click, without waiting for another bus
+    // to unlock (a suspended AudioContext may leave resume() pending).
+    void engineAudio.resume().then(syncSoundButton).catch(() => {});
+    void environmentAudio.start();
+    if (state.music) void backgroundMusic.start(true);
+  }
+}
+function toggleSound() { setSoundEnabled(!soundActive()); }
+function toggleMusic() {
+  const current = backgroundMusic.getState();
+  state.music = !current.enabled || !current.playing || current.blocked || current.muted;
+  storage.set('music', state.music ? 'on' : 'off');
+  if (state.music) setSoundEnabled(true);
+  backgroundMusic.setEnabled(state.music);
 }
 function honk() { if (state.sound) engineAudio.resume().then(() => engineAudio.honk()).catch(() => {}); }
 document.addEventListener('visibilitychange',()=>{engineAudio.suspend(document.hidden);syncMobileControls();if(!document.hidden&&state.panel==='map')mapPreview.refresh();else if(document.hidden)mapPreview.clear();});

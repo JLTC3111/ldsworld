@@ -44,6 +44,18 @@ test('real recordings are allocated once and blocked autoplay unlocks synchronou
   assert.equal(audio.wind.plays,2);assert.equal(audio.water.plays,2);assert.equal(audio.rooster.plays,2);assert.equal(clock.timers.size,1);controller.dispose();
 });
 
+test('sound-control pointerdown and keydown do not enable ambience before their click action',async()=>{
+  const {events,audio,controller}=fixture({denied:true});await controller.start();
+  Object.values(audio).forEach(track=>track.denied=false);
+  for(const type of ['pointerdown','keydown'])for(const id of ['sound','music']){
+    events.fire(type,{isTrusted:true,target:{closest:selector=>selector.includes(`#${id}`)?{id}:null}});
+    await flush();assert.equal(audio.wind.plays,1);assert.equal(controller.getState().playing,false);
+  }
+  // The explicit enable action retries even when the saved preference was on.
+  assert.equal(await controller.start(),true);assert.equal(audio.wind.plays,2);
+  assert.equal(controller.getState().playing,true);controller.dispose();
+});
+
 test('morning calls use real elapsed cooldowns, do not overlap, and never catch up with a burst',async()=>{
   const {clock,audio,controller}=fixture();controller.update({hour:5.49});await controller.start();assert.equal(audio.rooster.plays,0);
   controller.update({hour:5.5});await flush();assert.equal(audio.rooster.plays,1);assert.equal(audio.rooster.loop,false);audio.rooster.finish();

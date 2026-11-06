@@ -42,3 +42,31 @@ test('initial playback waits for activation without constructing or fetching the
   activation.hasBeenActive=true;doc.hidden=true;doc.fire('visibilitychange');doc.hidden=false;doc.fire('visibilitychange');await flush();assert.equal(created,1);assert.equal(player.getState().playing,true);
   player.dispose();
 });
+
+test('explicit sound and music controls own their pointer and keyboard activation',async()=>{
+  for(const type of ['pointerdown','keydown'])for(const id of ['sound','music']){
+    const {events,audio,player}=fixture();
+    await player.start();audio.denied=false;
+    // Include an SVG child: the listener must recognize its closest button.
+    const target={closest:selector=>selector.includes(`#${id}`)?{id}:null};
+    const before=audio.plays;events.fire(type,{isTrusted:true,target});await flush();
+    assert.equal(audio.plays,before,`${id} ${type} must not change playback before click`);
+    assert.equal(player.getState().blocked,true);
+    // The Play click still sees the blocked state and enables, rather than
+    // immediately pausing music that its pointerdown just started.
+    const current=player.getState();player.setEnabled(!current.enabled||current.blocked);
+    await flush();assert.equal(player.getState().playing,true);assert.equal(audio.muted,false);
+    player.dispose();
+  }
+});
+
+test('overlapping activation requests share pending playback and pause cancels late success',async()=>{
+  const {events,audio,player}=fixture();audio.denied=false;
+  let resolve;audio.play=function(){this.plays++;return new Promise(done=>resolve=done);};
+  const first=player.start(true);events.fire('pointerdown');events.fire('keydown');player.setEnabled(true);
+  assert.equal(audio.plays,1,'Slow loading must not issue another play request for every gesture');
+  player.setEnabled(false);resolve();assert.equal(await first,false);
+  assert.equal(player.getState().playing,false);assert.equal(audio.paused,true);
+  events.fire('pointerdown');assert.equal(audio.plays,1,'An explicit pause survives later interaction');
+  player.dispose();
+});

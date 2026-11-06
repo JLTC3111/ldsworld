@@ -190,8 +190,12 @@ kbd {
   white-space: nowrap;
 }
 .loading-flower {
-  font: 32px sans-serif;
+  display: block;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
   color: var(--muted);
+  transform-origin: center;
   animation: grow 4s linear infinite;
 }
 @keyframes grow{
@@ -201,6 +205,9 @@ kbd {
 }
 body.loaded #world-loading {
   opacity: 0;
+}
+body.loaded .loading-flower {
+  animation-play-state: paused;
 }
 #webgl-fallback {
   position: absolute;
